@@ -39,3 +39,7 @@ Thumbs.db
 
 # NOTE: ive/qml/shell/shaders/*.qsb IS committed on purpose - it is the
 # compiled shader the app ships, built with pyside6-qsb.
+
+# Local workflow files, not part of the public project
+CLAUDE.md
+startup_ive.bat
