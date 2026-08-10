@@ -1,21 +1,37 @@
 # IVE — Individual Video Editor
 
-A free, open-source desktop video editor for **Windows, Linux and macOS**,
-with a CapCut-style workflow: a timeline-centric interface, fast everyday
+**⚠️ Work in progress — this project is still being designed and written.**
+It is not ready for everyday use yet: expect missing features, rough edges
+and breaking changes between commits.
+
+A free, open-source desktop video editor for **Windows and Linux**, with a
+CapCut-style workflow: a timeline-centric interface, fast everyday
 operations, and creative tools that anyone can extend **without writing
 code** and share with other users as plain files.
 
 > **Status: early development (alpha).** The editor opens projects, plays
 > and edits multi-clip timelines with audio, applies colour effects and
 > exports video. Many features are still on the way — see the roadmap
-> below. Expect rough edges.
+> below. macOS is not supported for now (untested; the codebase avoids
+> platform-specific paths, so it may come later).
+
+![Colour effects on the timeline](docs/screenshots/color-effects.png)
+*Colour effects: families, live previews on your own footage, favourites,
+and a pink clip on the dedicated Color lane.*
+
+![Timeline editing](docs/screenshots/timeline-editing.png)
+*The timeline: media pool with real thumbnails, drag to place, trim with
+snapping, split, per-clip volume.*
+
+![Idle waves](docs/screenshots/idle-waves.png)
+*The idle screen: PS4-style waves, computed per pixel on the GPU.*
 
 ## Why another editor?
 
 Commercial editors are approachable but closed: their music, effects and
 presets live behind an account and a paywall. Professional open-source
 editors are powerful but demand a learning curve. IVE aims at the gap
-between the two:
+between the two, on Windows and Linux:
 
 - **Approachable first.** Full-screen immersive interface, drag-and-drop
   editing, one-click social export presets.
