@@ -11,8 +11,7 @@ venv/
 user_data/
 
 # ── Heavy resources: AI model weights are distributed separately ──────
-models/*
-!models/.gitkeep
+models/
 
 # ── Test artifacts (generated fixtures, screenshots, traces) ──────────
 tests/output/
@@ -43,3 +42,4 @@ Thumbs.db
 # Local workflow files, not part of the public project
 CLAUDE.md
 startup_ive.bat
+tests/
