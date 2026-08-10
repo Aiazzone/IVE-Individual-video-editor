@@ -63,7 +63,8 @@ between the two, on Windows and Linux:
 
 Audio in the export, real waveforms, text and titles, stickers,
 transitions, AI tools (auto-cut, subtitles), content packs (`.ivepack`).
-The detailed plan lives in [`docs/ROADMAP.md`](docs/ROADMAP.md).
+The living checklist is [`ROADMAP.md`](ROADMAP.md); the detailed
+engineering plan lives in [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ## Technology
 
