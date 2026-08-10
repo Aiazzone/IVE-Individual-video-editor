@@ -1,0 +1,16 @@
+module shell
+
+AmbientBackdrop 1.0 AmbientBackdrop.qml
+PreviewPlaceholder 1.0 PreviewPlaceholder.qml
+ToolRail 1.0 ToolRail.qml
+FloatingPanel 1.0 FloatingPanel.qml
+TransportControls 1.0 TransportControls.qml
+Readout 1.0 Readout.qml
+TimelinePanel 1.0 TimelinePanel.qml
+SettingsContent 1.0 SettingsContent.qml
+NewProjectContent 1.0 NewProjectContent.qml
+ProjectContent 1.0 ProjectContent.qml
+ExportContent 1.0 ExportContent.qml
+ColorContent 1.0 ColorContent.qml
+StickersContent 1.0 StickersContent.qml
+IdleBackdrop 1.0 IdleBackdrop.qml

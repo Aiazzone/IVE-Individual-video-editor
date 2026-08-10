@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "id": "dark",
+  "name": { "en": "Dark", "it": "Scuro", "pt": "Escuro", "es": "Oscuro" },
+  "author": "IVE",
+  "dark": true,
+  "colors": {
+    "bgRoot": "#0E0E11",
+    "bgPanel": "#16161A",
+    "bgElevated": "#1E1E24",
+    "bgSunken": "#0A0A0C",
+    "bgHover": "#24242C",
+    "bgPressed": "#2C2C36",
+    "border": "#2A2A32",
+    "borderStrong": "#3A3A46",
+
+    "text": "#EDEDF2",
+    "textMuted": "#B0B0BE",
+    "textDisabled": "#84848F",
+
+    "accent": "#4C8DFF",
+    "accentHover": "#6BA1FF",
+    "accentPressed": "#3A78E6",
+    "onAccent": "#FFFFFF",
+    "danger": "#FF4D4F",
+    "warning": "#F5A623",
+    "success": "#22C55E",
+
+    "clipVideo": "#2D6BD4",
+    "clipAudio": "#1F8A5C",
+    "clipText": "#8B5CF6",
+    "clipImage": "#D97706",
+    "clipAdjustment": "#6B7280",
+    "clipSelected": "#FFFFFF",
+
+    "playhead": "#FF4D4F",
+    "trackHeaderBg": "#131318",
+    "rulerBg": "#101014",
+    "gridLine": "#22222A",
+
+    "glassTint": "#0A0A0C",
+    "glassBorder": "#2EFFFFFF",
+    "glassOn": "#FFFFFF",
+    "shadow": "#000000"
+  }
+}

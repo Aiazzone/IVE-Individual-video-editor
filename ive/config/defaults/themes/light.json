@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "id": "light",
+  "name": { "en": "Light", "it": "Chiaro", "pt": "Claro", "es": "Claro" },
+  "author": "IVE",
+  "dark": false,
+  "_note": "Glass surfaces invert: a light tint with dark content on top. The worst case becomes a black frame instead of a white one, and the same scrim floors hold (see docs/UI_SHELL.md 4).",
+  "colors": {
+    "bgRoot": "#F2F2F5",
+    "bgPanel": "#FFFFFF",
+    "bgElevated": "#FFFFFF",
+    "bgSunken": "#E7E7EC",
+    "bgHover": "#ECECF1",
+    "bgPressed": "#DFDFE6",
+    "border": "#D8D8DE",
+    "borderStrong": "#BFBFC8",
+
+    "text": "#16161A",
+    "textMuted": "#4A4A56",
+    "textDisabled": "#75757F",
+
+    "accent": "#2C6FE0",
+    "accentHover": "#1F5FCC",
+    "accentPressed": "#174FB0",
+    "onAccent": "#FFFFFF",
+    "danger": "#D93438",
+    "warning": "#B4700F",
+    "success": "#15803D",
+
+    "clipVideo": "#2D6BD4",
+    "clipAudio": "#177C50",
+    "clipText": "#7C3AED",
+    "clipImage": "#C2660A",
+    "clipAdjustment": "#6B7280",
+    "clipSelected": "#16161A",
+
+    "playhead": "#D93438",
+    "trackHeaderBg": "#EDEDF1",
+    "rulerBg": "#E9E9EE",
+    "gridLine": "#DCDCE3",
+
+    "glassTint": "#FAFAFC",
+    "glassBorder": "#33000000",
+    "glassOn": "#16161A",
+    "shadow": "#66000000"
+  }
+}

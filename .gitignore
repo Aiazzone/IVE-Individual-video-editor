@@ -1,0 +1,41 @@
+# ── Python ────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# ── User data: settings, logs, caches, projects. The "three sisters"
+#    layout (CLAUDE.md §3) says the app writes ONLY here — none of it
+#    belongs in the repository. ───────────────────────────────────────
+user_data/
+
+# ── Heavy resources: AI model weights are distributed separately ──────
+models/*
+!models/.gitkeep
+
+# ── Test artifacts (generated fixtures, screenshots, traces) ──────────
+tests/output/
+tests/visual/output/
+_shots/
+*.trace
+
+# ── Build output ──────────────────────────────────────────────────────
+build/
+dist/
+*.spec.bak
+
+# ── Sample media used during development, not part of the product ─────
+/*.mp4
+/*.mov
+/*.mkv
+
+# ── Editors, assistants and OS noise ──────────────────────────────────
+.vscode/
+.idea/
+.claude/
+Thumbs.db
+.DS_Store
+
+# NOTE: ive/qml/shell/shaders/*.qsb IS committed on purpose - it is the
+# compiled shader the app ships, built with pyside6-qsb.

@@ -1,0 +1,40 @@
+[
+  {
+    "schema_version": 1,
+    "id": "neon_night",
+    "name": {"en": "Neon night", "it": "Notte al neon", "es": "Noche de neón", "pt": "Noite neon"},
+    "section": "cyberpunk",
+    "ops": [
+      {"op": "temperature", "amount": -0.4},
+      {"op": "tint", "amount": 0.3},
+      {"op": "contrast", "amount": 1.2},
+      {"op": "saturation", "amount": 1.35}
+    ]
+  },
+  {
+    "schema_version": 1,
+    "id": "synthwave",
+    "name": {"en": "Synthwave", "it": "Synthwave", "es": "Synthwave", "pt": "Synthwave"},
+    "section": "cyberpunk",
+    "ops": [
+      {"op": "matrix",
+       "m": [[0.95, 0.0, 0.2],
+             [0.0, 0.85, 0.25],
+             [0.15, 0.0, 1.1]]},
+      {"op": "contrast", "amount": 1.15},
+      {"op": "fade", "amount": 0.15}
+    ]
+  },
+  {
+    "schema_version": 1,
+    "id": "acid_city",
+    "name": {"en": "Acid city", "it": "Città acida", "es": "Ciudad ácida", "pt": "Cidade ácida"},
+    "section": "cyberpunk",
+    "ops": [
+      {"op": "tint", "amount": -0.35},
+      {"op": "contrast", "amount": 1.15},
+      {"op": "saturation", "amount": 1.2},
+      {"op": "gamma", "value": 0.9}
+    ]
+  }
+]

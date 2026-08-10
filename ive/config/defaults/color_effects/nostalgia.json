@@ -1,0 +1,52 @@
+[
+  {
+    "schema_version": 1,
+    "id": "warm_memory",
+    "name": {"en": "Warm memory", "it": "Ricordo caldo", "es": "Recuerdo cálido", "pt": "Lembrança quente"},
+    "section": "nostalgia",
+    "ops": [
+      {"op": "temperature", "amount": 0.35},
+      {"op": "fade", "amount": 0.4},
+      {"op": "saturation", "amount": 0.85},
+      {"op": "vignette", "strength": 0.3}
+    ]
+  },
+  {
+    "schema_version": 1,
+    "id": "vhs_80s",
+    "name": {"en": "80s VHS", "it": "VHS anni 80", "es": "VHS años 80", "pt": "VHS anos 80"},
+    "section": "nostalgia",
+    "ops": [
+      {"op": "saturation", "amount": 1.15},
+      {"op": "contrast", "amount": 1.08},
+      {"op": "tint", "amount": 0.15},
+      {"op": "fade", "amount": 0.3},
+      {"op": "vignette", "strength": 0.45}
+    ]
+  },
+  {
+    "schema_version": 1,
+    "id": "faded_film",
+    "name": {"en": "Faded film", "it": "Pellicola sbiadita", "es": "Película desvaída", "pt": "Filme desbotado"},
+    "section": "nostalgia",
+    "ops": [
+      {"op": "fade", "amount": 0.6},
+      {"op": "saturation", "amount": 0.7},
+      {"op": "contrast", "amount": 0.92},
+      {"op": "gamma", "value": 0.95}
+    ]
+  },
+  {
+    "schema_version": 1,
+    "id": "sepia",
+    "name": {"en": "Sepia", "it": "Seppia", "es": "Sepia", "pt": "Sépia"},
+    "section": "nostalgia",
+    "ops": [
+      {"op": "matrix",
+       "m": [[0.393, 0.769, 0.189],
+             [0.349, 0.686, 0.168],
+             [0.272, 0.534, 0.131]]},
+      {"op": "vignette", "strength": 0.25}
+    ]
+  }
+]

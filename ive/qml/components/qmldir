@@ -1,0 +1,14 @@
+module components
+
+
+singleton Icons 1.0 Icons.qml
+
+Glyph 1.0 Glyph.qml
+GlassSurface 1.0 GlassSurface.qml
+IconButton 1.0 IconButton.qml
+AppSwitch 1.0 AppSwitch.qml
+SwitchRow 1.0 SwitchRow.qml
+Segmented 1.0 Segmented.qml
+AppSlider 1.0 AppSlider.qml
+SettingRow 1.0 SettingRow.qml
+CardGroup 1.0 CardGroup.qml

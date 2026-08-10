@@ -1,0 +1,45 @@
+[
+  {
+    "schema_version": 1,
+    "id": "black_white",
+    "name": {"en": "Black & white", "it": "Bianco e nero", "es": "Blanco y negro", "pt": "Preto e branco"},
+    "section": "base",
+    "ops": [
+      {"op": "saturation", "amount": 0.0},
+      {"op": "contrast", "amount": 1.05}
+    ]
+  },
+  {
+    "schema_version": 1,
+    "id": "high_contrast",
+    "name": {"en": "High contrast", "it": "Contrasto alto", "es": "Contraste alto", "pt": "Contraste alto"},
+    "section": "base",
+    "ops": [
+      {"op": "contrast", "amount": 1.3},
+      {"op": "saturation", "amount": 1.05}
+    ]
+  },
+  {
+    "schema_version": 1,
+    "id": "soft_pastel",
+    "name": {"en": "Soft pastel", "it": "Pastello tenue", "es": "Pastel suave", "pt": "Pastel suave"},
+    "section": "base",
+    "ops": [
+      {"op": "saturation", "amount": 0.8},
+      {"op": "fade", "amount": 0.3},
+      {"op": "brightness", "amount": 0.04},
+      {"op": "contrast", "amount": 0.95}
+    ]
+  },
+  {
+    "schema_version": 1,
+    "id": "cool_morning",
+    "name": {"en": "Cool morning", "it": "Mattino freddo", "es": "Mañana fría", "pt": "Manhã fria"},
+    "section": "base",
+    "ops": [
+      {"op": "temperature", "amount": -0.3},
+      {"op": "brightness", "amount": 0.02},
+      {"op": "saturation", "amount": 0.95}
+    ]
+  }
+]

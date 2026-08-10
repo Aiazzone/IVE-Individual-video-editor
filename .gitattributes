@@ -1,0 +1,9 @@
+# Normalise line endings: text files are stored with LF, checked out per
+# platform. Binary media and compiled shaders are left untouched.
+* text=auto
+*.png binary
+*.jpg binary
+*.mp4 binary
+*.qsb binary
+*.ttf binary
+*.otf binary

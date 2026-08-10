@@ -1,0 +1,13 @@
+# IVE — runtime dependencies.
+#
+#   pip install -r requirements.txt
+#
+# Licences are tracked in docs/LICENSING.md; check there BEFORE adding a
+# line here. Lower bounds match the versions IVE is developed against;
+# upper bounds are left open on purpose - pin them only when a release
+# actually breaks something.
+
+PySide6>=6.11          # UI: Qt 6 + Qt Quick/QML (LGPL-3.0)
+av>=17.0               # media I/O: FFmpeg bindings (BSD-3; FFmpeg licence applies)
+numpy>=1.26            # frames as arrays, audio mixing (BSD-3)
+opencv-python>=4.11    # fast colour grading: LUT/transform/multiply (Apache-2.0)

@@ -1,0 +1,41 @@
+[
+  {
+    "schema_version": 1,
+    "id": "teal_orange",
+    "name": {"en": "Teal & orange", "it": "Teal e arancio", "es": "Teal y naranja", "pt": "Teal e laranja"},
+    "section": "cinema",
+    "ops": [
+      {"op": "matrix",
+       "m": [[1.08, 0.02, 0.0],
+             [0.02, 1.0, 0.04],
+             [0.0, 0.1, 1.05]]},
+      {"op": "temperature", "amount": 0.15},
+      {"op": "saturation", "amount": 1.1},
+      {"op": "contrast", "amount": 1.08}
+    ]
+  },
+  {
+    "schema_version": 1,
+    "id": "noir",
+    "name": {"en": "Noir", "it": "Noir", "es": "Noir", "pt": "Noir"},
+    "section": "cinema",
+    "ops": [
+      {"op": "saturation", "amount": 0.0},
+      {"op": "contrast", "amount": 1.25},
+      {"op": "gamma", "value": 1.05},
+      {"op": "vignette", "strength": 0.5}
+    ]
+  },
+  {
+    "schema_version": 1,
+    "id": "golden_summer",
+    "name": {"en": "Golden summer", "it": "Estate dorata", "es": "Verano dorado", "pt": "Verão dourado"},
+    "section": "cinema",
+    "ops": [
+      {"op": "temperature", "amount": 0.45},
+      {"op": "saturation", "amount": 1.15},
+      {"op": "brightness", "amount": 0.03},
+      {"op": "gamma", "value": 0.95}
+    ]
+  }
+]
