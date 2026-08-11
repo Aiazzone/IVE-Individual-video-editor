@@ -166,7 +166,7 @@ class ActionBridge(QObject):
 def register_singletons(*, theme, translations, shell, actions,
                         playback=None,
                         project=None, export=None, proxies=None,
-                        colorfx=None, thumbs=None) -> None:
+                        colorfx=None, thumbs=None, history=None) -> None:
     """Expose the four singletons to QML under the ``IVE`` import namespace.
 
     .. warning::
@@ -207,4 +207,8 @@ def register_singletons(*, theme, translations, shell, actions,
         qmlRegisterSingletonInstance(type(colorfx), "IVE", 1, 0, "ColorFx", colorfx)
     if thumbs is not None:
         qmlRegisterSingletonInstance(type(thumbs), "IVE", 1, 0, "Thumbs", thumbs)
+    if history is not None:
+        # Read-only from QML: buttons bind canUndo/canRedo; mutation goes
+        # through the edit.undo / edit.redo actions like everything else.
+        qmlRegisterSingletonInstance(type(history), "IVE", 1, 0, "History", history)
     log.debug("QML singletons registered under the IVE namespace")

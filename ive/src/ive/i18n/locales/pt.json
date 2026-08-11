@@ -97,6 +97,8 @@
   "media.filter.video": "Ficheiros de vídeo",
   "media.filter.all": "Todos os ficheiros",
   "media.error": "Não foi possível abrir o ficheiro",
+  "media.import": "Importar mídia",
+  "media.remove": "Remover mídia",
   "settings.idle_background": "Vídeo de fundo",
   "rail.new_project": "Novo projeto",
   "rail.project": "Projeto",

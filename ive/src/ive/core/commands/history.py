@@ -14,7 +14,7 @@ import logging
 from contextlib import contextmanager
 from typing import Iterator
 
-from PySide6.QtCore import QObject, Signal
+from PySide6.QtCore import Property, QObject, Signal
 
 from ive.core.commands.base import Command, CompositeCommand
 
@@ -58,6 +58,28 @@ class UndoStack(QObject):
 
     def depth(self) -> int:
         return len(self._done)
+
+    # ── the same state, as QML properties ─────────────────────────────
+    # The stack is exposed to QML as the "History" singleton so the undo
+    # and redo buttons can bind their enabled state and tooltip. Mutation
+    # still goes through actions (edit.undo / edit.redo), never directly.
+
+    @Property(bool, notify=changed)
+    def canUndo(self) -> bool:
+        return self.can_undo
+
+    @Property(bool, notify=changed)
+    def canRedo(self) -> bool:
+        return self.can_redo
+
+    @Property(str, notify=changed)
+    def undoLabel(self) -> str:
+        """Translation key of the step Ctrl+Z would revert."""
+        return self.undo_label
+
+    @Property(str, notify=changed)
+    def redoLabel(self) -> str:
+        return self.redo_label
 
     # ── mutation ──────────────────────────────────────────────────────
 

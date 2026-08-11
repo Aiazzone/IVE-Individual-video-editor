@@ -28,11 +28,12 @@ Updated together with the code, so this file always reflects reality.
 - [x] Proxy editing for heavy sources; media pool with real thumbnails
 - [x] Keyboard: Space play/pause, Delete removes selection, digit keys
       open panels — all app-wide, text fields keep priority
+- [x] Undo/redo for every project edit (Command layer over the model):
+      Ctrl+Z / Ctrl+Y, buttons next to the fullscreen toggle, tooltip
+      names the step about to be reverted, autosave follows
 
 ## 🔨 In progress / next up
 
-- [ ] Undo/redo for timeline edits (Command layer — the architecture
-      demands it, the UI buttons are waiting)
 - [ ] Real waveforms on audio clips (peaks, not generated bars)
 - [ ] Text and titles on the timeline
 
@@ -59,5 +60,4 @@ Updated together with the code, so this file always reflects reality.
 
 Every feature above ships with script-style and visual test suites that
 drive the real application (kept in the private working tree for now).
-Known engineering debts are tracked in the session notes; the biggest one
-is the missing Command/undo layer.
+Known engineering debts are tracked in the session notes.

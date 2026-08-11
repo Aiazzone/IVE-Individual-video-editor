@@ -18,6 +18,7 @@ from typing import Any
 
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
+from ive.core.commands.project_commands import ProjectEdit
 from ive.core.model.project import PROJECT_SUFFIX, MediaItem, Project
 from ive.media.probe import MediaProbeError, probe
 from ive.utils.paths import get_data_path, local_path_from_url
@@ -46,9 +47,15 @@ class ProjectService(QObject):
     #: (imported, skipped, failed) after an import batch.
     imported = Signal(int, int, int)
 
-    def __init__(self, settings=None, parent: QObject | None = None) -> None:
+    def __init__(self, settings=None, history=None,
+                 parent: QObject | None = None) -> None:
         super().__init__(parent)
         self._settings = settings
+        #: The UndoStack. Every mutation of the open project goes through it
+        #: (rule 4.6): the slots below build a ProjectEdit and push it, so
+        #: Ctrl+Z can replay the timeline backwards. None (tests, scripts)
+        #: means mutations apply directly and nothing is recorded.
+        self._history = history
         self._project: Project | None = None
         self._dirty = False
 
@@ -183,6 +190,12 @@ class ProjectService(QObject):
     def timelineCount(self) -> int:
         return len(self._project.timeline) if self._project else 0
 
+    # Every mutating slot below has the same shape: validate what needs the
+    # service (lookups, logging), then hand the actual mutation to _edit(),
+    # which records it on the undo stack, emits the signals and autosaves.
+    # The label is the SAME translation key the UI uses for the operation,
+    # so the undo tooltip can say what Ctrl+Z is about to revert.
+
     @Slot(str, result=bool)
     @Slot(str, float, result=bool)
     def place_media(self, media_id: str, at: float = -1.0) -> bool:
@@ -194,52 +207,37 @@ class ProjectService(QObject):
             log.warning("Cannot place unknown media %s", media_id)
             return False
         duration = item.duration or 5.0
-        clip = self._project.add_clip(media_id, duration,
-                                      at=None if at < 0 else float(at))
-        log.info("Placed %s on the timeline at %.2fs (%.2fs long)",
-                 item.name, clip.start, clip.duration)
-        self._mark_dirty()
-        self.timelineChanged.emit()
-        self.save()
-        return True
+
+        def mutate():
+            clip = self._project.add_clip(media_id, duration,
+                                          at=None if at < 0 else float(at))
+            log.info("Placed %s on the timeline at %.2fs (%.2fs long)",
+                     item.name, clip.start, clip.duration)
+            return clip
+
+        return self._edit("timeline.place_media", mutate)
 
     @Slot(str, float, result=bool)
     def move_clip(self, clip_id: str, to: float) -> bool:
-        if self._project is None or not self._project.move_clip(clip_id, float(to)):
-            return False
-        self._mark_dirty()
-        self.timelineChanged.emit()
-        self.save()
-        return True
+        return self._edit("timeline.move_clip",
+                          lambda: self._project.move_clip(clip_id, float(to)))
 
     @Slot(str, result=bool)
     def remove_clip(self, clip_id: str) -> bool:
-        if self._project is None or not self._project.remove_clip(clip_id):
-            return False
-        self._mark_dirty()
-        self.timelineChanged.emit()
-        self.save()
-        return True
+        return self._edit("timeline.remove_clip",
+                          lambda: self._project.remove_clip(clip_id))
 
     @Slot(str, float, result=bool)
     def split_clip(self, clip_id: str, at: float) -> bool:
         """Cut a clip in two at a point on the timeline (seconds)."""
-        if self._project is None or self._project.split_clip(clip_id, float(at)) is None:
-            return False
-        self._mark_dirty()
-        self.timelineChanged.emit()
-        self.save()
-        return True
+        return self._edit("timeline.split",
+                          lambda: self._project.split_clip(clip_id, float(at)))
 
     @Slot(str, float, result=bool)
     def set_clip_volume(self, clip_id: str, volume: float) -> bool:
         """Audio gain for one clip: 0 = silent, 1 = as recorded, max 2."""
-        if self._project is None or not self._project.set_clip_volume(clip_id, volume):
-            return False
-        self._mark_dirty()
-        self.timelineChanged.emit()
-        self.save()
-        return True
+        return self._edit("timeline.volume",
+                          lambda: self._project.set_clip_volume(clip_id, volume))
 
     @Slot(str, float, float, result=bool)
     def place_effect(self, effect_id: str, at: float, duration: float) -> bool:
@@ -251,44 +249,33 @@ class ProjectService(QObject):
         if effect_by_id(effect_id) is None:
             log.warning("Unknown colour effect %r", effect_id)
             return False
-        clip = self._project.add_effect(effect_id, at, duration)
-        log.info("Colour effect %s placed at %.2fs for %.2fs",
-                 effect_id, clip.start, clip.duration)
-        self._mark_dirty()
-        self.timelineChanged.emit()
-        self.save()
-        return True
+
+        def mutate():
+            clip = self._project.add_effect(effect_id, at, duration)
+            log.info("Colour effect %s placed at %.2fs for %.2fs",
+                     effect_id, clip.start, clip.duration)
+            return clip
+
+        return self._edit("timeline.place_effect", mutate)
 
     @Slot(str, float, float, result=bool)
     def trim_clip(self, clip_id: str, source_in: float, duration: float) -> bool:
         """Resize one clip, clamped to its source material."""
-        if self._project is None or not self._project.trim_clip(
-                clip_id, source_in, duration):
-            return False
-        self._mark_dirty()
-        self.timelineChanged.emit()
-        self.save()
-        return True
+        return self._edit("timeline.trim",
+                          lambda: self._project.trim_clip(clip_id, source_in,
+                                                          duration))
 
     @Slot(str, bool, result=bool)
     def set_clip_muted(self, clip_id: str, muted: bool) -> bool:
         """Silence one clip; its volume survives for the unmute."""
-        if self._project is None or not self._project.set_clip_muted(clip_id, muted):
-            return False
-        self._mark_dirty()
-        self.timelineChanged.emit()
-        self.save()
-        return True
+        return self._edit("timeline.mute_clip",
+                          lambda: self._project.set_clip_muted(clip_id, muted))
 
     @Slot(str, bool, result=bool)
     def set_clip_audio(self, clip_id: str, enabled: bool) -> bool:
         """Remove or restore one clip's sound; its volume is remembered."""
-        if self._project is None or not self._project.set_clip_audio(clip_id, enabled):
-            return False
-        self._mark_dirty()
-        self.timelineChanged.emit()
-        self.save()
-        return True
+        return self._edit("timeline.remove_audio",
+                          lambda: self._project.set_clip_audio(clip_id, enabled))
 
     @Slot(str, result=str)
     def clip_media_path(self, clip_id: str) -> str:
@@ -339,6 +326,7 @@ class ProjectService(QObject):
 
         self._project = Project(name=name, folder=str(target))
         self._dirty = True
+        self._clear_history()
         log.info("Project created: %s in %s", name, target)
         self.projectChanged.emit()
         self.mediaChanged.emit()
@@ -377,6 +365,7 @@ class ProjectService(QObject):
         self._project = loaded
         self._check_missing()
         self._dirty = False
+        self._clear_history()
         log.info("Project opened: %s (%d media)", self._project.name, len(self._project.media))
         self.projectChanged.emit()
         self.mediaChanged.emit()
@@ -421,6 +410,7 @@ class ProjectService(QObject):
         log.info("Project closed: %s", self._project.name)
         self._project = None
         self._dirty = False
+        self._clear_history()
         self.projectChanged.emit()
         self.mediaChanged.emit()
         self.dirtyChanged.emit()
@@ -450,38 +440,50 @@ class ProjectService(QObject):
             elif path.is_file():
                 files.append(path)
 
-        added = skipped = failed = 0
+        # Probing happens OUTSIDE the recorded edit: it is slow I/O with no
+        # model effect, and redoing an import must not read the files again.
+        items: list[MediaItem] = []
+        seen: set = set()
+        skipped = failed = 0
         for path in files:
             if path.suffix.lower() not in MEDIA_SUFFIXES:
                 skipped += 1
                 continue
-            if self._project.has_path(path):
+            try:
+                resolved = path.resolve()
+            except OSError:
+                resolved = path
+            # `seen` catches duplicates inside this batch; has_path() the
+            # ones already in the pool. Before the items were added as the
+            # loop went, so has_path() alone covered both.
+            if resolved in seen or self._project.has_path(path):
                 skipped += 1
                 continue
             item = self._probe_to_item(path)
             if item is None:
                 failed += 1
                 continue
-            self._project.add_media(item)
-            added += 1
+            seen.add(resolved)
+            items.append(item)
 
+        added = len(items)
         if added:
-            self._mark_dirty()
-            self.mediaChanged.emit()
-            self.save()
+            def mutate():
+                for item in items:
+                    self._project.add_media(item)
+                return True
+
+            self._edit("media.import", mutate, timeline=False, media=True)
         log.info("Import: %d added, %d skipped, %d failed", added, skipped, failed)
         self.imported.emit(added, skipped, failed)
         return added
 
     @Slot(str, result=bool)
     def remove_media(self, media_id: str) -> bool:
-        if self._project is None or not self._project.remove_media(media_id):
-            return False
-        self._mark_dirty()
-        self.mediaChanged.emit()
-        self.timelineChanged.emit()   # its clips went with it
-        self.save()
-        return True
+        # Its timeline clips go with it, so both lists are in the snapshot.
+        return self._edit("media.remove",
+                          lambda: self._project.remove_media(media_id),
+                          media=True)
 
     @Slot(str, result=str)
     def localPath(self, url: str) -> str:
@@ -542,6 +544,47 @@ class ProjectService(QObject):
         return True
 
     # ── internals ─────────────────────────────────────────────────────
+
+    def _edit(self, label: str, mutate, *, timeline: bool = True,
+              media: bool = False) -> bool:
+        """Run one mutation through the undo stack, then notify and save.
+
+        ``mutate`` returns falsy when the model refused the edit (unknown
+        id, a split outside the clip); nothing is recorded then. Without a
+        history (tests, scripts) the mutation applies directly.
+        """
+        if self._project is None:
+            return False
+        if self._history is None:
+            if not mutate():
+                return False
+        else:
+            command = ProjectEdit(self, label, timeline=timeline, media=media)
+            if not command.capture(mutate):
+                return False
+            self._history.push(command)
+        self._mark_dirty()
+        if timeline:
+            self.timelineChanged.emit()
+        if media:
+            self.mediaChanged.emit()
+        self.save()
+        return True
+
+    def _history_restored(self, *, media_changed: bool,
+                          timeline_changed: bool) -> None:
+        """After an undo or redo put the model back: same duties as an edit."""
+        self._mark_dirty()
+        if timeline_changed:
+            self.timelineChanged.emit()
+        if media_changed:
+            self.mediaChanged.emit()
+        self.save()
+
+    def _clear_history(self) -> None:
+        """A new document means a new past: undo never crosses projects."""
+        if self._history is not None:
+            self._history.clear()
 
     def _probe_to_item(self, path: Path) -> MediaItem | None:
         try:

@@ -63,7 +63,7 @@ class Application:
         self.theme = ThemeService(self.settings)
         self.history = UndoStack()
         self.proxies = ProxyManager(self.settings)
-        self.project = ProjectService(self.settings)
+        self.project = ProjectService(self.settings, history=self.history)
         self.playback = PlaybackService(proxies=self.proxies, settings=self.settings)
         self.export = ExportService(playback=self.playback)
         # The project timeline IS what plays. Rebuilding the sequence on every
@@ -111,6 +111,7 @@ class Application:
             proxies=self.proxies,
             colorfx=self.colorfx,
             thumbs=self.thumbs,
+            history=self.history,
         )
         # Same rule as the singletons: register before the engine exists.
         qmlRegisterType(PreviewItem, "IVE", 1, 0, "PreviewItem")
@@ -187,6 +188,7 @@ class Application:
 
     def _register_actions(self) -> None:
         """Import the action modules so their decorators run, then collect."""
+        from ive.core.actions.builtin import edit_actions  # noqa: F401
         from ive.core.actions.builtin import media_actions  # noqa: F401
         from ive.core.actions.builtin import export_actions  # noqa: F401
         from ive.core.actions.builtin import project_actions  # noqa: F401

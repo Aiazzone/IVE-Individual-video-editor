@@ -61,6 +61,39 @@ Item {
             onTriggered: Actions.invoke("view.toggle_fullscreen")
         }
 
+        // Undo and redo live with the other global controls. Dimmed when
+        // there is nothing to revert; the tooltip names the step, so the
+        // user knows WHAT Ctrl+Z is about to take back.
+        IconButton {
+            objectName: "undoButton"
+            size: 26
+            iconSize: 16
+            onVideo: true
+            tipSide: "right"
+            enabled: History.canUndo
+            icon: Icons.undo
+            label: (Tr.s["timeline.undo"] || "")
+                   + (History.canUndo && Tr.s[History.undoLabel]
+                      ? ": " + Tr.s[History.undoLabel] : "")
+            shortcut: "Ctrl+Z"
+            onTriggered: Actions.invoke("edit.undo")
+        }
+
+        IconButton {
+            objectName: "redoButton"
+            size: 26
+            iconSize: 16
+            onVideo: true
+            tipSide: "right"
+            enabled: History.canRedo
+            icon: Icons.redo
+            label: (Tr.s["timeline.redo"] || "")
+                   + (History.canRedo && Tr.s[History.redoLabel]
+                      ? ": " + Tr.s[History.redoLabel] : "")
+            shortcut: "Ctrl+Y"
+            onTriggered: Actions.invoke("edit.redo")
+        }
+
         Text {
             text: root.timecode
             color: "#FFFFFF"

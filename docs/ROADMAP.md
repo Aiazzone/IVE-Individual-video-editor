@@ -56,9 +56,14 @@ PySide6/QML incontrate qui sono documentate in `CODING_STANDARDS.md` §3-bis.
 - [ ] `core/model/`: Project, Sequence, Track, Clip, EffectInstance, Keyframe
 - [ ] `utils/timecode.py` con test esaustivi (incluso drop-frame)
 - [ ] `project_io/`: serializer JSON versionato + migrations + autosave
-- [ ] Commands base: add/remove/move track e clip
-- [ ] Action corrispondenti
-- [ ] Test: do → undo → stato identico; round-trip di serializzazione
+- [x] Commands: ogni mutazione del progetto (place/move/remove/split/trim/
+      volume/mute/audio/effetto/import/remove media) passa da `ProjectEdit`
+      (memento in `core/commands/project_commands.py`) sull'`UndoStack`;
+      azioni `edit.undo`/`edit.redo` (Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z),
+      bottoni nel Readout, stack azzerato al cambio progetto
+- [x] Action corrispondenti (`timeline_actions.py`, `edit_actions.py`)
+- [x] Test: do → undo → stato identico (`tests/test_undo_redo.py`, il
+      catalogo completo avanti e indietro); round-trip di serializzazione
 
 **Fatto quando:** si crea un progetto via codice, lo si salva, lo si ricarica
 identico, e ogni operazione e' annullabile. Ancora nessuna UI.

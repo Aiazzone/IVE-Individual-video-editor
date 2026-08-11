@@ -417,6 +417,20 @@ Window {
             onActivated: timeline.deleteSelected()
         }
 
+        // A focused text field keeps Ctrl+Z for its own typing undo: the
+        // editor consumes the shortcut-override, so these never fire there.
+        Shortcut {
+            sequences: ["Ctrl+Z"]
+            context: Qt.ApplicationShortcut
+            onActivated: Actions.invoke("edit.undo")
+        }
+        Shortcut {
+            // Both conventions: Windows habit and the shifted pair.
+            sequences: ["Ctrl+Y", "Ctrl+Shift+Z"]
+            context: Qt.ApplicationShortcut
+            onActivated: Actions.invoke("edit.redo")
+        }
+
         focus: true
         Keys.onPressed: function (event) {
             switch (event.key) {

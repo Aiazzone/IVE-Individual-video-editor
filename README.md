@@ -47,6 +47,7 @@ between the two, on Windows and Linux:
 ## What works today
 
 - Projects with a media pool (video, audio, images), thumbnails, autosave
+- Undo/redo across every edit (Ctrl+Z / Ctrl+Y and on-screen buttons)
 - Multi-clip timeline: drag to place and reorder, trim with edge handles
   and snapping, split at the playhead, per-clip volume/mute, remove or
   restore a clip's audio, music (audio-only) clips
@@ -63,7 +64,7 @@ between the two, on Windows and Linux:
 
 ## Roadmap (short version)
 
-Undo/redo, real waveforms, text and titles, stickers,
+Real waveforms, text and titles, stickers,
 transitions, AI tools (auto-cut, subtitles), content packs (`.ivepack`).
 The living checklist is [`ROADMAP.md`](ROADMAP.md); the detailed
 engineering plan lives in [`docs/ROADMAP.md`](docs/ROADMAP.md).
