@@ -31,10 +31,12 @@ Updated together with the code, so this file always reflects reality.
 - [x] Undo/redo for every project edit (Command layer over the model):
       Ctrl+Z / Ctrl+Y, buttons next to the fullscreen toggle, tooltip
       names the step about to be reverted, autosave follows
+- [x] Real waveforms on audio clips: true peaks decoded off-thread and
+      cached per file; trimming, splitting and zooming slide the same
+      strip instead of re-decoding
 
 ## 🔨 In progress / next up
 
-- [ ] Real waveforms on audio clips (peaks, not generated bars)
 - [ ] Text and titles on the timeline
 
 ## 🗺️ Planned

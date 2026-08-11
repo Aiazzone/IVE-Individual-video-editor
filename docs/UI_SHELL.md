@@ -339,6 +339,17 @@ trasparenza e' della lastra, non delle clip.
 
 - Miniature e forme d'onda dentro la clip, con il colore che resta visibile ai
   bordi come cornice di identificazione del tipo.
+- **Forme d'onda vere (2026-08-11)**: `WaveformService` (singleton QML
+  `Waves`, `ui/waveforms.py`) genera UNA striscia PNG per file — picchi
+  bianchi simmetrici su trasparenza, ~100 colonne/s con cap 8192, curva
+  percettiva 0.7, filo centrale di 1px sul silenzio — su worker thread e
+  cache `user_data/cache/waveforms` (stesso pattern anti-deadlock di
+  Thumbs: mai Python sui thread immagine di Qt). La corsia A1 mostra la
+  fetta della clip stirando la striscia intera a `mediaDuration` e
+  facendola scorrere di `-sourceIn`: trim, split e zoom non ridecodificano
+  mai. L'estrazione picchi e' pura (`media/waveform.py`, PyAV + numpy
+  `maximum.reduceat`). Le barre finte restano solo come segnaposto mentre
+  la striscia viene generata la prima volta.
 - Selezione: bordo bianco 2px + leggero bagliore. Mai cambiare il riempimento,
   altrimenti si perde il tipo.
 - Clip disattivata: opacita' 0.4.

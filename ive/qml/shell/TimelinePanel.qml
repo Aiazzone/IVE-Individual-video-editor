@@ -76,8 +76,12 @@ Item {
               clips: clips.filter(function (c) {
                   return c.track === 0 && c.hasAudio && c.audioEnabled;
               }).map(function (c) {
+                  // path/sourceIn/mediaDuration feed the waveform strip:
+                  // the PNG covers the WHOLE file, the clip shows its slice.
                   return { from: c.start, to: c.end, color: Theme.c.clipAudio,
-                           name: c.name, film: false, id: c.id, wave: true };
+                           name: c.name, film: false, id: c.id, wave: true,
+                           path: c.path, sourceIn: c.sourceIn,
+                           mediaDuration: c.mediaDuration };
               }) }
         ];
         // The Color lane exists only while something sits on it: an empty
@@ -671,26 +675,68 @@ Item {
                                     styleColor: "#99000000"
                                 }
 
-                                // Segmented bars for the audio track. Derived
-                                // from the bar index so they stay put; real
-                                // peaks arrive with the waveform cache.
-                                Row {
+                                // The REAL waveform. The strip PNG covers
+                                // the whole source file (Waves renders it
+                                // once, off the GUI thread); this viewport
+                                // shows the clip's slice by stretching the
+                                // strip to the file's length at the current
+                                // zoom and sliding it by sourceIn - so
+                                // trim, split and zoom never re-decode.
+                                Item {
+                                    id: waveBox
                                     visible: clip.modelData.wave === true
                                     anchors.fill: parent
-                                    anchors.margins: 3
-                                    spacing: 1
-                                    Repeater {
-                                        model: Math.max(1, Math.floor(clip.width / 4))
-                                        delegate: Rectangle {
-                                            required property int index
-                                            width: 3
-                                            height: parent.height *
-                                                (0.22 + 0.72 * Math.abs(
-                                                    Math.sin(index * 0.7)
-                                                    * Math.cos(index * 0.13)))
-                                            anchors.verticalCenter: parent.verticalCenter
-                                            color: Qt.rgba(1, 1, 1, 0.55)
-                                            radius: 1
+                                    anchors.topMargin: 3
+                                    anchors.bottomMargin: 3
+                                    clip: true
+                                    readonly property real clipSeconds:
+                                        Math.max(0.001, clip.modelData.to
+                                                        - clip.modelData.from)
+                                    readonly property real mediaSeconds:
+                                        clip.modelData.mediaDuration > 0
+                                            ? clip.modelData.mediaDuration
+                                            : clipSeconds
+
+                                    Image {
+                                        id: waveImage
+                                        asynchronous: true
+                                        fillMode: Image.Stretch
+                                        smooth: true
+                                        height: parent.height
+                                        width: parent.width
+                                               * waveBox.mediaSeconds
+                                               / waveBox.clipSeconds
+                                        x: -parent.width
+                                           * (clip.modelData.sourceIn || 0)
+                                           / waveBox.clipSeconds
+                                        source: {
+                                            Waves.rev;   // re-ask on arrival
+                                            return waveBox.visible
+                                                   && clip.modelData.path
+                                                ? Waves.wave(clip.modelData.path)
+                                                : "";
+                                        }
+                                    }
+
+                                    // Stand-in bars ONLY while the strip is
+                                    // being rendered for the first time.
+                                    Row {
+                                        visible: waveImage.status !== Image.Ready
+                                        anchors.fill: parent
+                                        spacing: 1
+                                        Repeater {
+                                            model: Math.max(1, Math.floor(clip.width / 4))
+                                            delegate: Rectangle {
+                                                required property int index
+                                                width: 3
+                                                height: parent.height *
+                                                    (0.22 + 0.72 * Math.abs(
+                                                        Math.sin(index * 0.7)
+                                                        * Math.cos(index * 0.13)))
+                                                anchors.verticalCenter: parent.verticalCenter
+                                                color: Qt.rgba(1, 1, 1, 0.30)
+                                                radius: 1
+                                            }
                                         }
                                     }
                                 }

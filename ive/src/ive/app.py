@@ -97,9 +97,11 @@ class Application:
         # loaded afterwards. See register_singletons() for the full symptom.
         from ive.ui.color_service import ColorLibraryService
         from ive.ui.thumbnails import ThumbnailService
+        from ive.ui.waveforms import WaveformService
 
         self.colorfx = ColorLibraryService(self.translations, self.settings)
         self.thumbs = ThumbnailService()
+        self.waves = WaveformService()
         register_singletons(
             theme=self.theme,
             translations=self.translations,
@@ -112,6 +114,7 @@ class Application:
             colorfx=self.colorfx,
             thumbs=self.thumbs,
             history=self.history,
+            waves=self.waves,
         )
         # Same rule as the singletons: register before the engine exists.
         qmlRegisterType(PreviewItem, "IVE", 1, 0, "PreviewItem")
