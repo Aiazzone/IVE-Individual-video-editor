@@ -292,6 +292,7 @@ Window {
             id: readout
             timecode: Playback.hasMedia ? Playback.timecode : win.timecode(0)
             fullscreen: win.isFullscreen
+            sceneSource: sceneLayer
             x: {
                 switch (Shell.v.readoutCorner) {
                 case "top_right":

@@ -1,9 +1,11 @@
-// Timecode and volume, sitting straight on the video with no plate.
+// Timecode, session controls and volume, on a glass PILL.
 //
-// These are values you glance at, not controls you aim for. A plate would turn
-// them into permanent chrome stealing space from the frame; a drop shadow
-// costs nothing and keeps them legible on any content.
-// Always a little visible (opacity 0.55), full on hover.
+// It used to sit straight on the video with white glyphs, but the row has
+// grown real controls (quit, fullscreen, undo, redo) and bare icons over
+// moving footage are hard to pick out. The pill is the same glass the
+// tool rail uses, at the icon scrim - so its content follows the THEME,
+// while the video underneath does not.
+// Still a readout at heart: a little transparent at rest, full on hover.
 // See docs/UI_SHELL.md section 8-bis.
 import QtQuick
 import QtQuick.Layouts
@@ -16,6 +18,8 @@ Item {
     property string timecode: "00:00:00:00"
     /*! Current window state, so the icon can show the way out, not the way in. */
     property bool fullscreen: false
+    /*! Item sampled for the blur; see GlassSurface. */
+    property Item sceneSource: null
     property real volume: Shell.v.volume
     property bool muted: Shell.v.muted
 
@@ -31,6 +35,15 @@ Item {
 
     HoverHandler { id: hover }
 
+    GlassSurface {
+        anchors.fill: parent
+        sceneSource: root.sceneSource
+        originX: root.x
+        originY: root.y
+        radius: height / 2
+        scrim: Theme.m.scrimIcons
+    }
+
     RowLayout {
         id: row
         anchors.centerIn: parent
@@ -41,7 +54,6 @@ Item {
         IconButton {
             size: 26
             iconSize: 16
-            onVideo: true
             tipSide: "right"
             icon: Icons.power
             label: Tr.s["app.quit"] || ""
@@ -53,7 +65,6 @@ Item {
         IconButton {
             size: 26
             iconSize: 17
-            onVideo: true
             tipSide: "right"
             icon: root.fullscreen ? Icons.fullscreenExit : Icons.fullscreen
             label: Tr.s["view.fullscreen"] || ""
@@ -68,7 +79,6 @@ Item {
             objectName: "undoButton"
             size: 26
             iconSize: 16
-            onVideo: true
             tipSide: "right"
             enabled: History.canUndo
             icon: Icons.undo
@@ -83,7 +93,6 @@ Item {
             objectName: "redoButton"
             size: 26
             iconSize: 16
-            onVideo: true
             tipSide: "right"
             enabled: History.canRedo
             icon: Icons.redo
@@ -96,14 +105,12 @@ Item {
 
         Text {
             text: root.timecode
-            color: "#FFFFFF"
+            color: Theme.c.text
             font.pixelSize: Theme.m.fontSizeLg
             font.family: "monospace"
             // Tabular figures: with a proportional font the digits jitter and
             // become unreadable during playback.
             font.features: { "tnum": 1 }
-            style: Text.Raised
-            styleColor: "#000000"
         }
 
         RowLayout {
@@ -113,8 +120,7 @@ Item {
                 Layout.preferredWidth: 18
                 Layout.preferredHeight: 18
                 path: root.muted || root.volume <= 0 ? Icons.volumeOff : Icons.volume
-                color: "#FFFFFF"
-                shadow: true
+                color: Theme.c.text
             }
 
             // Hidden at rest, expands on hover: a readout, not a control bar.

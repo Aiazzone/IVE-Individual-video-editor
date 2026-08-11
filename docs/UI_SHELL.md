@@ -214,7 +214,7 @@ Applicazione:
 | Timeline (righello, nomi traccia, timecode) | `scrimText` |
 | Tool rail | `scrimIcons` |
 | Comandi di riproduzione | `scrimIcons` |
-| Lettura tempo/volume | nessuna lastra — vedi §8-bis |
+| Lettura tempo/volume | pillola `scrimIcons` — vedi §8-bis |
 
 Le icone su vetro portano inoltre un'ombra proiettata
 (`drop-shadow(0 1px 3px rgba(0,0,0,.85))`): non sostituisce lo scrim, ma
@@ -596,13 +596,17 @@ video.
 
 ## 8-bis. Lettura di tempo e volume
 
-Timecode corrente e volume di riproduzione, **separati dai comandi**.
+Timecode corrente, controlli di sessione (spegni, fullscreen, annulla,
+ripeti) e volume, in un'unica **pillola di vetro** (rivisto 2026-08-11).
 
-- **Nessuna lastra, nessuno sfondo.** Solo testo e icona bianchi, appoggiati
-  direttamente sul video, con **ombra proiettata** che ne garantisce la
-  leggibilita' (`0 2px 6px rgba(0,0,0,.95)` sul testo, `0 2px 5px` sull'icona).
-- **Sempre visibili, ma discreti**: opacita' a riposo **0.55**, piena al
-  passaggio del puntatore o quando ricevono il focus.
+- **Lastra di vetro a pillola** (`GlassSurface`, raggio = meta' altezza,
+  `scrimIcons`): stessa superficie del tool rail, quindi i contenuti
+  seguono il TEMA (scuri su lastra chiara e viceversa). Prima gli
+  elementi poggiavano nudi sul video con glifi bianchi: finche' erano
+  solo timecode e volume bastava, ma coi bottoni veri (undo/redo ecc.)
+  le icone si perdevano sul filmato in movimento.
+- **Sempre visibile, ma discreta**: opacita' a riposo **0.55**, piena al
+  passaggio del puntatore o quando riceve il focus.
 - Il cursore del volume e' nascosto a riposo e si estende al passaggio del
   mouse sul gruppo.
 - Il timecode usa il font monospace (`fontFamilyMono`) e
