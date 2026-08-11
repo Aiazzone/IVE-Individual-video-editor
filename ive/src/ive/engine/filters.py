@@ -493,3 +493,66 @@ class TimedColor(Filter):
             if start <= frame.position < end:
                 frame = grade.process(frame)
         return frame
+
+
+class Overlays(Filter):
+    """Sticker clips as a filter over the composite.
+
+    ``spans`` is ``[{"start": f, "end": f, "x": 0..1, "y": 0..1,
+    "sprite": callable}, ...]`` in SEQUENCE frames. The sprite closure -
+    built by ive/stickers/raster.py, so this module stays free of Qt -
+    answers ``sprite(canvas_h_px, local_seconds) -> RGBA array``; local
+    time makes animated stickers loop from THEIR OWN start, wherever the
+    clip sits on the timeline. Alpha-over blend, clipped at the frame
+    borders so a sticker can hang off the edge.
+    """
+
+    def __init__(self, spans: list[dict], timebase) -> None:
+        self._spans = [
+            (int(s.get("start", 0)), int(s.get("end", 0)),
+             float(s.get("x", 0.5)), float(s.get("y", 0.5)), s["sprite"])
+            for s in spans or [] if callable(s.get("sprite"))
+        ]
+        self._timebase = timebase
+
+    def process(self, frame: Frame) -> Frame:
+        active = [s for s in self._spans if s[0] <= frame.position < s[1]]
+        if not active:
+            return frame
+
+        position = frame.position
+
+        def overlaid():
+            image = frame.image()
+            if image is None:
+                return None
+            out = image.copy()
+            for start, _end, x, y, sprite in active:
+                seconds = self._timebase.frames_to_seconds(position - start)
+                rgba = sprite(out.shape[0], seconds)
+                if rgba is None:
+                    continue
+                _blend_over(out, rgba, x * out.shape[1], y * out.shape[0])
+            return out
+
+        return self._wrap(frame, image_fn=overlaid)
+
+
+def _blend_over(image: np.ndarray, sprite: np.ndarray,
+                cx: float, cy: float) -> None:
+    """Alpha-over ``sprite`` (straight RGBA) onto ``image``, centred on
+    ``(cx, cy)`` pixels, in place. Off-frame parts are clipped away."""
+    sh, sw = sprite.shape[:2]
+    ih, iw = image.shape[:2]
+    x0 = int(round(cx - sw / 2.0))
+    y0 = int(round(cy - sh / 2.0))
+    ix0, iy0 = max(0, x0), max(0, y0)
+    ix1, iy1 = min(iw, x0 + sw), min(ih, y0 + sh)
+    if ix0 >= ix1 or iy0 >= iy1:
+        return
+    part = sprite[iy0 - y0:iy1 - y0, ix0 - x0:ix1 - x0]
+    alpha = part[..., 3:4].astype(np.float32) / 255.0
+    roi = image[iy0:iy1, ix0:ix1].astype(np.float32)
+    image[iy0:iy1, ix0:ix1] = (
+        part[..., :3].astype(np.float32) * alpha + roi * (1.0 - alpha)
+    ).astype(np.uint8)

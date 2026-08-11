@@ -73,6 +73,53 @@ class StickerLibraryService(QObject):
             })
         return out
 
+    @Slot(str, result=str)
+    def preview(self, sticker_id: str) -> str:
+        """A still preview of an ANIMATED sticker, as a file URL.
+
+        One rlottie render of a mid-animation frame (~1 ms), cached as a
+        PNG on disk. Synchronous on purpose: it is cheaper than a
+        thumbnail worker round-trip and runs once per sticker.
+        """
+        import hashlib
+        import os
+
+        from PySide6.QtGui import QImage
+
+        from ive.stickers.library import sticker_by_id
+        from ive.utils.paths import get_data_path
+
+        sticker = sticker_by_id(str(sticker_id))
+        if sticker is None or sticker["kind"] != "animated":
+            return ""
+        path = sticker["path"]
+        try:
+            mtime = int(os.path.getmtime(path))
+        except OSError:
+            return ""
+        folder = get_data_path("cache/sticker_previews")
+        folder.mkdir(parents=True, exist_ok=True)
+        digest = hashlib.md5(f"{path}|{mtime}".encode("utf-8")).hexdigest()[:20]
+        target = folder / f"{digest}.png"
+        if not target.is_file():
+            from ive.stickers.raster import lottie_info, render_lottie_frame
+
+            info = lottie_info(path)
+            if info is None:
+                return ""
+            # A third of the way in: past any empty intro frame.
+            rgba = render_lottie_frame(path, 160, info["total"] // 3)
+            if rgba is None:
+                return ""
+            h, w = rgba.shape[:2]
+            image = QImage(rgba.tobytes(), w, h, w * 4,
+                           QImage.Format.Format_RGBA8888)
+            tmp = target.with_suffix(".tmp.png")
+            if not image.save(str(tmp), "PNG"):
+                return ""
+            tmp.replace(target)
+        return QUrl.fromLocalFile(str(target)).toString()
+
     @Slot()
     def refresh(self) -> None:
         """Rescan the folders - the user just dropped a file in."""

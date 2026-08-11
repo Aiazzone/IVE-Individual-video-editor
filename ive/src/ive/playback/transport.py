@@ -108,6 +108,9 @@ class PlaybackService(QObject):
         #: Colour-effect stretches (seconds + resolved ops) from the
         #: Color lane; rebuilt with the sequence.
         self._color_spans: list[dict] = []
+        #: Sticker stretches (seconds + file/kind/transform) from the
+        #: Sticker lane; pure data - sprites attach at graph build.
+        self._sticker_spans: list[dict] = []
         self._playing = False
         self._position = 0.0                    # seconds on the timeline
         self._duration = 0.0                    # seconds
@@ -237,6 +240,7 @@ class PlaybackService(QObject):
         segment = _Segment(str(path), 0.0, info.duration or 1.0, fps,
                            aspect=self._aspect_of(video))
         self._color_spans = []      # a bare file has no Color lane
+        self._sticker_spans = []
         self._apply_segments([segment], sequence=False,
                              name=Path(str(path)).name)
         return True
@@ -257,7 +261,30 @@ class PlaybackService(QObject):
         """
         segments: list[_Segment] = []
         spans: list[dict] = []
+        sticker_spans: list[dict] = []
         for entry in clips or []:
+            sticker_id = str(entry.get("stickerId") or "")
+            if sticker_id:
+                # A Sticker-lane clip: not a segment, an overlaid stretch.
+                # File and kind are resolved HERE so the graph (and the
+                # export, which shares it) never knows the catalogue.
+                from ive.stickers.library import sticker_by_id
+
+                sticker = sticker_by_id(sticker_id)
+                if sticker is None:
+                    log.warning("Unknown sticker %r skipped", sticker_id)
+                    continue
+                sticker_spans.append({
+                    "start": float(entry.get("start") or 0.0),
+                    "end": float(entry.get("end") or 0.0),
+                    "path": sticker["path"],
+                    "kind": sticker["kind"],
+                    "x": float(entry.get("x", 0.5)),
+                    "y": float(entry.get("y", 0.5)),
+                    "scale": float(entry.get("scale", 0.3)),
+                    "rotation": float(entry.get("rotation", 0.0)),
+                })
+                continue
             effect_id = str(entry.get("effectId") or "")
             if effect_id:
                 # A Color-lane clip: not a segment, a graded stretch. The
@@ -301,12 +328,21 @@ class PlaybackService(QObject):
             self.close()
             return False
         self._color_spans = spans
+        self._sticker_spans = sticker_spans
         self._apply_segments(segments, sequence=True, name="")
         return True
 
     def sequence_color_spans(self) -> list[dict]:
         """The Color-lane stretches, resolved to recipes, for the export."""
         return [dict(span) for span in self._color_spans]
+
+    def sequence_sticker_spans(self) -> list[dict]:
+        """The Sticker-lane stretches, resolved to files, for the export.
+
+        Pure data on purpose: the export options cross a thread boundary
+        as a QVariantMap, which would drop callables - the worker attaches
+        the sprite closures itself (stickers/raster.attach_sprites)."""
+        return [dict(span) for span in self._sticker_spans]
 
     def _apply_segments(self, segments: list[_Segment], *, sequence: bool,
                         name: str) -> None:
@@ -442,7 +478,13 @@ class PlaybackService(QObject):
              "volume": segment.volume, "id": str(index)}
             for index, segment in enumerate(self._segments)
         ]
-        self._graph = self._builder.build(clips, self._color_spans)
+        sticker_spans = self._sticker_spans
+        if sticker_spans:
+            from ive.stickers.raster import attach_sprites
+
+            sticker_spans = attach_sprites(sticker_spans)
+        self._graph = self._builder.build(clips, self._color_spans,
+                                          sticker_spans)
         self._graph_serial += 1
         self._graph_key = f"graph-{self._graph_serial}"
         log.info("Preview graph rebuilt at %dx%d: %d frames",
@@ -488,6 +530,7 @@ class PlaybackService(QObject):
         self._segments = []
         self._starts = []
         self._color_spans = []
+        self._sticker_spans = []
         self._duration = 0.0
         self._position = 0.0
         self._name = ""

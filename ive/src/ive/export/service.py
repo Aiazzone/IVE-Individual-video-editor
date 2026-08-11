@@ -205,12 +205,21 @@ class _Worker(QObject):
                 return
             fps = float(fps)
             if clips:
+                # Sticker spans arrive as pure data (a QVariantMap crossing
+                # the thread boundary would drop callables); the sprite
+                # closures attach here, on the worker.
+                sticker_spans = list(options.get("sticker_spans") or [])
+                if sticker_spans:
+                    from ive.stickers.raster import attach_sprites
+
+                    sticker_spans = attach_sprites(sticker_spans)
                 # use_proxies=False is not a detail: rendering a delivery from
                 # stand-in files is wasted work the user only finds afterwards.
                 graph = build_from_project(
                     clips, fps=fps, width=width, height=height, proxies=None,
                     use_proxies=False,
-                    color_spans=list(options.get("color_spans") or []))
+                    color_spans=list(options.get("color_spans") or []),
+                    sticker_spans=sticker_spans)
                 walker = SequenceWalker(graph, want_image=True,
                                         want_audio=True)
                 total = graph.length
@@ -525,6 +534,9 @@ class ExportService(QObject):
                 # The Color lane grades the export exactly as it grades the
                 # preview: same graph, same recipes.
                 options["color_spans"] = spans()
+            stickers = getattr(self._playback, "sequence_sticker_spans", None)
+            if callable(stickers):
+                options["sticker_spans"] = stickers()
 
         self._running = True
         self._done = 0

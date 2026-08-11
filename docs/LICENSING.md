@@ -87,6 +87,7 @@ della prima release pubblica.
 | **PyAV** | BSD-3-Clause | Binding Python su FFmpeg; la licenza di FFmpeg resta quella che conta. |
 | **NumPy** | BSD-3-Clause | |
 | **opencv-python** | Apache-2.0 | Applicazione veloce dei filtri colore (LUT/transform/multiply). Il wheel standard NON include codec brevettati; usiamo solo primitive di elaborazione, mai il suo I/O video. |
+| **rlottie-python** | LGPL (bundla rlottie: MIT + parti FTL/BSD-3/MPL-1.1) | Rendering degli sticker animati Lottie. Aggiunto 2026-08-11; LGPL compatibile col nostro GPL-3. |
 | **Pillow** | MIT-CMU (HPND) | |
 | **ONNX Runtime** | MIT | Provider CPU/CUDA/DirectML. |
 | **OpenVINO** | Apache-2.0 | |

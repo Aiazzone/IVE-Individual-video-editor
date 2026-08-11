@@ -32,8 +32,60 @@ Item {
             ? Stickers.stickers(root.tab, root.section) : [];
     }
 
+    /*! The sticker being dragged towards the timeline, "" when none. Read
+        by FloatingPanel as `interacting`: the panel must not retract and
+        kill the drag mid-flight. */
+    property string draggingSticker: ""
+    property string draggingFileUrl: ""
+    property point dragScenePos: Qt.point(0, 0)
+    readonly property bool interacting: draggingSticker !== ""
+
     function sectionLabel(id) {
         return Tr.s["sticker.section." + id] || id;
+    }
+
+    // The ghost that follows the pointer lives on the WINDOW, not in this
+    // panel: the panel clips its children, and the attached Drag publishes
+    // its position only when its item MOVES - same pattern as the colour
+    // effects (see ColorContent.qml).
+    Rectangle {
+        id: dragGhost
+        parent: root.Window.window ? root.Window.window.contentItem : root
+        visible: root.draggingSticker !== ""
+        width: 72
+        height: 72
+        radius: Theme.m.radiusSm
+        color: root.draggingFileUrl !== "" ? "transparent"
+                                           : Theme.c.clipSticker
+        opacity: 0.9
+        x: root.dragScenePos.x - 36
+        y: root.dragScenePos.y - 36
+        z: 100000
+
+        /*! Read by the timeline's DropArea via drop.source. */
+        property string stickerId: root.draggingSticker
+
+        Drag.active: root.draggingSticker !== ""
+        Drag.keys: ["ive-sticker"]
+        Drag.hotSpot.x: 36
+        Drag.hotSpot.y: 36
+
+        Image {
+            anchors.fill: parent
+            visible: root.draggingFileUrl !== ""
+            asynchronous: true
+            fillMode: Image.PreserveAspectFit
+            sourceSize.width: 144
+            sourceSize.height: 144
+            source: root.draggingFileUrl
+        }
+        Text {
+            anchors.centerIn: parent
+            visible: root.draggingFileUrl === ""
+            text: "Lottie"
+            color: "#FFFFFF"
+            font.pixelSize: Theme.m.fontSizeXs
+        }
     }
 
     ColumnLayout {
@@ -184,30 +236,33 @@ Item {
                                     ? card.modelData.fileUrl : ""
                             }
 
-                            // Animated: a badge until the renderer lands.
-                            ColumnLayout {
+                            // Animated: a real frame of the animation,
+                            // rendered by rlottie, with a small tag.
+                            Image {
                                 visible: card.modelData.kind === "animated"
                                 anchors.centerIn: parent
-                                spacing: 4
-                                Glyph {
-                                    Layout.alignment: Qt.AlignHCenter
-                                    width: 34; height: 34
-                                    path: Icons.sticker
-                                    color: Theme.c.textMuted
-                                }
-                                Rectangle {
-                                    Layout.alignment: Qt.AlignHCenter
-                                    width: lottieTag.implicitWidth + 12
-                                    height: lottieTag.implicitHeight + 4
-                                    radius: height / 2
-                                    color: Qt.alpha(Theme.c.accent, 0.25)
-                                    Text {
-                                        id: lottieTag
-                                        anchors.centerIn: parent
-                                        text: "Lottie"
-                                        color: Theme.c.text
-                                        font.pixelSize: Theme.m.fontSizeXs
-                                    }
+                                width: 80
+                                height: 80
+                                fillMode: Image.PreserveAspectFit
+                                asynchronous: true
+                                source: card.modelData.kind === "animated"
+                                    ? Stickers.preview(card.modelData.id) : ""
+                            }
+                            Rectangle {
+                                visible: card.modelData.kind === "animated"
+                                anchors.top: parent.top
+                                anchors.right: parent.right
+                                anchors.margins: 4
+                                width: lottieTag.implicitWidth + 10
+                                height: lottieTag.implicitHeight + 4
+                                radius: height / 2
+                                color: Qt.alpha(Theme.c.accent, 0.35)
+                                Text {
+                                    id: lottieTag
+                                    anchors.centerIn: parent
+                                    text: "Lottie"
+                                    color: Theme.c.text
+                                    font.pixelSize: Theme.m.fontSizeXs
                                 }
                             }
                         }
@@ -222,7 +277,34 @@ Item {
                             elide: Text.ElideRight
                         }
 
-                        HoverHandler { id: cardHover }
+                        HoverHandler { id: cardHover; cursorShape: Qt.OpenHandCursor }
+                        DragHandler {
+                            target: null
+                            // The panel scrolls in a Flickable; without
+                            // this the list steals the gesture.
+                            grabPermissions:
+                                PointerHandler.CanTakeOverFromAnything
+                            onCentroidChanged: {
+                                if (active)
+                                    root.dragScenePos = centroid.scenePosition;
+                            }
+                            onActiveChanged: {
+                                if (active) {
+                                    root.dragScenePos = centroid.scenePosition;
+                                    root.draggingFileUrl =
+                                        card.modelData.kind === "static"
+                                            ? card.modelData.fileUrl : "";
+                                    root.draggingSticker = card.modelData.id;
+                                    return;
+                                }
+                                // drop() BEFORE clearing: turning Drag.active
+                                // off without it is a CANCEL, and the drop
+                                // area under the pointer never hears a thing.
+                                dragGhost.Drag.drop();
+                                root.draggingSticker = "";
+                                root.draggingFileUrl = "";
+                            }
+                        }
                     }
                 }
             }

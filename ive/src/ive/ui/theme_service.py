@@ -91,7 +91,7 @@ _FALLBACK_COLORS: dict[str, str] = {
     "onAccent": "#FFFFFF", "danger": "#FF4D4F", "warning": "#F5A623",
     "success": "#22C55E",
     "clipVideo": "#2D6BD4", "clipAudio": "#1F8A5C", "clipText": "#8B5CF6",
-    "clipEffect": "#D6408B",
+    "clipEffect": "#D6408B", "clipSticker": "#0F8B96",
     "clipImage": "#D97706", "clipAdjustment": "#6B7280", "clipSelected": "#FFFFFF",
     "playhead": "#FF4D4F", "trackHeaderBg": "#131318", "rulerBg": "#101014",
     "gridLine": "#22222A",

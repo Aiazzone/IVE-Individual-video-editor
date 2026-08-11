@@ -38,8 +38,11 @@ Updated together with the code, so this file always reflects reality.
       strip instead of re-decoding
 - [x] Sticker catalogue and panel: Static / Animated tabs, families
       (shapes, good morning, greetings, birthday + demos), 15 factory
-      SVG stickers, shareable manifest + files like the colour effects;
-      Lottie chosen for animation (licences verified, renderer next)
+      SVG stickers, shareable manifest + files like the colour effects
+- [x] Stickers ON the video: drag onto a dedicated timeline lane, the
+      engine composites them into the frame (same pixels in preview and
+      export), undoable; animated Lottie stickers play in a loop via
+      rlottie — drop a Lottie JSON in a folder to install more
 
 ## 🔨 In progress / next up
 
@@ -47,9 +50,9 @@ Updated together with the code, so this file always reflects reality.
 
 ## 🗺️ Planned
 
-- [ ] Stickers on the video: timeline lane + engine compositing
-      (position/scale/rotation per clip), motion presets, and the Lottie
-      player for the animated tab (rlottie-python, LGPL — cleared)
+- [ ] Sticker handles in the preview (drag/scale/rotate on the video —
+      today the transform is set via action) and motion presets
+      (bounce, pulse, spin as JSON keyframe recipes)
 - [ ] Transitions between clips (the engine's Transition slot exists)
 - [ ] Multi-track timeline (music under video, picture-in-picture)
 - [ ] Content packs (`.ivepack`): bundle effects/presets/music with

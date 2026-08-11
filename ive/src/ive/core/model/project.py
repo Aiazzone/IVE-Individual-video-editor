@@ -123,6 +123,16 @@ class TimelineClip:
     #: For clips on the Color track (track 1): the colour effect applied to
     #: the stretch of timeline this clip covers. media_id is "" for these.
     effect_id: str = ""
+    #: For clips on the Sticker track (track 2): which sticker is shown.
+    #: media_id is "" for these too.
+    sticker_id: str = ""
+    #: Sticker placement, in CANVAS FRACTIONS so it survives any export
+    #: resolution: (x, y) is the sticker's centre, scale is its height as
+    #: a fraction of the canvas height, rotation in degrees clockwise.
+    x: float = 0.5
+    y: float = 0.5
+    scale: float = 0.3
+    rotation: float = 0.0
 
     @property
     def end(self) -> float:
@@ -135,11 +145,14 @@ class TimelineClip:
     def from_dict(cls, data: dict[str, Any]) -> "TimelineClip":
         media_id = _as_str(data.get("media_id"))
         effect_id = _as_str(data.get("effect_id"))
-        if not media_id and not effect_id:
-            raise ValueError("timeline clip has neither media_id nor effect_id")
+        sticker_id = _as_str(data.get("sticker_id"))
+        if not media_id and not effect_id and not sticker_id:
+            raise ValueError("timeline clip references no media, effect "
+                             "or sticker")
         return cls(
             media_id=media_id,
             effect_id=effect_id,
+            sticker_id=sticker_id,
             start=max(0.0, _as_float(data.get("start"))),
             duration=max(0.0, _as_float(data.get("duration"))),
             track=_as_int(data.get("track")),
@@ -148,6 +161,10 @@ class TimelineClip:
             volume=min(2.0, max(0.0, _as_float(data.get("volume"), 1.0))),
             audio_enabled=bool(data.get("audio_enabled", True)),
             muted=bool(data.get("muted", False)),
+            x=min(1.0, max(0.0, _as_float(data.get("x"), 0.5))),
+            y=min(1.0, max(0.0, _as_float(data.get("y"), 0.5))),
+            scale=min(2.0, max(0.02, _as_float(data.get("scale"), 0.3))),
+            rotation=_as_float(data.get("rotation")),
         )
 
 
@@ -289,6 +306,36 @@ class Project:
                             track=self.COLOR_TRACK)
         self.timeline.append(clip)
         return clip
+
+    #: Track 2 is the Sticker lane; free-form like the Color lane.
+    STICKER_TRACK = 2
+
+    def add_sticker(self, sticker_id: str, at: float, duration: float,
+                    x: float = 0.5, y: float = 0.5, scale: float = 0.3,
+                    rotation: float = 0.0) -> "TimelineClip":
+        """Place a sticker over ``[at, at+duration)`` on the Sticker lane."""
+        clip = TimelineClip(media_id="", sticker_id=str(sticker_id),
+                            start=max(0.0, float(at)),
+                            duration=max(0.1, float(duration)),
+                            track=self.STICKER_TRACK,
+                            x=min(1.0, max(0.0, float(x))),
+                            y=min(1.0, max(0.0, float(y))),
+                            scale=min(2.0, max(0.02, float(scale))),
+                            rotation=float(rotation))
+        self.timeline.append(clip)
+        return clip
+
+    def set_clip_transform(self, clip_id: str, x: float, y: float,
+                           scale: float, rotation: float) -> bool:
+        """Reposition a sticker clip on the canvas."""
+        clip = self.find_clip(clip_id)
+        if clip is None or not clip.sticker_id:
+            return False
+        clip.x = min(1.0, max(0.0, float(x)))
+        clip.y = min(1.0, max(0.0, float(y)))
+        clip.scale = min(2.0, max(0.02, float(scale)))
+        clip.rotation = float(rotation)
+        return True
 
     def move_clip(self, clip_id: str, to: float) -> bool:
         """Reorder by dragging: ``to`` is the clip's proposed new start.

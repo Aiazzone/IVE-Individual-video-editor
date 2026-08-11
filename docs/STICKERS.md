@@ -66,27 +66,45 @@ Verifica licenze (2026-08-11):
 - Nota di manutenzione: il repo Samsung/rlottie e' poco attivo;
   alternativa da valutare al momento dell'integrazione: ThorVG (MIT).
 
-I file Lottie si installano e si catalogano GIA' OGGI (tab Animati,
-badge "Lottie" al posto dell'anteprima); prenderanno vita quando il
-renderer viene integrato. Aggiungere rlottie-python richiede prima la
-riga in LICENSING.md, come da regola 4.9.
+**rlottie-python e' integrato (2026-08-11)**: dipendenza in
+requirements.txt e LICENSING.md. Le card animate mostrano un frame reale
+renderizzato da rlottie; sul video l'animazione va in LOOP dal suo punto
+zero, ovunque il clip sieda sulla timeline. Misura: ~0,9 ms a frame a
+400px — dentro il budget.
 
-## 4. Prossimi passi (in ordine)
+## 4. Composizione nel motore (FATTO 2026-08-11)
 
-1. **Composizione nel motore**: uno sticker sul video e' un clip su una
-   corsia "Sticker" (posizione libera come la corsia Color), con
-   trasformazione per clip (x, y, scala, rotazione). Il motore
-   rasterizza l'SVG UNA volta alla dimensione necessaria (cache per
-   size) e fonde con alpha premoltiplicato — stessa promessa dei colori:
-   anteprima ed export identici perche' tirano lo stesso grafo.
+Uno sticker sul video e' un clip su una corsia **Sticker** (track 2,
+posizione libera come la corsia Color), con trasformazione per clip:
+centro `(x, y)` in FRAZIONI del canvas (sopravvive a ogni risoluzione
+d'export), `scale` = altezza come frazione dell'altezza canvas,
+`rotation` in gradi. Azioni: `timeline.place_sticker` (drop dal
+pannello, 3 s di default) e `timeline.set_clip_transform`; tutte
+annullabili.
+
+Catena: il transport risolve `sticker_id` → file/kind (il grafo non
+conosce il catalogo); `stickers/raster.py` attacca a ogni span una
+closure `sprite(canvas_h, local_seconds)` (QtSvg per i vettori, rlottie
+per i Lottie — che rende BGRA PREMOLTIPLICATO, convertito in RGBA
+straight una volta e cachato per frame); il filtro `Overlays` del
+tractor (engine/filters.py, numpy puro, il motore resta senza Qt) fonde
+alpha-over dentro lo span, ritagliando ai bordi. Gli span viaggiano
+verso l'export come DATI PURI (una QVariantMap perderebbe le closure):
+il worker li riattacca con `attach_sprites`. Composizione DOPO il
+grading: uno sticker tiene i propri colori sotto qualunque look.
+
+## 5. Prossimi passi
+
+1. **Maniglie nel preview**: trascinare/scalare/ruotare lo sticker
+   direttamente sul video (oggi si sposta via azione).
 2. **Motion preset**: ricette JSON di keyframe (bounce, pulse, spin,
-   slide-in...) applicabili a QUALUNQUE sticker statico — la via
-   economica all'animazione, complementare a Lottie.
-3. **Renderer Lottie** (rlottie-python, dopo LICENSING.md): "frame N a
-   WxH" e' l'API naturale del grafo pull.
-4. GIF/WebP animati come sorgenti sticker (decodifica FFmpeg gia' in
+   slide-in...) applicabili a QUALUNQUE sticker statico.
+3. GIF/WebP animati come sorgenti sticker (decodifica FFmpeg gia' in
    casa).
 
 Test: `tests/test_stickers.py` (catalogo, validita' SVG/Lottie,
-degradazione), `tests/visual/test_stickers_panel.py` (tab, famiglie,
-pixel dell'SVG renderizzato).
+degradazione), `tests/test_sticker_compositing.py` (modello+undo, oro
+dentro lo span / grigio fuori, la pallina Lottie che CADE fra due
+istanti, export con gli stessi pixel),
+`tests/visual/test_stickers_panel.py` (tab, famiglie, drag reale sulla
+timeline, pixel del preview composito).

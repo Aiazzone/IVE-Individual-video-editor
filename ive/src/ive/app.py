@@ -202,6 +202,7 @@ class Application:
         from ive.core.actions.builtin import timeline_actions  # noqa: F401
         from ive.core.actions.builtin import shell_actions  # noqa: F401
         from ive.core.actions.builtin import color_actions  # noqa: F401
+        from ive.core.actions.builtin import sticker_actions  # noqa: F401
 
         self.registry.add_pending()
         log.info("Registered %d actions", len(tuple(self.registry.all())))

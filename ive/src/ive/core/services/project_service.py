@@ -147,10 +147,11 @@ class ProjectService(QObject):
         if self._project is None:
             return []
         from ive.color.library import effect_by_id
+        from ive.stickers.library import sticker_by_id
 
         base = self._project.base
         out = []
-        # Every track: 0 is A/V, 1 is the Color lane.
+        # Every track: 0 is A/V, 1 is the Color lane, 2 is the Sticker lane.
         for clip in sorted(self._project.timeline,
                            key=lambda c: (c.track, c.start)):
             item = self._project.find_media(clip.media_id)
@@ -158,12 +159,17 @@ class ProjectService(QObject):
                 effect = effect_by_id(clip.effect_id)
                 names = effect["names"] if effect else {}
                 name = names.get("en") or clip.effect_id
+            elif clip.sticker_id:
+                sticker = sticker_by_id(clip.sticker_id)
+                names = sticker["names"] if sticker else {}
+                name = names.get("en") or clip.sticker_id
             else:
                 name = item.name if item else clip.media_id
             out.append({
                 "id": clip.id,
                 "mediaId": clip.media_id,
                 "effectId": clip.effect_id,
+                "stickerId": clip.sticker_id,
                 "track": clip.track,
                 "name": name,
                 "path": str(item.resolve(base)) if item else "",
@@ -175,10 +181,12 @@ class ProjectService(QObject):
                 "volume": clip.volume,
                 "audioEnabled": clip.audio_enabled,
                 "muted": clip.muted,
+                "x": clip.x, "y": clip.y,
+                "scale": clip.scale, "rotation": clip.rotation,
                 "hasVideo": bool(item.width > 0) if item else False,
                 "hasAudio": bool(item.has_audio) if item else False,
                 "missing": bool(item.missing) if item
-                           else (not clip.effect_id),
+                           else not (clip.effect_id or clip.sticker_id),
             })
         return out
 
@@ -257,6 +265,34 @@ class ProjectService(QObject):
             return clip
 
         return self._edit("timeline.place_effect", mutate)
+
+    @Slot(str, float, float, result=bool)
+    def place_sticker(self, sticker_id: str, at: float,
+                      duration: float) -> bool:
+        """Put a sticker on the Sticker lane over [at, at+duration)."""
+        if self._project is None:
+            return False
+        from ive.stickers.library import sticker_by_id
+
+        if sticker_by_id(sticker_id) is None:
+            log.warning("Unknown sticker %r", sticker_id)
+            return False
+
+        def mutate():
+            clip = self._project.add_sticker(sticker_id, at, duration)
+            log.info("Sticker %s placed at %.2fs for %.2fs",
+                     sticker_id, clip.start, clip.duration)
+            return clip
+
+        return self._edit("sticker.place", mutate)
+
+    @Slot(str, float, float, float, float, result=bool)
+    def set_clip_transform(self, clip_id: str, x: float, y: float,
+                           scale: float, rotation: float) -> bool:
+        """Reposition a sticker clip on the canvas."""
+        return self._edit("sticker.transform",
+                          lambda: self._project.set_clip_transform(
+                              clip_id, x, y, scale, rotation))
 
     @Slot(str, float, float, result=bool)
     def trim_clip(self, clip_id: str, source_in: float, duration: float) -> bool:

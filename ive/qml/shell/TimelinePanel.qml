@@ -84,8 +84,8 @@ Item {
                            mediaDuration: c.mediaDuration };
               }) }
         ];
-        // The Color lane exists only while something sits on it: an empty
-        // permanent lane would just be chrome.
+        // The Color and Sticker lanes exist only while something sits on
+        // them: an empty permanent lane would just be chrome.
         var fx = clips.filter(function (c) { return c.track === 1; });
         if (fx.length > 0)
             lanes.push({ name: "Color", kind: "color", audio: false,
@@ -93,6 +93,16 @@ Item {
                          clips: fx.map(function (c) {
                              return { from: c.start, to: c.end,
                                       color: Theme.c.clipEffect,
+                                      name: c.name, film: false,
+                                      id: c.id, wave: false };
+                         }) });
+        var st = clips.filter(function (c) { return c.track === 2; });
+        if (st.length > 0)
+            lanes.push({ name: "Sticker", kind: "sticker", audio: false,
+                         height: Theme.m.trackHeightAudio,
+                         clips: st.map(function (c) {
+                             return { from: c.start, to: c.end,
+                                      color: Theme.c.clipSticker,
                                       name: c.name, film: false,
                                       id: c.id, wave: false };
                          }) });
@@ -234,7 +244,7 @@ Item {
           } },
         { icon: Icons.trash,
           label: Tr.s["timeline.delete"] || "",
-          kinds: ["video", "color"],
+          kinds: ["video", "color", "sticker"],
           run: function () { root.deleteSelected(); } },
         { icon: Icons.trash,
           label: Tr.s["timeline.remove_audio"] || "",
@@ -486,9 +496,20 @@ Item {
                 DropArea {
                     id: laneDrop
                     anchors.fill: parent
-                    keys: ["ive-media", "ive-effect"]
+                    keys: ["ive-media", "ive-effect", "ive-sticker"]
                     onDropped: function (drop) {
                         var seconds = drop.x / lanes.pps;
+                        var sticker = (drop.source && drop.source.stickerId)
+                            ? drop.source.stickerId : "";
+                        if (sticker !== "") {
+                            Actions.invoke("timeline.place_sticker", {
+                                sticker_id: sticker,
+                                at: Math.max(0, seconds),
+                                duration: 3.0
+                            });
+                            drop.accept();
+                            return;
+                        }
                         var effect = (drop.source && drop.source.effectId)
                             ? drop.source.effectId : "";
                         if (effect !== "") {

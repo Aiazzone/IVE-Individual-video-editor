@@ -115,7 +115,8 @@ class GraphBuilder:
     # ── the graph ─────────────────────────────────────────────────────
 
     def build(self, clips: list[dict],
-              color_spans: list[dict] | None = None) -> Tractor:
+              color_spans: list[dict] | None = None,
+              sticker_spans: list[dict] | None = None) -> Tractor:
         """Build a tractor from timeline clips.
 
         Each clip is ``{path, start, duration}`` in **seconds**, as the project
@@ -191,8 +192,26 @@ class GraphBuilder:
 
             tractor.filters.append(TimedColor(graded))
 
-        log.info("Graph built: %d clip(s), %d colour span(s), %d frames at %s",
-                 len(usable), len(graded), tractor.length, self.timebase)
+        # The Sticker lane, composited AFTER the grade: a sticker keeps its
+        # own colours, whatever look sits under it. Spans arrive in seconds
+        # with their `sprite` closures already attached (stickers/raster.py
+        # does that, so the engine never imports Qt).
+        overlays = [
+            {"start": self.timebase.seconds_to_frames(float(s.get("start") or 0.0)),
+             "end": self.timebase.seconds_to_frames(float(s.get("end") or 0.0)),
+             "x": float(s.get("x", 0.5)), "y": float(s.get("y", 0.5)),
+             "sprite": s.get("sprite")}
+            for s in (sticker_spans or []) if callable(s.get("sprite"))
+        ]
+        if overlays:
+            from ive.engine.filters import Overlays
+
+            tractor.filters.append(Overlays(overlays, self.timebase))
+
+        log.info("Graph built: %d clip(s), %d colour span(s), %d sticker "
+                 "span(s), %d frames at %s",
+                 len(usable), len(graded), len(overlays), tractor.length,
+                 self.timebase)
         self.release_unused({str(c.get("path") or "") for c in (clips or [])})
         return tractor
 
@@ -201,8 +220,9 @@ def build_from_project(clips: list[dict], *, fps: float = 25.0,
                        width: int = DEFAULT_WIDTH,
                        height: int = DEFAULT_HEIGHT,
                        proxies=None, use_proxies: bool = True,
-                       color_spans: list[dict] | None = None) -> Tractor:
+                       color_spans: list[dict] | None = None,
+                       sticker_spans: list[dict] | None = None) -> Tractor:
     """One-shot build, for tests and scripts."""
     builder = GraphBuilder(Timebase(Fraction(fps).limit_denominator(1001)),
                            AudioFormat(), width, height, proxies, use_proxies)
-    return builder.build(clips, color_spans)
+    return builder.build(clips, color_spans, sticker_spans)
