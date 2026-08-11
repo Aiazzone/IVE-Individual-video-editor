@@ -54,14 +54,16 @@ between the two, on Windows and Linux:
 - Colour effects: 14 built-in looks in 4 families, live thumbnails on your
   own footage, favourites, drag onto the timeline as a resizable clip on a
   dedicated Color lane — applied identically in preview and export
-- Export: social presets (YouTube, Instagram, TikTok, ...) and a custom
-  tab (container, codecs, aspect ratio, resolution, bitrate)
+- Export **with audio**: the same graph the preview plays renders the
+  file — per-clip volume and mute included; social presets (YouTube,
+  Instagram, TikTok, ...) and a custom tab (container, codecs, aspect
+  ratio, resolution, bitrate)
 - Proxy editing for 4K sources; multilingual UI (EN, IT, ES, PT); dark and
   light themes
 
 ## Roadmap (short version)
 
-Audio in the export, real waveforms, text and titles, stickers,
+Undo/redo, real waveforms, text and titles, stickers,
 transitions, AI tools (auto-cut, subtitles), content packs (`.ivepack`).
 The living checklist is [`ROADMAP.md`](ROADMAP.md); the detailed
 engineering plan lives in [`docs/ROADMAP.md`](docs/ROADMAP.md).

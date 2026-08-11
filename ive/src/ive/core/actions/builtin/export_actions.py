@@ -75,6 +75,7 @@ def start_export(ctx, options: dict, folder: str = "", filename: str = ""):
             "width": preset.width,
             "height": preset.height,
             "video_bitrate_kbps": preset.video_bitrate_kbps,
+            "audio_bitrate_kbps": preset.audio_bitrate_kbps,
         }
         stem_suffix = preset.id
     else:

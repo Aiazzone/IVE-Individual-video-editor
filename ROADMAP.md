@@ -22,13 +22,15 @@ Updated together with the code, so this file always reflects reality.
       Color lane, ~7 ms/frame grading (compiled LUT/matrix steps)
 - [x] Export: social presets (YouTube, Instagram, TikTok, ...), custom
       tab (container/codecs/aspect/resolution/bitrate), file name field
+- [x] Audio in the export: the mix the graph plays (per-clip volume,
+      mute, music tracks, sample-exact silence in holes) is muxed into
+      the file — AAC/MP3/Opus/FLAC/PCM per container
 - [x] Proxy editing for heavy sources; media pool with real thumbnails
 - [x] Keyboard: Space play/pause, Delete removes selection, digit keys
       open panels — all app-wide, text fields keep priority
 
 ## 🔨 In progress / next up
 
-- [ ] Audio in the export (the graph produces it; the muxer must write it)
 - [ ] Undo/redo for timeline edits (Command layer — the architecture
       demands it, the UI buttons are waiting)
 - [ ] Real waveforms on audio clips (peaks, not generated bars)

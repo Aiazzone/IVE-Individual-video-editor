@@ -1,12 +1,10 @@
-"""Export: turns the loaded media into a file, on a worker thread.
+"""Export: turns the timeline into a file, on a worker thread.
 
-This is the first working slice, and it is honest about its limits:
-
-* it re-encodes the **video** of the media currently in the preview;
-* **audio is not carried over yet** - the audio engine does not exist, and
-  silently dropping a soundtrack without saying so would be worse than not
-  offering the option;
-* there is no render graph yet, so no effects are applied.
+The export pulls the SAME graph the preview plays (docs/ENGINE.md 6.2):
+video AND audio come out of the tractor frame by frame, with clip volumes,
+mutes and the Color lane already applied. The muxer here only writes what
+the graph hands it - per-frame RGB arrays and per-frame float32 audio
+blocks - so what you watched is what you get.
 
 What is already right and worth keeping: the encoder is chosen from the
 machine's capabilities rather than named in the preset, the output is written
@@ -46,6 +44,23 @@ _ENCODERS: dict[str, tuple[str, ...]] = {
     "prores": ("prores_ks", "prores"),
     "mpeg4": ("mpeg4",),
 }
+
+#: Logical audio codec -> FFmpeg encoders to try, best first. All of these
+#: ship in the PyAV wheels, so the fallback chain is short. PyAV 17 encodes
+#: audio from arbitrary-sized frames: it buffers to the encoder's frame_size
+#: and converts the sample format internally (verified: aac, libmp3lame,
+#: libopus, flac and pcm_s16le all accept our packed-float 1601/1602-sample
+#: blocks as-is).
+_AUDIO_ENCODERS: dict[str, tuple[str, ...]] = {
+    "aac": ("aac",),
+    "mp3": ("libmp3lame", "mp3"),
+    "opus": ("libopus",),
+    "flac": ("flac",),
+    "pcm": ("pcm_s16le",),
+}
+
+#: Lossless codecs ignore a bitrate; setting one anyway is at best noise.
+_LOSSY_AUDIO = {"aac", "mp3", "opus"}
 
 
 #: Results of the capability probe, which is slow enough to be worth caching.
@@ -197,7 +212,7 @@ class _Worker(QObject):
                     use_proxies=False,
                     color_spans=list(options.get("color_spans") or []))
                 walker = SequenceWalker(graph, want_image=True,
-                                        want_audio=False)
+                                        want_audio=True)
                 total = graph.length
                 log.info("Export renders the SEQUENCE: %d clip(s), %d frames",
                          len(clips), total)
@@ -214,13 +229,28 @@ class _Worker(QObject):
             bitrate = int(options.get("video_bitrate_kbps") or 12000)
             stream.bit_rate = bitrate * 1000
 
+            # Audio only exists when the graph renders: the graph mixes every
+            # clip's sound (volume, mute, music tracks) into one stereo
+            # stream. The bare-file fallback stays video-only, as before.
+            audio_stream = None
+            if walker is not None:
+                audio_stream = self._add_audio_stream(
+                    container, options, graph.audio_format)
+
             log.info(
-                "Export started: %s -> %s (%dx%d, %s via %s, %d kbps, %d frames)",
+                "Export started: %s -> %s (%dx%d, %s via %s, %d kbps, "
+                "%d frames, audio=%s)",
                 Path(source).name, out_path.name, width, height, logical,
                 encoder, bitrate, total,
+                audio_stream.codec_context.codec.name if audio_stream else "no",
             )
 
             import numpy as np
+            from fractions import Fraction
+
+            sample_pts = 0
+            if audio_stream is not None:
+                audio_tb = Fraction(1, graph.audio_format.sample_rate)
 
             last_array = None
             for index in range(total):
@@ -259,11 +289,40 @@ class _Worker(QObject):
                                                    format=stream.pix_fmt)
                 for packet in stream.encode(video_frame):
                     container.mux(packet)
+
+                if audio_stream is not None:
+                    # The sound of THIS frame, from the same pull as the
+                    # picture. A frame with no sound (a hole, a mute) still
+                    # occupies its exact sample count - silence keeps every
+                    # later sample in sync, skipping would slide the mix.
+                    if pulled is not None:
+                        samples = pulled.audio()
+                        if samples is None:
+                            samples = pulled.silence()
+                    else:
+                        fmt = graph.audio_format
+                        _, count = fmt.sample_bounds(index, graph.timebase)
+                        samples = np.zeros((count, fmt.channels),
+                                           dtype=np.float32)
+                    block = np.ascontiguousarray(samples, dtype=np.float32)
+                    audio_frame = av.AudioFrame.from_ndarray(
+                        block.reshape(1, -1), format="flt",
+                        layout="stereo" if block.shape[1] == 2 else "mono")
+                    audio_frame.sample_rate = graph.audio_format.sample_rate
+                    audio_frame.pts = sample_pts
+                    audio_frame.time_base = audio_tb
+                    sample_pts += block.shape[0]
+                    for packet in audio_stream.encode(audio_frame):
+                        container.mux(packet)
+
                 if index % 10 == 0:
                     self.progress.emit(index, total)
 
             for packet in stream.encode():
                 container.mux(packet)
+            if audio_stream is not None:
+                for packet in audio_stream.encode():
+                    container.mux(packet)
             container.close()
             container = None
             tmp_path.replace(out_path)      # only now does the file become real
@@ -280,6 +339,32 @@ class _Worker(QObject):
                 graph.close()
             if decoder is not None:
                 decoder.close()
+
+    @staticmethod
+    def _add_audio_stream(container, options: dict, audio_format):
+        """Open the audio stream, or ``None`` for a soundless export.
+
+        Failing to open an audio encoder must not kill the export: a video
+        without its sound is a lesser file the log explains, a failed export
+        is lost work.
+        """
+        logical = str(options.get("audio_codec") or "aac")
+        names = _AUDIO_ENCODERS.get(logical) or _AUDIO_ENCODERS["aac"]
+        for name in names:
+            try:
+                stream = container.add_stream(name,
+                                              rate=audio_format.sample_rate)
+                stream.layout = "stereo" if audio_format.channels == 2 else "mono"
+                if logical in _LOSSY_AUDIO:
+                    kbps = int(options.get("audio_bitrate_kbps") or 192)
+                    stream.bit_rate = kbps * 1000
+                return stream
+            except Exception:
+                log.warning("Audio encoder %s failed to open", name,
+                            exc_info=True)
+        log.error("No usable audio encoder for %s: exporting without sound",
+                  logical)
+        return None
 
     @staticmethod
     def _cleanup(container, tmp_path: Path) -> None:
@@ -423,7 +508,11 @@ class ExportService(QObject):
             self.failed.emit("no_source")
             return False
         clips = []
-        if self._playback is not None and getattr(self._playback, "isSequence", False):
+        # A single previewed file is a one-clip sequence to the transport, so
+        # it renders through the graph too - that is what carries its AUDIO
+        # into the file. The gate used to be `isSequence`, which sent single
+        # files down the video-only decoder path.
+        if self._playback is not None and getattr(self._playback, "hasMedia", False):
             try:
                 clips = self._playback.sequence_clips()
             except Exception:
