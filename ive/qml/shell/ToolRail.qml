@@ -69,9 +69,12 @@ Item {
                     anchors.centerIn: parent
                     width: 24
                     height: 1
-                    color: Qt.rgba(1, 1, 1, 0.14)
+                    color: Qt.alpha(Theme.c.glassOn, 0.14)
                 }
 
+                // The rail sits on its own glass plate, which DOES follow
+                // the theme - so its icons use the themed colour, not the
+                // fixed on-video white.
                 IconButton {
                     visible: modelData.key !== "-"
                     anchors.fill: parent
@@ -79,7 +82,6 @@ Item {
                     label: Tr.s[modelData.label] || modelData.label
                     shortcut: modelData.shortcut
                     checked: root.section === modelData.key
-                    onVideo: true
                     tipSide: Shell.v.railSide === "left" ? "right" : "left"
                     onTriggered: root.sectionRequested(modelData.key)
                 }

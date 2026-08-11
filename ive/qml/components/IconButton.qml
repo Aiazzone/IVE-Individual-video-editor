@@ -18,10 +18,14 @@ Item {
     property string tipSide: "right"
     property real size: Theme.m.toolRailButton
     property real iconSize: Theme.m.toolRailIcon
-    /*! Set on buttons that sit on glass or straight on the video: the icon
-        follows the theme's on-glass colour and gains a drop shadow. */
+    /*! Set on buttons that sit straight ON THE VIDEO or the wave field:
+        always white with a drop shadow, in BOTH themes. The picture
+        underneath does not follow the theme, so a themed colour goes
+        dark-on-dark the moment the light theme is on (reported: quit,
+        fullscreen, undo and redo unreadable on the light UI). Buttons on
+        a glass plate use the default themed colour instead. */
     property bool onVideo: false
-    readonly property color _onGlass: Theme.c.glassOn
+    readonly property color _onVideoColor: "#FFFFFF"
 
     signal triggered()
 
@@ -38,7 +42,7 @@ Item {
         anchors.fill: parent
         radius: Math.min(width, height) * 0.28
         color: root.checked ? Theme.c.accent
-             : hover.hovered ? Qt.alpha(root.onVideo ? root._onGlass : Theme.c.text, 0.14)
+             : hover.hovered ? Qt.alpha(root.onVideo ? root._onVideoColor : Theme.c.text, 0.14)
              : "transparent"
         Behavior on color {
             enabled: !Shell.v.reduceMotion
@@ -52,7 +56,7 @@ Item {
         height: root.iconSize
         path: root.icon
         color: root.checked ? Theme.c.onAccent
-             : root.onVideo ? root._onGlass : Theme.c.text
+             : root.onVideo ? root._onVideoColor : Theme.c.text
         shadow: root.onVideo && !root.checked
     }
 
