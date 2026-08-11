@@ -134,7 +134,12 @@ a spezzoni). Cresta = esponenziale stretto attorno alla curva, corpo =
 esponenziale unilaterale che sfuma in giu'; il `time` cresce per sempre e
 i seni lo avvolgono: **animazione infinita, mai un riavvio** (tecnica del
 wave_widget HMI). La CPU tocca un solo float a tick (Timer 30fps, fermo
-con riduci-animazioni o quando non in vista). Colori via uniform dal tema.
+con riduci-animazioni o quando non in vista). **Colori FISSI, non a tema
+(2026-08-11)**: le onde sono l'immagine d'apertura dell'app — la sua
+identita', come quelle della PS4 — e il tema chiaro non deve ridipingerle
+(riportato dall'utente: col tema chiaro cambiavano onde e sfondo). I
+pannelli di vetro sopra seguono il tema; il palcoscenico no. Uniform
+hardcoded in IdleBackdrop.qml: #232b3a → #12161f, nastri #31435f.
 ATTENZIONE test: `grabWindow()` mentre lo shader sta ancora compilando si
 e' bloccato una volta — il primo screenshot aspetta 2.5s.
 

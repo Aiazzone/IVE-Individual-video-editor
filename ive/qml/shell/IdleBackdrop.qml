@@ -29,11 +29,17 @@ Item {
     // Painted ground behind the shader, and the whole backdrop when the
     // shader cannot load (an exotic GPU stack): the window must never be
     // a black hole.
+    //
+    // The colours are FIXED, not themed, on purpose: this is the app's
+    // opening image - its identity, like the PS4's own wave field - and
+    // switching to the light theme must not repaint it (reported: "ho
+    // messo la ui chiara e ha cambiato tutto il colore delle onde").
+    // The glass panels above it stay themed; the stage does not.
     Rectangle {
         anchors.fill: parent
         gradient: Gradient {
-            GradientStop { position: 0.0; color: Theme.isDark ? "#232b3a" : "#dfe4ec" }
-            GradientStop { position: 1.0; color: Theme.isDark ? "#12161f" : "#c9d2e0" }
+            GradientStop { position: 0.0; color: "#232b3a" }
+            GradientStop { position: 1.0; color: "#12161f" }
         }
     }
 
@@ -44,9 +50,9 @@ Item {
 
         // Names must match the uniform block members in waves.frag.
         property real time: root.phase
-        property color topColor: Theme.isDark ? "#232b3a" : "#dfe4ec"
-        property color bottomColor: Theme.isDark ? "#12161f" : "#c9d2e0"
-        // Additive ribbon tint: steel blue on dark, pearl on light.
-        property color waveColor: Theme.isDark ? "#31435f" : "#93a8c4"
+        property color topColor: "#232b3a"
+        property color bottomColor: "#12161f"
+        // Additive ribbon tint: steel blue.
+        property color waveColor: "#31435f"
     }
 }
