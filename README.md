@@ -53,7 +53,7 @@ between the two, on Windows and Linux:
   restore a clip's audio, music (audio-only) clips, real waveforms on
   the audio lane
 - Frame-accurate playback with audio, the audio clock driving A/V sync
-- Colour effects: 14 built-in looks in 4 families, live thumbnails on your
+- Colour effects: 29 built-in looks in 8 families, live thumbnails on your
   own footage, favourites, drag onto the timeline as a resizable clip on a
   dedicated Color lane — applied identically in preview and export
 - Export **with audio**: the same graph the preview plays renders the
@@ -115,8 +115,11 @@ A colour effect is a JSON file:
 ```
 
 Drop it in `user_data/effects/color/` and it appears in the Color panel —
-or send the file to another user, who does the same. Export presets work
-the same way. See [`docs/COLOR_EFFECTS.md`](docs/COLOR_EFFECTS.md).
+or send the file to another user, who does the same. Twelve operations are
+available (brightness, contrast, saturation, gamma, temperature, tint,
+fade, shadows, highlights, vignette, a full 3x3 colour matrix, and a
+whole-recipe intensity dial); export presets work the same way. See
+[`docs/COLOR_EFFECTS.md`](docs/COLOR_EFFECTS.md).
 
 ## License
 

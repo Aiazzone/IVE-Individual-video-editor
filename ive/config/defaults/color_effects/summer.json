@@ -1,0 +1,55 @@
+[
+  {
+    "schema_version": 1,
+    "id": "golden_hour",
+    "name": {"en": "Golden hour", "it": "Ora d'oro", "es": "Hora dorada", "pt": "Hora dourada"},
+    "section": "summer",
+    "ops": [
+      {"op": "temperature", "amount": 0.45},
+      {"op": "highlights", "amount": 0.18},
+      {"op": "shadows", "amount": 0.1},
+      {"op": "saturation", "amount": 1.1},
+      {"op": "vignette", "strength": 0.2}
+    ]
+  },
+  {
+    "schema_version": 1,
+    "id": "tropical_pop",
+    "name": {"en": "Tropical pop", "it": "Pop tropicale", "es": "Pop tropical", "pt": "Pop tropical"},
+    "section": "summer",
+    "ops": [
+      {"op": "saturation", "amount": 1.5},
+      {"op": "contrast", "amount": 1.08},
+      {"op": "brightness", "amount": 0.03},
+      {"op": "highlights", "amount": 0.1}
+    ]
+  },
+  {
+    "schema_version": 1,
+    "id": "mediterranean",
+    "name": {"en": "Mediterranean", "it": "Mediterraneo", "es": "Mediterráneo", "pt": "Mediterrâneo"},
+    "section": "summer",
+    "ops": [
+      {"op": "brightness", "amount": 0.04},
+      {"op": "contrast", "amount": 1.06},
+      {"op": "saturation", "amount": 1.2},
+      {"op": "matrix",
+       "m": [[0.98, 0.0, 0.02],
+             [0.0, 1.0, 0.02],
+             [0.0, 0.02, 1.04]]}
+    ]
+  },
+  {
+    "schema_version": 1,
+    "id": "sunny_day",
+    "name": {"en": "Sunny day", "it": "Giornata di sole", "es": "Día soleado", "pt": "Dia de sol"},
+    "section": "summer",
+    "ops": [
+      {"op": "brightness", "amount": 0.06},
+      {"op": "highlights", "amount": -0.12},
+      {"op": "shadows", "amount": 0.1},
+      {"op": "saturation", "amount": 1.15},
+      {"op": "temperature", "amount": 0.1}
+    ]
+  }
+]

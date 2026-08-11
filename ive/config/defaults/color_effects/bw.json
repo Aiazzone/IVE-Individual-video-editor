@@ -1,0 +1,41 @@
+[
+  {
+    "schema_version": 1,
+    "id": "high_key_bw",
+    "name": {"en": "High-key B&W", "it": "Bianco e nero luminoso", "es": "Blanco y negro luminoso", "pt": "Preto e branco luminoso"},
+    "section": "bw",
+    "ops": [
+      {"op": "saturation", "amount": 0.0},
+      {"op": "brightness", "amount": 0.07},
+      {"op": "gamma", "value": 0.9},
+      {"op": "highlights", "amount": -0.08},
+      {"op": "fade", "amount": 0.12}
+    ]
+  },
+  {
+    "schema_version": 1,
+    "id": "low_key_bw",
+    "name": {"en": "Low-key B&W", "it": "Bianco e nero drammatico", "es": "Blanco y negro dramático", "pt": "Preto e branco dramático"},
+    "section": "bw",
+    "ops": [
+      {"op": "saturation", "amount": 0.0},
+      {"op": "contrast", "amount": 1.28},
+      {"op": "shadows", "amount": -0.2},
+      {"op": "vignette", "strength": 0.45}
+    ]
+  },
+  {
+    "schema_version": 1,
+    "id": "warm_bw",
+    "name": {"en": "Warm B&W", "it": "Bianco e nero caldo", "es": "Blanco y negro cálido", "pt": "Preto e branco quente"},
+    "section": "bw",
+    "ops": [
+      {"op": "matrix",
+       "m": [[0.317, 0.622, 0.121],
+             [0.293, 0.575, 0.112],
+             [0.257, 0.505, 0.098]]},
+      {"op": "contrast", "amount": 1.08},
+      {"op": "vignette", "strength": 0.2}
+    ]
+  }
+]

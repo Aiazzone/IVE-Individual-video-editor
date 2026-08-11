@@ -1,0 +1,40 @@
+[
+  {
+    "schema_version": 1,
+    "id": "nordic_blue",
+    "name": {"en": "Nordic blue", "it": "Blu nordico", "es": "Azul nórdico", "pt": "Azul nórdico"},
+    "section": "nordic",
+    "ops": [
+      {"op": "temperature", "amount": -0.35},
+      {"op": "saturation", "amount": 0.8},
+      {"op": "shadows", "amount": 0.12},
+      {"op": "contrast", "amount": 0.96}
+    ]
+  },
+  {
+    "schema_version": 1,
+    "id": "winter_morning",
+    "name": {"en": "Winter morning", "it": "Mattina d'inverno", "es": "Mañana de invierno", "pt": "Manhã de inverno"},
+    "section": "nordic",
+    "ops": [
+      {"op": "temperature", "amount": -0.25},
+      {"op": "brightness", "amount": 0.05},
+      {"op": "fade", "amount": 0.25},
+      {"op": "saturation", "amount": 0.85},
+      {"op": "highlights", "amount": -0.08}
+    ]
+  },
+  {
+    "schema_version": 1,
+    "id": "deep_fjord",
+    "name": {"en": "Deep fjord", "it": "Fiordo profondo", "es": "Fiordo profundo", "pt": "Fiorde profundo"},
+    "section": "nordic",
+    "ops": [
+      {"op": "temperature", "amount": -0.3},
+      {"op": "contrast", "amount": 1.15},
+      {"op": "shadows", "amount": -0.15},
+      {"op": "saturation", "amount": 0.9},
+      {"op": "vignette", "strength": 0.35}
+    ]
+  }
+]

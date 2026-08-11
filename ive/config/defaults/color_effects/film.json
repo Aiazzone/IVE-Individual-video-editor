@@ -1,0 +1,70 @@
+[
+  {
+    "schema_version": 1,
+    "id": "golden_film",
+    "name": {"en": "Golden film", "it": "Pellicola dorata", "es": "Película dorada", "pt": "Película dourada"},
+    "section": "film",
+    "ops": [
+      {"op": "temperature", "amount": 0.2},
+      {"op": "shadows", "amount": 0.12},
+      {"op": "highlights", "amount": 0.12},
+      {"op": "contrast", "amount": 1.06},
+      {"op": "saturation", "amount": 1.12}
+    ]
+  },
+  {
+    "schema_version": 1,
+    "id": "polaroid",
+    "name": {"en": "Polaroid", "it": "Polaroid", "es": "Polaroid", "pt": "Polaroid"},
+    "section": "film",
+    "ops": [
+      {"op": "fade", "amount": 0.5},
+      {"op": "contrast", "amount": 0.9},
+      {"op": "temperature", "amount": 0.12},
+      {"op": "tint", "amount": 0.1},
+      {"op": "intensity", "amount": 0.85},
+      {"op": "vignette", "strength": 0.35}
+    ]
+  },
+  {
+    "schema_version": 1,
+    "id": "technicolor",
+    "name": {"en": "Technicolor", "it": "Technicolor", "es": "Technicolor", "pt": "Technicolor"},
+    "section": "film",
+    "ops": [
+      {"op": "saturation", "amount": 1.45},
+      {"op": "contrast", "amount": 1.12},
+      {"op": "gamma", "value": 0.96},
+      {"op": "shadows", "amount": -0.06}
+    ]
+  },
+  {
+    "schema_version": 1,
+    "id": "silver_screen",
+    "name": {"en": "Silver screen", "it": "Schermo d'argento", "es": "Pantalla plateada", "pt": "Tela prateada"},
+    "section": "film",
+    "ops": [
+      {"op": "matrix",
+       "m": [[0.299, 0.587, 0.114],
+             [0.299, 0.587, 0.114],
+             [0.299, 0.587, 0.114]]},
+      {"op": "contrast", "amount": 1.15},
+      {"op": "shadows", "amount": -0.08},
+      {"op": "vignette", "strength": 0.3}
+    ]
+  },
+  {
+    "schema_version": 1,
+    "id": "super8",
+    "name": {"en": "Super 8", "it": "Super 8", "es": "Super 8", "pt": "Super 8"},
+    "section": "film",
+    "ops": [
+      {"op": "temperature", "amount": 0.3},
+      {"op": "fade", "amount": 0.35},
+      {"op": "saturation", "amount": 0.8},
+      {"op": "contrast", "amount": 0.95},
+      {"op": "intensity", "amount": 0.9},
+      {"op": "vignette", "strength": 0.5}
+    ]
+  }
+]

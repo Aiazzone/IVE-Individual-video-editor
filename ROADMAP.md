@@ -19,7 +19,9 @@ Updated together with the code, so this file always reflects reality.
 - [x] Timeline zoom (wheel, buttons, fit-all) with playhead follow
 - [x] Colour effects: JSON recipes in families, live thumbnails on the
       user's own footage, favourites with stars, drag onto a dedicated
-      Color lane, ~7 ms/frame grading (compiled LUT/matrix steps)
+      Color lane, ~7 ms/frame grading (compiled LUT/matrix steps);
+      12-op vocabulary including shadows/highlights and a whole-recipe
+      intensity dial; 29 built-in looks in 8 families
 - [x] Export: social presets (YouTube, Instagram, TikTok, ...), custom
       tab (container/codecs/aspect/resolution/bitrate), file name field
 - [x] Audio in the export: the mix the graph plays (per-clip volume,

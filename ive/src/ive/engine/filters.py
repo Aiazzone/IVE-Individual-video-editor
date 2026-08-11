@@ -46,12 +46,22 @@ def apply_colour_ops(array: np.ndarray, ops: list[dict],
       temperature(amount)  -1..1, warm positive (red up, blue down)
       tint(amount)         -1..1, magenta positive (green down)
       fade(amount)         lifts the blacks - the "old print" look
+      shadows(amount)      -1..1, lifts (+) or crushes (-) the darks only
+      highlights(amount)   -1..1, boosts (+) or recovers (-) the brights only
       vignette(strength)   darkened corners, mask cached per frame size
       matrix(m, offset?)   3x3 colour matrix + optional per-channel offset
+      intensity(amount)    blends everything BEFORE it with the untouched
+                           frame: 0 = original, 1 = full effect. Put it
+                           last (and before any vignette) for the "overall
+                           strength" dial of a whole recipe.
     Unknown ops are skipped with a warning: a recipe written by a NEWER
     version must degrade, not blow up the timeline.
     """
     work = array.astype(np.float32) / 255.0
+    # The pristine input, kept only when an intensity op will need it.
+    original = (work.copy()
+                if any(o.get("op") == "intensity" for o in ops or [])
+                else None)
     for entry in ops or []:
         op = str(entry.get("op") or "")
         if op == "brightness":
@@ -78,6 +88,19 @@ def apply_colour_ops(array: np.ndarray, ops: list[dict],
         elif op == "fade":
             amount = np.float32(entry.get("amount", 0.0))
             work = work + amount * 0.18 * (1.0 - work)
+        elif op == "shadows":
+            # Weighted by (1-x)^2: full effect on black, none on white.
+            # The 0.35 scale keeps amount=1 strong but still monotone
+            # (the curve never folds back, so banding cannot appear).
+            amount = np.float32(entry.get("amount", 0.0))
+            work = work + amount * np.float32(0.35) * (1.0 - work) ** 2
+        elif op == "highlights":
+            # The mirror image: x^2 weighting, felt only in the brights.
+            amount = np.float32(entry.get("amount", 0.0))
+            work = work + amount * np.float32(0.35) * work ** 2
+        elif op == "intensity":
+            amount = np.float32(entry.get("amount", 1.0))
+            work = original + (work - original) * amount
         elif op == "vignette":
             strength = float(entry.get("strength", 0.5))
             height, width = work.shape[:2]
@@ -257,7 +280,8 @@ def bake_lut(ops: list[dict], size: int = _LUT_SIZE) -> np.ndarray:
 #: Ops whose output channel depends only on the SAME input channel; a run
 #: of them collapses into one 256-entry curve per channel.
 _PER_CHANNEL_OPS = frozenset(
-    {"brightness", "contrast", "gamma", "temperature", "tint", "fade"})
+    {"brightness", "contrast", "gamma", "temperature", "tint", "fade",
+     "shadows", "highlights"})
 
 
 class ColorGrade(Filter):
@@ -352,6 +376,10 @@ class ColorGrade(Filter):
                 flush_pending()
                 flush_matrix()
                 steps.append(("vignette", float(op.get("strength", 0.5))))
+            elif name == "intensity":
+                flush_pending()
+                flush_matrix()
+                steps.append(("mix", float(op.get("amount", 1.0))))
             else:
                 log.warning("Unknown colour op %r skipped", name)
         flush_pending()
@@ -403,6 +431,10 @@ class ColorGrade(Filter):
                     out = cv2.transform(out, payload)
                 elif kind == "lut":
                     out = cv2.LUT(out, payload)
+                elif kind == "mix":
+                    # `image` is never written in place (every cv2 call
+                    # above returns a new array), so it IS the original.
+                    out = cv2.addWeighted(image, 1.0 - payload, out, payload, 0)
                 else:
                     height, width = out.shape[:2]
                     out = cv2.multiply(out, self._mask_u8(width, height, payload),

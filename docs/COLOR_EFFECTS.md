@@ -22,16 +22,43 @@ sicuro, quindi un effetto DICHIARA una ricetta e non esegue nulla.
 ```
 
 - **Di fabbrica**: `ive/config/defaults/color_effects/*.json` (un file per
-  sezione, contiene una lista). 14 effetti in 4 sezioni: nostalgia,
-  cyberpunk, cinema, base.
+  sezione, contiene una lista). 29 effetti in 8 sezioni: nostalgia, film
+  (pellicola), cinema, cyberpunk, summer (estate), nordic, bw (bianco e
+  nero), base. Una sezione nuova richiede la chiave
+  `color.section.<id>` nei 4 locale.
 - **Dell'utente**: `user_data/effects/color/*.json` — copiare li' un file
   ricevuto da chiunque E' l'installazione. Un id gia' esistente viene
   ignorato con warning (mai override silenzioso dei builtin).
-- Vocabolario delle `ops` (numpy vettoriale, documentato in
-  `engine/filters.py::apply_colour_ops`): brightness, contrast,
-  saturation, gamma, temperature, tint, fade, vignette, matrix.
-  **Un'op sconosciuta degrada con warning**: una ricetta scritta da una
+- **Un'op sconosciuta degrada con warning**: una ricetta scritta da una
   versione futura deve caricarsi, non esplodere.
+
+### Vocabolario delle `ops` (completo, 2026-08-11)
+
+L'ordine nella lista CONTA: le op si applicano una dopo l'altra, e dopo
+ognuna il risultato e' clippato a [0,1]. Implementazione di riferimento in
+`engine/filters.py::apply_colour_ops`.
+
+| op | parametro | range utile | neutro | effetto |
+|---|---|---|---|---|
+| `brightness` | `amount` | −1 … +1 | 0 | somma luce a tutto il frame |
+| `contrast` | `amount` | 0 … ~2 | 1 | pivot sul grigio medio |
+| `saturation` | `amount` | 0 … ~2 | 1 | 0 = b/n; lavora sul luma Rec.601 |
+| `gamma` | `value` | ~0.5 … ~2 | 1 | curva sui mezzitoni; <1 schiarisce |
+| `temperature` | `amount` | −1 … +1 | 0 | caldo positivo (R su, B giu') |
+| `tint` | `amount` | −1 … +1 | 0 | magenta positivo (G giu') |
+| `fade` | `amount` | 0 … 1 | 0 | solleva i neri (look "stampa vecchia") |
+| `shadows` | `amount` | −1 … +1 | 0 | solo le ombre: peso (1−x)², +alza / −affonda |
+| `highlights` | `amount` | −1 … +1 | 0 | solo le luci: peso x², +spinge / −recupera |
+| `vignette` | `strength` | 0 … 1 | 0 | angoli scuri, caduta quadratica |
+| `matrix` | `m` 3×3, `offset?` | — | identita' | matrice colore arbitraria (seppia, duotone, b/n virati) |
+| `intensity` | `amount` | 0 … 1 | 1 | fonde TUTTO cio' che la precede con il frame originale: il "dosaggio" dell'intera ricetta |
+
+Regole per `intensity`: metterla **ultima** e comunque **prima di una
+vignette finale** — nella via compilata fonderebbe anche la vignette gia'
+applicata, mentre il fallback LUT (che tiene la vignette fuori dalla
+tabella) non potrebbe: con vignette dopo intensity le vie restano
+identiche. `shadows`/`highlights` sono per-canale (fondono nella LUT
+compilata) e monotone: niente banding ne' inversioni.
 - Catalogo: `ive/src/ive/color/library.py` (cache, `reload()`); bridge QML
   `ColorFx` (`ui/color_service.py`) con nomi gia' localizzati.
 
@@ -42,10 +69,12 @@ La catena numpy di riferimento (`apply_colour_ops`) costa ~150 ms a frame
 **compila** la ricetta al primo uso:
 
 - run di op per-canale (brightness, contrast, gamma, temperature, tint,
-  fade) → UNA curva `cv2.LUT` (1x256x3);
+  fade, shadows, highlights) → UNA curva `cv2.LUT` (1x256x3);
 - saturation e matrix (mixano i canali; saturation E' una matrice verso il
   luma) → composte in UNA `cv2.transform` affine 3x4;
-- vignette → un `cv2.multiply` con maschera radiale uint8 cachata per size.
+- vignette → un `cv2.multiply` con maschera radiale uint8 cachata per size;
+- intensity → un `cv2.addWeighted` col frame d'ingresso (mai mutato in
+  place dai passi precedenti, quindi E' l'originale).
 
 Un look tipico = 2-3 chiamate C a frame: **~7 ms a 720p** (misurato nel
 test, budget 33 ms a 30fps). Senza OpenCV il fallback e' una LUT 3D 65^3
