@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <g transform="rotate(-12 256 240)">
+    <path d="M208 96c0-16 13-28 28-28s28 12 28 28v96h14V80c0-16 13-28 28-28s28 12 28 28v128h14v-96c0-16 13-28 28-28s28 12 28 28v170c0 84-58 138-134 138-70 0-118-40-138-96l-30-84c-6-17 3-33 19-38 14-5 29 2 36 15l25 47V96z"
+          fill="#F6C89F" stroke="#B8794A" stroke-width="14" stroke-linejoin="round"/>
+  </g>
+  <g fill="none" stroke="#3E63DD" stroke-width="14" stroke-linecap="round" opacity="0.9">
+    <path d="M96 120c-12 14-18 32-18 50"/>
+    <path d="M120 96c-20 8-34 22-42 40"/>
+  </g>
+  <rect x="128" y="404" width="256" height="72" rx="36" fill="#3E63DD"/>
+  <text x="256" y="454" text-anchor="middle" font-family="sans-serif"
+        font-size="46" font-weight="bold" fill="#FFFFFF">Ciao!</text>
+</svg>

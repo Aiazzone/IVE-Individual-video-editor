@@ -1,0 +1,104 @@
+[
+  {
+    "schema_version": 1,
+    "id": "shape_star",
+    "name": {"en": "Star", "it": "Stella", "es": "Estrella", "pt": "Estrela"},
+    "section": "shapes", "kind": "static", "file": "shapes/star.svg"
+  },
+  {
+    "schema_version": 1,
+    "id": "shape_heart",
+    "name": {"en": "Heart", "it": "Cuore", "es": "Corazón", "pt": "Coração"},
+    "section": "shapes", "kind": "static", "file": "shapes/heart.svg"
+  },
+  {
+    "schema_version": 1,
+    "id": "shape_arrow",
+    "name": {"en": "Arrow", "it": "Freccia", "es": "Flecha", "pt": "Seta"},
+    "section": "shapes", "kind": "static", "file": "shapes/arrow.svg"
+  },
+  {
+    "schema_version": 1,
+    "id": "shape_bubble",
+    "name": {"en": "Speech bubble", "it": "Fumetto", "es": "Bocadillo", "pt": "Balão de fala"},
+    "section": "shapes", "kind": "static", "file": "shapes/speech_bubble.svg"
+  },
+  {
+    "schema_version": 1,
+    "id": "shape_badge",
+    "name": {"en": "Check badge", "it": "Spunta", "es": "Insignia", "pt": "Selo"},
+    "section": "shapes", "kind": "static", "file": "shapes/badge.svg"
+  },
+  {
+    "schema_version": 1,
+    "id": "gm_sun",
+    "name": {"en": "Good morning sun", "it": "Sole Buongiorno", "es": "Sol Buenos días", "pt": "Sol Bom dia"},
+    "section": "goodmorning", "kind": "static", "file": "goodmorning/sun.svg"
+  },
+  {
+    "schema_version": 1,
+    "id": "gm_moon",
+    "name": {"en": "Good night moon", "it": "Luna Buonanotte", "es": "Luna Buenas noches", "pt": "Lua Boa noite"},
+    "section": "goodmorning", "kind": "static", "file": "goodmorning/moon.svg"
+  },
+  {
+    "schema_version": 1,
+    "id": "gm_coffee",
+    "name": {"en": "Morning coffee", "it": "Caffè del mattino", "es": "Café de la mañana", "pt": "Café da manhã"},
+    "section": "goodmorning", "kind": "static", "file": "goodmorning/coffee.svg"
+  },
+  {
+    "schema_version": 1,
+    "id": "greet_hello",
+    "name": {"en": "Hello wave", "it": "Ciao!", "es": "¡Hola!", "pt": "Olá!"},
+    "section": "greetings", "kind": "static", "file": "greetings/hello.svg"
+  },
+  {
+    "schema_version": 1,
+    "id": "greet_welcome",
+    "name": {"en": "Welcome banner", "it": "Benvenuto", "es": "Bienvenido", "pt": "Bem-vindo"},
+    "section": "greetings", "kind": "static", "file": "greetings/welcome.svg"
+  },
+  {
+    "schema_version": 1,
+    "id": "greet_thanks",
+    "name": {"en": "Thank you", "it": "Grazie", "es": "Gracias", "pt": "Obrigado"},
+    "section": "greetings", "kind": "static", "file": "greetings/thanks.svg"
+  },
+  {
+    "schema_version": 1,
+    "id": "bd_cake",
+    "name": {"en": "Birthday cake", "it": "Torta di compleanno", "es": "Tarta de cumpleaños", "pt": "Bolo de aniversário"},
+    "section": "birthday", "kind": "static", "file": "birthday/cake.svg"
+  },
+  {
+    "schema_version": 1,
+    "id": "bd_balloons",
+    "name": {"en": "Balloons", "it": "Palloncini", "es": "Globos", "pt": "Balões"},
+    "section": "birthday", "kind": "static", "file": "birthday/balloons.svg"
+  },
+  {
+    "schema_version": 1,
+    "id": "bd_party",
+    "name": {"en": "Party popper", "it": "Festa", "es": "Fiesta", "pt": "Festa"},
+    "section": "birthday", "kind": "static", "file": "birthday/party.svg"
+  },
+  {
+    "schema_version": 1,
+    "id": "bd_auguri",
+    "name": {"en": "Best wishes badge", "it": "Auguri!", "es": "¡Felicidades!", "pt": "Parabéns!"},
+    "section": "birthday", "kind": "static", "file": "birthday/auguri.svg"
+  },
+  {
+    "schema_version": 1,
+    "id": "anim_bounce_ball",
+    "name": {"en": "Bouncing ball", "it": "Pallina che rimbalza", "es": "Pelota que rebota", "pt": "Bola saltitante"},
+    "section": "demo", "kind": "animated", "file": "animated/bounce_ball.json"
+  },
+  {
+    "schema_version": 1,
+    "id": "anim_pulse_star",
+    "name": {"en": "Pulsing star", "it": "Stella pulsante", "es": "Estrella pulsante", "pt": "Estrela pulsante"},
+    "section": "demo", "kind": "animated", "file": "animated/pulse_star.json"
+  }
+]

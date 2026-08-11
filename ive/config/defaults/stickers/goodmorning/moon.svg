@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <path d="M330 60c-96 20-166 106-166 204 0 64 30 121 77 158-104-8-187-96-187-203C54 106 147 18 262 18c24 0 47 4 68 12z"
+        transform="translate(60 40) scale(0.86)"
+        fill="#F5D97E" stroke="#C9A227" stroke-width="16" stroke-linejoin="round"/>
+  <g fill="#F5D97E" stroke="#C9A227" stroke-width="8" stroke-linejoin="round">
+    <path d="M368 96l10 26 26 10-26 10-10 26-10-26-26-10 26-10z"/>
+    <path d="M430 208l7 18 18 7-18 7-7 18-7-18-18-7 18-7z"/>
+    <path d="M396 320l8 21 21 8-21 8-8 21-8-21-21-8 21-8z"/>
+  </g>
+  <rect x="96" y="398" width="320" height="74" rx="37" fill="#2A2F45"
+        stroke="#C9A227" stroke-width="10"/>
+  <text x="256" y="450" text-anchor="middle" font-family="sans-serif"
+        font-size="46" font-weight="bold" fill="#F5D97E">Buonanotte</text>
+</svg>

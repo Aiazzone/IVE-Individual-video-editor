@@ -60,6 +60,9 @@ between the two, on Windows and Linux:
   file — per-clip volume and mute included; social presets (YouTube,
   Instagram, TikTok, ...) and a custom tab (container, codecs, aspect
   ratio, resolution, bitrate)
+- Sticker catalogue: static SVG families plus an Animated (Lottie) tab,
+  installable by dropping files in a folder — placement on the video is
+  the next step
 - Proxy editing for 4K sources; multilingual UI (EN, IT, ES, PT); dark and
   light themes
 

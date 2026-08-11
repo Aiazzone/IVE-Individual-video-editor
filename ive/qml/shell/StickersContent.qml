@@ -1,8 +1,15 @@
-// Stickers: not built yet, and honest about it.
+// Stickers, in two tabs.
 //
-// The rail button exists so the layout settles now; when the feature lands
-// (animated overlays as shareable packs, like the colour effects) this
-// placeholder is replaced. An empty panel would read as a bug.
+//   STATIC     SVG/PNG stickers, in families (shapes, greetings, ...).
+//              QML renders the SVG natively, so the previews ARE the
+//              stickers - crisp at any size, no thumbnail worker.
+//   ANIMATED   Lottie stickers, same family structure. Catalogued and
+//              installable today; the live preview and the timeline
+//              placement arrive with the Lottie renderer (docs/STICKERS.md),
+//              so for now each card shows a badge, not a moving preview.
+//
+// The catalogue is JSON on disk (ive/stickers/library.py), shareable like
+// the colour effects: drop a manifest + files in user_data/stickers/.
 import QtQuick
 import QtQuick.Layouts
 import components
@@ -13,30 +20,211 @@ Item {
 
     implicitHeight: column.implicitHeight + Theme.m.space3 * 2
 
+    property string tab: "static"
+    /*! "" = the family grid; a section id = the stickers inside it. */
+    property string section: ""
+
+    /*! What the grid shows: the open family's stickers. Reading
+        Stickers.staticSections keeps the binding live on language flips. */
+    readonly property var gridStickers: {
+        var live = Stickers.staticSections;
+        return root.section !== ""
+            ? Stickers.stickers(root.tab, root.section) : [];
+    }
+
+    function sectionLabel(id) {
+        return Tr.s["sticker.section." + id] || id;
+    }
+
     ColumnLayout {
         id: column
         anchors { left: parent.left; right: parent.right; top: parent.top
                   margins: Theme.m.space3 }
         spacing: Theme.m.space3
 
+        // ── tabs ──────────────────────────────────────────────────
+        Segmented {
+            Layout.fillWidth: true
+            value: root.tab
+            model: [
+                { value: "static", text: Tr.s["sticker.tab.static"] || "" },
+                { value: "animated", text: Tr.s["sticker.tab.animated"] || "" }
+            ]
+            onPicked: function (v) { root.tab = v; root.section = ""; }
+        }
+
+        // ── the families of the open tab ──────────────────────────
         CardGroup {
-            Glyph {
-                Layout.alignment: Qt.AlignHCenter
-                Layout.topMargin: Theme.m.space3
-                Layout.preferredWidth: 34
-                Layout.preferredHeight: 34
-                path: Icons.sticker
-                color: Theme.c.textDisabled
+            visible: root.section === ""
+            title: Tr.s["sticker.sections"] || ""
+
+            Repeater {
+                model: root.tab === "static"
+                    ? Stickers.staticSections : Stickers.animatedSections
+                delegate: Item {
+                    required property var modelData
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 48
+
+                    Rectangle {
+                        anchors.fill: parent
+                        radius: Theme.m.radiusMd
+                        color: sectionHover.hovered ? Theme.c.bgHover
+                                                    : Qt.alpha(Theme.c.glassOn, 0.05)
+                    }
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: Theme.m.space3
+                        anchors.rightMargin: Theme.m.space2
+                        spacing: Theme.m.space3
+
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 2
+                            Text {
+                                Layout.fillWidth: true
+                                text: root.sectionLabel(modelData.id)
+                                color: Theme.c.text
+                                font.pixelSize: Theme.m.fontSizeSm + 2
+                                elide: Text.ElideRight
+                            }
+                            Text {
+                                Layout.fillWidth: true
+                                text: (Tr.s["sticker.count"] || "{n}")
+                                          .replace("{n}", modelData.count)
+                                color: Theme.c.textDisabled
+                                font.pixelSize: Theme.m.fontSizeXs
+                            }
+                        }
+                        Glyph {
+                            width: 15; height: 15
+                            rotation: -90
+                            path: Icons.chevronDown
+                            color: Theme.c.textDisabled
+                        }
+                    }
+                    HoverHandler { id: sectionHover; cursorShape: Qt.PointingHandCursor }
+                    TapHandler { onTapped: root.section = modelData.id }
+                }
             }
+
             Text {
                 Layout.fillWidth: true
-                Layout.bottomMargin: Theme.m.space3
-                horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.WordWrap
-                text: Tr.s["stickers.coming"] || ""
+                text: (root.tab === "animated"
+                       ? Tr.s["sticker.animated_hint"]
+                       : Tr.s["sticker.hint"]) || ""
                 color: Theme.c.textDisabled
-                font.pixelSize: Theme.m.fontSizeSm
+                font.pixelSize: Theme.m.fontSizeXs
                 lineHeight: 1.35
+            }
+        }
+
+        // ── the stickers of one family ────────────────────────────
+        CardGroup {
+            visible: root.section !== ""
+            title: root.sectionLabel(root.section)
+
+            // The way back sits first: a sub-page without an exit teaches
+            // the user to close the whole panel instead.
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.m.space2
+                IconButton {
+                    size: 24; iconSize: 14
+                    icon: Icons.chevronDown
+                    rotation: 90
+                    label: Tr.s["sticker.back"] || ""
+                    onTriggered: root.section = ""
+                }
+                Text {
+                    Layout.fillWidth: true
+                    text: (root.tab === "animated"
+                           ? Tr.s["sticker.animated_hint"]
+                           : Tr.s["sticker.place_hint"]) || ""
+                    color: Theme.c.textDisabled
+                    font.pixelSize: Theme.m.fontSizeXs
+                    wrapMode: Text.WordWrap
+                }
+            }
+
+            Flow {
+                Layout.fillWidth: true
+                spacing: Theme.m.space2
+
+                Repeater {
+                    model: root.gridStickers
+                    delegate: Item {
+                        id: card
+                        required property var modelData
+                        objectName: "sticker_" + modelData.id
+                        width: 104
+                        height: 118
+
+                        Rectangle {
+                            width: 104
+                            height: 96
+                            radius: Theme.m.radiusSm
+                            color: Qt.alpha(Theme.c.glassOn, 0.06)
+                            border.width: 1
+                            border.color: cardHover.hovered
+                                ? Theme.c.accent : Qt.alpha(Theme.c.glassOn, 0.12)
+
+                            // Static: the SVG itself, rendered by Qt.
+                            Image {
+                                visible: card.modelData.kind === "static"
+                                anchors.centerIn: parent
+                                width: 80
+                                height: 80
+                                sourceSize.width: 160
+                                sourceSize.height: 160
+                                fillMode: Image.PreserveAspectFit
+                                asynchronous: true
+                                source: card.modelData.kind === "static"
+                                    ? card.modelData.fileUrl : ""
+                            }
+
+                            // Animated: a badge until the renderer lands.
+                            ColumnLayout {
+                                visible: card.modelData.kind === "animated"
+                                anchors.centerIn: parent
+                                spacing: 4
+                                Glyph {
+                                    Layout.alignment: Qt.AlignHCenter
+                                    width: 34; height: 34
+                                    path: Icons.sticker
+                                    color: Theme.c.textMuted
+                                }
+                                Rectangle {
+                                    Layout.alignment: Qt.AlignHCenter
+                                    width: lottieTag.implicitWidth + 12
+                                    height: lottieTag.implicitHeight + 4
+                                    radius: height / 2
+                                    color: Qt.alpha(Theme.c.accent, 0.25)
+                                    Text {
+                                        id: lottieTag
+                                        anchors.centerIn: parent
+                                        text: "Lottie"
+                                        color: Theme.c.text
+                                        font.pixelSize: Theme.m.fontSizeXs
+                                    }
+                                }
+                            }
+                        }
+
+                        Text {
+                            anchors.bottom: parent.bottom
+                            width: parent.width
+                            horizontalAlignment: Text.AlignHCenter
+                            text: card.modelData.name
+                            color: Theme.c.textMuted
+                            font.pixelSize: Theme.m.fontSizeXs
+                            elide: Text.ElideRight
+                        }
+
+                        HoverHandler { id: cardHover }
+                    }
+                }
             }
         }
     }

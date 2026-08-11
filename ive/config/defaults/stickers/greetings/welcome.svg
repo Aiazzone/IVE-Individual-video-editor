@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <path d="M40 200l64-40v192l-64-40z" fill="#22935B"/>
+  <path d="M472 200l-64-40v192l64-40z" fill="#22935B"/>
+  <rect x="88" y="176" width="336" height="160" rx="18"
+        fill="#30A46C" stroke="#1B6B44" stroke-width="14"/>
+  <text x="256" y="276" text-anchor="middle" font-family="sans-serif"
+        font-size="54" font-weight="bold" fill="#FFFFFF">Benvenuto</text>
+  <circle cx="120" cy="150" r="10" fill="#FFC53D"/>
+  <circle cx="256" cy="132" r="10" fill="#E5484D"/>
+  <circle cx="392" cy="150" r="10" fill="#3E63DD"/>
+</svg>

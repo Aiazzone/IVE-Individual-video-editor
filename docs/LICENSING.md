@@ -170,6 +170,9 @@ Regole ferree:
 | Tracking | CoTracker | verificare, spesso **CC-BY-NC** | verificare | Solo come opzione dichiarata. |
 | Frame interpolation | RIFE | MIT | **alcune versioni non-commercial** | Verificare la release esatta dei pesi. |
 | Frame interpolation | FILM (Google) | Apache-2.0 | Apache-2.0 | Alternativa permissiva. |
+| Sticker animati (Lottie) | rlottie (Samsung) | MIT (v0.2+; parti FTL/BSD-3/MPL-1.1) | n/a | Il renderer di Telegram. Repo poco attivo: rivalutare al momento. |
+| Sticker animati (Lottie) | rlottie-python (binding pip) | **LGPL** (bundla rlottie) | n/a | LGPL compatibile col nostro GPL-3. Verificato 2026-08-11 (docs/STICKERS.md §3). |
+| Sticker animati (Lottie) | ThorVG | MIT | n/a | Alternativa mantenuta a rlottie, supporto Lottie integrato. |
 
 **Nessuna riga di questa tabella e' da considerare verificata finche' non
 viene controllata alla fonte al momento dell'integrazione.**
@@ -199,6 +202,7 @@ ufficiali. Non per i contenuti dell'utente o di terzi (§0).
 | Icone | Solo set con licenza libera: Lucide (ISC), Feather (MIT), Material Symbols (Apache-2.0). Registrare la fonte. |
 | Font | Solo SIL OFL o simili. Inter e' OFL-1.1 → OK. Verificare prima di bundlare qualunque font. |
 | Suoni, LUT, template, preset | Solo materiale creato da noi o CC0/CC-BY con attribuzione registrata. |
+| Sticker di fabbrica | Creati da noi (GPL col progetto). Le animazioni gratuite di LottieFiles ("Lottie Simple License": uso anche commerciale, no attribuzione, ridistribuzione con stessa licenza) sono libere per L'UTENTE; bundlarle NOI richiede il testo della licenza accanto ai file. |
 | Screenshot nella documentazione | Solo di IVE stesso, mai di prodotti terzi. |
 
 **Vietato senza eccezioni:** copiare, ridisegnare o "ispirarsi da vicino" a

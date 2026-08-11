@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <g stroke="#E8930C" stroke-width="26" stroke-linecap="round">
+    <path d="M256 40v56"/><path d="M256 416v-42"/>
+    <path d="M40 256h56"/><path d="M472 256h-56"/>
+    <path d="M103 103l40 40"/><path d="M409 103l-40 40"/>
+    <path d="M103 409l40-40"/><path d="M409 409l-40-40"/>
+  </g>
+  <circle cx="256" cy="256" r="118" fill="#FFC53D" stroke="#E8930C" stroke-width="14"/>
+  <circle cx="216" cy="238" r="12" fill="#8A5A00"/>
+  <circle cx="296" cy="238" r="12" fill="#8A5A00"/>
+  <path d="M206 288c26 26 74 26 100 0" fill="none" stroke="#8A5A00"
+        stroke-width="14" stroke-linecap="round"/>
+  <rect x="96" y="398" width="320" height="74" rx="37" fill="#FFFFFF"
+        stroke="#E8930C" stroke-width="10"/>
+  <text x="256" y="450" text-anchor="middle" font-family="sans-serif"
+        font-size="46" font-weight="bold" fill="#B8730A">Buongiorno!</text>
+</svg>

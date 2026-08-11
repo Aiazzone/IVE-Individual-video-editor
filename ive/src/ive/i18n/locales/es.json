@@ -199,5 +199,18 @@
   "color.fav_empty": "Aún no hay favoritos: abre una familia y toca la estrella de un efecto.",
   "color.favorite": "Favorito",
   "rail.stickers": "Stickers",
-  "stickers.coming": "Los stickers llegan pronto: superposiciones animadas, compartibles como paquetes, igual que los efectos de color."
+  "stickers.coming": "Los stickers llegan pronto: superposiciones animadas, compartibles como paquetes, igual que los efectos de color.",
+  "sticker.tab.static": "Estáticos",
+  "sticker.tab.animated": "Animados",
+  "sticker.sections": "Familias de stickers",
+  "sticker.count": "{n} stickers",
+  "sticker.back": "Todas las familias",
+  "sticker.hint": "Abre una familia para explorar sus stickers. Tus propios SVG o PNG instalados en user_data/stickers también aparecen aquí.",
+  "sticker.place_hint": "La colocación en la línea de tiempo llega con el próximo paso.",
+  "sticker.animated_hint": "Los stickers animados usan el formato abierto Lottie. Ya se instalan y se catalogan; el reproductor que los hace moverse está en camino.",
+  "sticker.section.shapes": "Formas",
+  "sticker.section.goodmorning": "Buenos días",
+  "sticker.section.greetings": "Saludos",
+  "sticker.section.birthday": "Cumpleaños",
+  "sticker.section.demo": "Demostraciones"
 }

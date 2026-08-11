@@ -199,5 +199,18 @@
   "color.fav_empty": "No favorites yet: open a family and tap the star on an effect.",
   "color.favorite": "Favorite",
   "rail.stickers": "Stickers",
-  "stickers.coming": "Stickers are coming soon: animated overlays, shareable as packs, exactly like the colour effects."
+  "stickers.coming": "Stickers are coming soon: animated overlays, shareable as packs, exactly like the colour effects.",
+  "sticker.tab.static": "Static",
+  "sticker.tab.animated": "Animated",
+  "sticker.sections": "Sticker families",
+  "sticker.count": "{n} stickers",
+  "sticker.back": "All families",
+  "sticker.hint": "Open a family to browse its stickers. Your own SVG or PNG files installed in user_data/stickers appear here too.",
+  "sticker.place_hint": "Placing stickers on the timeline arrives with the next step.",
+  "sticker.animated_hint": "Animated stickers use the open Lottie format. They install and are catalogued already; the player that makes them move is on its way.",
+  "sticker.section.shapes": "Shapes",
+  "sticker.section.goodmorning": "Good morning",
+  "sticker.section.greetings": "Greetings",
+  "sticker.section.birthday": "Birthday",
+  "sticker.section.demo": "Demos"
 }

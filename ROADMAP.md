@@ -36,6 +36,10 @@ Updated together with the code, so this file always reflects reality.
 - [x] Real waveforms on audio clips: true peaks decoded off-thread and
       cached per file; trimming, splitting and zooming slide the same
       strip instead of re-decoding
+- [x] Sticker catalogue and panel: Static / Animated tabs, families
+      (shapes, good morning, greetings, birthday + demos), 15 factory
+      SVG stickers, shareable manifest + files like the colour effects;
+      Lottie chosen for animation (licences verified, renderer next)
 
 ## 🔨 In progress / next up
 
@@ -43,8 +47,9 @@ Updated together with the code, so this file always reflects reality.
 
 ## 🗺️ Planned
 
-- [ ] Stickers (animated overlays as shareable packs) — rail icon already
-      in place
+- [ ] Stickers on the video: timeline lane + engine compositing
+      (position/scale/rotation per clip), motion presets, and the Lottie
+      player for the animated tab (rlottie-python, LGPL — cleared)
 - [ ] Transitions between clips (the engine's Transition slot exists)
 - [ ] Multi-track timeline (music under video, picture-in-picture)
 - [ ] Content packs (`.ivepack`): bundle effects/presets/music with
