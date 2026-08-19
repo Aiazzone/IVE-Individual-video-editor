@@ -61,6 +61,12 @@ class ShellState(QObject):
         self._theme = theme
         self._glass_supported = True
         self._window_hidden = False
+        #: The timeline clip the UI is focused on. Shared shell state, not
+        #: project state: the timeline, the on-video handles and the Text
+        #: panel all read and write the SAME selection, which is what lets
+        #: selecting a title on the video open its words in the panel.
+        self._selected_clip = ""
+        self._selected_kind = ""
         self._values: dict[str, Any] = {}
         self._rebuild()
         settings.changed.connect(self._on_setting_changed)
@@ -80,6 +86,16 @@ class ShellState(QObject):
         if hidden == self._window_hidden:
             return
         self._window_hidden = hidden
+        self._rebuild()
+
+    @Slot(str, str)
+    def set_selected_clip(self, clip_id: str, kind: str) -> None:
+        """Focus a timeline clip ("" to clear). Kind names the lane tapped."""
+        clip_id, kind = str(clip_id), str(kind)
+        if (clip_id, kind) == (self._selected_clip, self._selected_kind):
+            return
+        self._selected_clip = clip_id
+        self._selected_kind = kind
         self._rebuild()
 
     @Slot(bool)
@@ -109,6 +125,8 @@ class ShellState(QObject):
         )
         values["glassSupported"] = self._glass_supported
         values["windowHidden"] = self._window_hidden
+        values["selectedClipId"] = self._selected_clip
+        values["selectedKind"] = self._selected_kind
         # A hidden window renders nothing worth blurring, and sampling it is
         # exactly what stalls.
         values["glassActive"] = active and not self._window_hidden

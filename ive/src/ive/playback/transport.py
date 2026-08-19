@@ -111,6 +111,9 @@ class PlaybackService(QObject):
         #: Sticker stretches (seconds + file/kind/transform) from the
         #: Sticker lane; pure data - sprites attach at graph build.
         self._sticker_spans: list[dict] = []
+        #: Title stretches (seconds + words/style/transform) from the
+        #: Text lane; same pure-data rule.
+        self._text_spans: list[dict] = []
         self._playing = False
         self._position = 0.0                    # seconds on the timeline
         self._duration = 0.0                    # seconds
@@ -241,6 +244,7 @@ class PlaybackService(QObject):
                            aspect=self._aspect_of(video))
         self._color_spans = []      # a bare file has no Color lane
         self._sticker_spans = []
+        self._text_spans = []
         self._apply_segments([segment], sequence=False,
                              name=Path(str(path)).name)
         return True
@@ -262,7 +266,29 @@ class PlaybackService(QObject):
         segments: list[_Segment] = []
         spans: list[dict] = []
         sticker_spans: list[dict] = []
+        text_spans: list[dict] = []
         for entry in clips or []:
+            text = str(entry.get("text") or "")
+            if text:
+                # A Text-lane clip: not a segment, an overlaid title. The
+                # words and style travel whole, so the graph (and the
+                # export, which shares it) never knows the model.
+                text_spans.append({
+                    "id": str(entry.get("id") or ""),
+                    "start": float(entry.get("start") or 0.0),
+                    "end": float(entry.get("end") or 0.0),
+                    "text": text,
+                    "font": str(entry.get("font") or ""),
+                    "color": str(entry.get("color") or "#FFFFFF"),
+                    "outline": str(entry.get("outline") or ""),
+                    "bold": bool(entry.get("bold", True)),
+                    "italic": bool(entry.get("italic", False)),
+                    "x": float(entry.get("x", 0.5)),
+                    "y": float(entry.get("y", 0.5)),
+                    "scale": float(entry.get("scale", 0.1)),
+                    "rotation": float(entry.get("rotation", 0.0)),
+                })
+                continue
             sticker_id = str(entry.get("stickerId") or "")
             if sticker_id:
                 # A Sticker-lane clip: not a segment, an overlaid stretch.
@@ -330,6 +356,7 @@ class PlaybackService(QObject):
             return False
         self._color_spans = spans
         self._sticker_spans = sticker_spans
+        self._text_spans = text_spans
         self._apply_segments(segments, sequence=True, name="")
         return True
 
@@ -348,26 +375,52 @@ class PlaybackService(QObject):
         return [{k: v for k, v in span.items() if k != "sprite"}
                 for span in self._sticker_spans]
 
+    def sequence_text_spans(self) -> list[dict]:
+        """The Text-lane stretches, words and style, for the export.
+
+        Same rules as the sticker spans: pure data across the thread
+        boundary, closures stripped."""
+        return [{k: v for k, v in span.items() if k != "sprite"}
+                for span in self._text_spans]
+
     @Slot(str, float, float, float, float)
-    def set_sticker_live(self, clip_id: str, x: float, y: float,
+    def set_overlay_live(self, clip_id: str, x: float, y: float,
                          scale: float, rotation: float) -> None:
-        """Move a sticker on the canvas WHILE a handle is being dragged.
+        """Move an overlay (sticker or title) WHILE a handle is dragged.
 
         This is the live half of the gesture: it mutates the very span
         dicts the graph's Overlays filter (and the sprite closures) read
         at process time - same clamps as the model - and re-requests the
-        paused frame, so the sticker follows the hand without a graph
+        paused frame, so the overlay follows the hand without a graph
         rebuild and without touching the undo stack. The release commits
         the real ``timeline.set_clip_transform`` action, which rebuilds
         from the model and records ONE undo step for the whole drag.
         """
-        for span in self._sticker_spans:
+        for span in self._sticker_spans + self._text_spans:
             if span.get("id") != clip_id:
                 continue
             span["x"] = min(1.0, max(0.0, float(x)))
             span["y"] = min(1.0, max(0.0, float(y)))
             span["scale"] = min(2.0, max(0.02, float(scale)))
             span["rotation"] = float(rotation)
+            if not self._playing:
+                self._request_at(self._position)
+            return
+
+    @Slot(str, str, str, str, str, bool, bool)
+    def set_text_live(self, clip_id: str, text: str, font: str, color: str,
+                      outline: str, bold: bool, italic: bool) -> None:
+        """Restyle a title WHILE the panel edits it: same live contract."""
+        for span in self._text_spans:
+            if span.get("id") != clip_id:
+                continue
+            if str(text).strip():
+                span["text"] = str(text)
+            span["font"] = str(font)
+            span["color"] = str(color) or "#FFFFFF"
+            span["outline"] = str(outline)
+            span["bold"] = bool(bold)
+            span["italic"] = bool(italic)
             if not self._playing:
                 self._request_at(self._position)
             return
@@ -511,8 +564,13 @@ class PlaybackService(QObject):
             from ive.stickers.raster import attach_sprites
 
             sticker_spans = attach_sprites(sticker_spans)
+        text_spans = self._text_spans
+        if text_spans:
+            from ive.text.raster import attach_text_sprites
+
+            text_spans = attach_text_sprites(text_spans)
         self._graph = self._builder.build(clips, self._color_spans,
-                                          sticker_spans)
+                                          sticker_spans, text_spans)
         self._graph_serial += 1
         self._graph_key = f"graph-{self._graph_serial}"
         log.info("Preview graph rebuilt at %dx%d: %d frames",
@@ -559,6 +617,7 @@ class PlaybackService(QObject):
         self._starts = []
         self._color_spans = []
         self._sticker_spans = []
+        self._text_spans = []
         self._duration = 0.0
         self._position = 0.0
         self._name = ""

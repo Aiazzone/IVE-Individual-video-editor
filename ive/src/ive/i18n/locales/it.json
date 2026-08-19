@@ -214,5 +214,21 @@
   "sticker.section.goodmorning": "Buongiorno",
   "sticker.section.greetings": "Saluti",
   "sticker.section.birthday": "Compleanno",
-  "sticker.section.demo": "Dimostrazioni"
+  "sticker.section.demo": "Dimostrazioni",
+  "text.add_group": "Titoli",
+  "text.add": "Aggiungi un titolo",
+  "text.default": "Titolo",
+  "text.hint": "Il titolo nasce sulla posizione di riproduzione. Toccalo sul video per spostarlo, scalarlo o ruotarlo; toccalo sulla timeline o sul video per modificarne le parole qui.",
+  "text.edit_group": "Modifica il titolo",
+  "text.outline": "Contorno",
+  "text.outline_none": "Nessuno",
+  "text.outline_black": "Nero",
+  "text.outline_white": "Bianco",
+  "text.font": "Carattere",
+  "text.font_default": "Carattere predefinito",
+  "text.font_hint": "Ogni famiglia e' mostrata col proprio carattere. Il predefinito segue il carattere dell'applicazione.",
+  "text.handles_hint": "Sposta, scala e ruota il titolo afferrandolo sul video.",
+  "text.place": "Aggiungi titolo",
+  "text.edit": "Modifica titolo",
+  "text.transform": "Sposta titolo"
 }

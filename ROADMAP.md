@@ -47,16 +47,22 @@ Updated together with the code, so this file always reflects reality.
       video to select it, drag to move, corner knob to scale, stalk to
       rotate (snapping near right angles) — live while the hand moves,
       one undo step per gesture
+- [x] Text and titles: "Add a title" places it at the playhead on a
+      dedicated Text lane; edit words, colour, outline, bold/italic
+      and font (every family shown in its own face) in the panel with
+      the frame updating as you type; grab the title on the video to
+      move/scale/rotate it like a sticker — identical in preview and
+      export, one undo step per gesture
 
 ## 🔨 In progress / next up
 
-- [ ] Text and titles on the timeline
+- [ ] Transitions between clips (the engine's Transition slot exists)
 
 ## 🗺️ Planned
 
 - [ ] Sticker motion presets (bounce, pulse, spin as JSON keyframe
-      recipes)
-- [ ] Transitions between clips (the engine's Transition slot exists)
+      recipes) and title enter/exit animations; text style presets as
+      shareable JSON
 - [ ] Multi-track timeline (music under video, picture-in-picture)
 - [ ] Content packs (`.ivepack`): bundle effects/presets/music with
       author and description

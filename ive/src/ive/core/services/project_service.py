@@ -151,7 +151,8 @@ class ProjectService(QObject):
 
         base = self._project.base
         out = []
-        # Every track: 0 is A/V, 1 is the Color lane, 2 is the Sticker lane.
+        # Every track: 0 is A/V, 1 is the Color lane, 2 is the Sticker
+        # lane, 3 is the Text lane.
         for clip in sorted(self._project.timeline,
                            key=lambda c: (c.track, c.start)):
             item = self._project.find_media(clip.media_id)
@@ -163,6 +164,9 @@ class ProjectService(QObject):
                 sticker = sticker_by_id(clip.sticker_id)
                 names = sticker["names"] if sticker else {}
                 name = names.get("en") or clip.sticker_id
+            elif clip.text:
+                # The words themselves label the clip; one line, kept short.
+                name = clip.text.split("\n")[0][:24]
             else:
                 name = item.name if item else clip.media_id
             out.append({
@@ -170,6 +174,12 @@ class ProjectService(QObject):
                 "mediaId": clip.media_id,
                 "effectId": clip.effect_id,
                 "stickerId": clip.sticker_id,
+                "text": clip.text,
+                "font": clip.font,
+                "color": clip.color,
+                "outline": clip.outline,
+                "bold": clip.bold,
+                "italic": clip.italic,
                 "track": clip.track,
                 "name": name,
                 "path": str(item.resolve(base)) if item else "",
@@ -186,7 +196,8 @@ class ProjectService(QObject):
                 "hasVideo": bool(item.width > 0) if item else False,
                 "hasAudio": bool(item.has_audio) if item else False,
                 "missing": bool(item.missing) if item
-                           else not (clip.effect_id or clip.sticker_id),
+                           else not (clip.effect_id or clip.sticker_id
+                                     or clip.text),
             })
         return out
 
@@ -286,13 +297,69 @@ class ProjectService(QObject):
 
         return self._edit("sticker.place", mutate)
 
+    @Slot(str, float, float, float, result=bool)
+    @Slot(str, float, float, float, float, result=bool)
+    def place_text(self, text: str, at: float, duration: float,
+                   y: float = 0.5) -> bool:
+        """Put a title on the Text lane over [at, at+duration)."""
+        if self._project is None:
+            return False
+
+        def mutate():
+            clip = self._project.add_text(text, at, duration, y=y)
+            if clip is not None:
+                log.info("Title %r placed at %.2fs for %.2fs",
+                         clip.text[:24], clip.start, clip.duration)
+            return clip
+
+        return self._edit("text.place", mutate)
+
+    @Slot(str, str, str, str, str, bool, bool, result=bool)
+    def set_clip_text(self, clip_id: str, text: str, font: str, color: str,
+                      outline: str, bold: bool, italic: bool) -> bool:
+        """Change a title's words and style."""
+        return self._edit("text.edit",
+                          lambda: self._project.set_clip_text(
+                              clip_id, text, font, color, outline,
+                              bold, italic))
+
     @Slot(str, float, float, float, float, result=bool)
     def set_clip_transform(self, clip_id: str, x: float, y: float,
                            scale: float, rotation: float) -> bool:
-        """Reposition a sticker clip on the canvas."""
-        return self._edit("sticker.transform",
+        """Reposition an overlay clip (sticker or text) on the canvas."""
+        clip = (self._project.find_clip(clip_id)
+                if self._project is not None else None)
+        label = ("text.transform" if clip is not None and clip.text
+                 else "sticker.transform")
+        return self._edit(label,
                           lambda: self._project.set_clip_transform(
                               clip_id, x, y, scale, rotation))
+
+    @Slot(str, result=float)
+    def overlay_aspect(self, clip_id: str) -> float:
+        """Width / height of an overlay clip's graphic, for the handles."""
+        if self._project is None:
+            return 1.0
+        clip = self._project.find_clip(clip_id)
+        if clip is None:
+            return 1.0
+        try:
+            if clip.text:
+                from ive.text.raster import text_aspect
+
+                return float(text_aspect(clip.text, clip.font,
+                                         clip.bold, clip.italic))
+            if clip.sticker_id:
+                from ive.stickers.library import sticker_by_id
+                from ive.stickers.raster import sprite_aspect
+
+                sticker = sticker_by_id(clip.sticker_id)
+                if sticker is not None:
+                    return float(sprite_aspect(sticker["path"],
+                                               sticker["kind"]))
+        except Exception:
+            log.exception("Could not measure overlay clip %s", clip_id)
+        return 1.0
 
     @Slot(str, float, float, result=bool)
     def trim_clip(self, clip_id: str, source_in: float, duration: float) -> bool:

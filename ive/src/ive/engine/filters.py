@@ -520,10 +520,20 @@ class Overlays(Filter):
         self._timebase = timebase
 
     def process(self, frame: Frame) -> Frame:
-        seconds_now = self._timebase.frames_to_seconds(frame.position)
-        active = [s for s in self._spans
-                  if float(s.get("start", 0.0)) <= seconds_now
-                  < float(s.get("end", 0.0))]
+        # Activity is decided on TRUNCATED frame numbers, the same
+        # convention the transport uses for the frame it shows. Comparing
+        # raw seconds instead left an overlay placed AT the playhead
+        # invisible on the very frame under it: "add a title" at 1.5 s
+        # showed frame int(1.5*25)=37, whose time 1.48 s sat 20 ms before
+        # the span it was meant to start on.
+        fps = float(self._timebase.fps)
+        position = frame.position
+        active = []
+        for span in self._spans:
+            start_f = int(float(span.get("start", 0.0)) * fps + 1e-6)
+            end_f = int(float(span.get("end", 0.0)) * fps + 1e-6)
+            if start_f <= position < max(end_f, start_f + 1):
+                active.append((start_f, span))
         if not active:
             return frame
 
@@ -532,8 +542,8 @@ class Overlays(Filter):
             if image is None:
                 return None
             out = image.copy()
-            for span in active:
-                local = seconds_now - float(span.get("start", 0.0))
+            for start_f, span in active:
+                local = self._timebase.frames_to_seconds(position - start_f)
                 rgba = span["sprite"](out.shape[0], local)
                 if rgba is None:
                     continue

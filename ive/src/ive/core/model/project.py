@@ -126,9 +126,21 @@ class TimelineClip:
     #: For clips on the Sticker track (track 2): which sticker is shown.
     #: media_id is "" for these too.
     sticker_id: str = ""
-    #: Sticker placement, in CANVAS FRACTIONS so it survives any export
-    #: resolution: (x, y) is the sticker's centre, scale is its height as
-    #: a fraction of the canvas height, rotation in degrees clockwise.
+    #: For clips on the Text track (track 3): the words on the video. A
+    #: non-empty text is what MAKES a clip a text clip, exactly as a
+    #: non-empty sticker_id makes a sticker clip.
+    text: str = ""
+    #: Text style. Empty font = the application's default family; empty
+    #: outline = no outline. Colours are #RRGGBB strings.
+    font: str = ""
+    color: str = "#FFFFFF"
+    outline: str = "#000000"
+    bold: bool = True
+    italic: bool = False
+    #: Overlay placement (stickers AND text), in CANVAS FRACTIONS so it
+    #: survives any export resolution: (x, y) is the centre, scale is the
+    #: height as a fraction of the canvas height, rotation in degrees
+    #: clockwise.
     x: float = 0.5
     y: float = 0.5
     scale: float = 0.3
@@ -146,13 +158,22 @@ class TimelineClip:
         media_id = _as_str(data.get("media_id"))
         effect_id = _as_str(data.get("effect_id"))
         sticker_id = _as_str(data.get("sticker_id"))
-        if not media_id and not effect_id and not sticker_id:
-            raise ValueError("timeline clip references no media, effect "
-                             "or sticker")
+        text = _as_str(data.get("text"))
+        if not media_id and not effect_id and not sticker_id and not text:
+            raise ValueError("timeline clip references no media, effect, "
+                             "sticker or text")
         return cls(
             media_id=media_id,
             effect_id=effect_id,
             sticker_id=sticker_id,
+            text=text,
+            font=_as_str(data.get("font")),
+            color=_as_str(data.get("color"), "#FFFFFF") or "#FFFFFF",
+            # None (absent) falls back to the default; an explicit "" is
+            # the user's "no outline" and survives the round trip.
+            outline=_as_str(data.get("outline"), "#000000"),
+            bold=bool(data.get("bold", True)),
+            italic=bool(data.get("italic", False)),
             start=max(0.0, _as_float(data.get("start"))),
             duration=max(0.0, _as_float(data.get("duration"))),
             track=_as_int(data.get("track")),
@@ -325,11 +346,56 @@ class Project:
         self.timeline.append(clip)
         return clip
 
+    #: Track 3 is the Text lane; free-form like the Color and Sticker lanes.
+    TEXT_TRACK = 3
+
+    def add_text(self, text: str, at: float, duration: float,
+                 x: float = 0.5, y: float = 0.5, scale: float = 0.1,
+                 rotation: float = 0.0, font: str = "",
+                 color: str = "#FFFFFF", outline: str = "#000000",
+                 bold: bool = True, italic: bool = False) -> "TimelineClip | None":
+        """Place a title over ``[at, at+duration)`` on the Text lane."""
+        text = str(text).strip()
+        if not text:
+            return None
+        clip = TimelineClip(media_id="", text=text,
+                            font=str(font), color=str(color) or "#FFFFFF",
+                            outline=str(outline),
+                            bold=bool(bold), italic=bool(italic),
+                            start=max(0.0, float(at)),
+                            duration=max(0.1, float(duration)),
+                            track=self.TEXT_TRACK,
+                            x=min(1.0, max(0.0, float(x))),
+                            y=min(1.0, max(0.0, float(y))),
+                            scale=min(2.0, max(0.02, float(scale))),
+                            rotation=float(rotation))
+        self.timeline.append(clip)
+        return clip
+
+    def set_clip_text(self, clip_id: str, text: str, font: str, color: str,
+                      outline: str, bold: bool, italic: bool) -> bool:
+        """Change a text clip's words and style."""
+        clip = self.find_clip(clip_id)
+        if clip is None or not clip.text:
+            return False
+        text = str(text).strip()
+        if not text:
+            # Empty words would erase the clip's very identity (text IS the
+            # discriminator); deleting the clip is a different, explicit act.
+            return False
+        clip.text = text
+        clip.font = str(font)
+        clip.color = str(color) or "#FFFFFF"
+        clip.outline = str(outline)
+        clip.bold = bool(bold)
+        clip.italic = bool(italic)
+        return True
+
     def set_clip_transform(self, clip_id: str, x: float, y: float,
                            scale: float, rotation: float) -> bool:
-        """Reposition a sticker clip on the canvas."""
+        """Reposition an overlay clip (sticker or text) on the canvas."""
         clip = self.find_clip(clip_id)
-        if clip is None or not clip.sticker_id:
+        if clip is None or not (clip.sticker_id or clip.text):
             return False
         clip.x = min(1.0, max(0.0, float(x)))
         clip.y = min(1.0, max(0.0, float(y)))
@@ -406,6 +472,12 @@ class Project:
             audio_enabled=clip.audio_enabled,
             muted=clip.muted,
             effect_id=clip.effect_id,
+            # Overlay clips keep what they are and where they sit: a split
+            # title must show the same words at the same place on both sides.
+            sticker_id=clip.sticker_id,
+            text=clip.text, font=clip.font, color=clip.color,
+            outline=clip.outline, bold=clip.bold, italic=clip.italic,
+            x=clip.x, y=clip.y, scale=clip.scale, rotation=clip.rotation,
         )
         clip.duration = offset
         self.timeline.append(second)

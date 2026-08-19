@@ -1,5 +1,5 @@
-// On-video sticker handles: select, move, scale and rotate a sticker by
-// touching it on the preview, CapCut-style.
+// On-video overlay handles: select, move, scale and rotate a sticker OR
+// a title by touching it on the preview, CapCut-style.
 //
 // Geometry: the item is laid exactly over the video item, and the canvas
 // is mapped with the SAME "cover" rule PreviewItem paints with - the
@@ -26,8 +26,9 @@ Item {
 
     /*! The aspect the sequence composites at: Playback.aspect. */
     property real canvasAspect: 16 / 9
-    /*! The sticker clip currently selected on the video, "" for none. */
-    property string selectedId: ""
+    // Selection is SHARED shell state: the timeline writes it, we write
+    // it, and the Text panel reads it to know which title it is editing.
+    readonly property string selectedId: Shell.v.selectedClipId || ""
 
     visible: Playback.hasMedia && Project.isOpen && !Playback.playing
 
@@ -37,10 +38,11 @@ Item {
     readonly property real offX: (width - coverW) / 2
     readonly property real offY: (height - coverH) / 2
 
-    // Sticker clips under the playhead. The early return while playing is
-    // deliberate: positionSeconds is not read then, so the binding does
-    // not re-evaluate 30 times a second during playback.
-    readonly property var stickerClips: {
+    // Overlay clips (stickers and titles) under the playhead. The early
+    // return while playing is deliberate: positionSeconds is not read
+    // then, so the binding does not re-evaluate 30 times a second during
+    // playback.
+    readonly property var overlayClips: {
         if (!visible)
             return [];
         var pos = Playback.positionSeconds;
@@ -48,14 +50,14 @@ Item {
         var out = [];
         for (var i = 0; i < all.length; i++) {
             var c = all[i];
-            if (c.stickerId && c.start <= pos && pos < c.end)
+            if ((c.stickerId || c.text) && c.start <= pos && pos < c.end)
                 out.push(c);
         }
         return out;
     }
 
     Repeater {
-        model: root.stickerClips
+        model: root.overlayClips
 
         delegate: Item {
             id: box
@@ -70,8 +72,11 @@ Item {
             property real vr: modelData.rotation
 
             readonly property bool selected: root.selectedId === modelData.id
+            // One slot for both kinds: the sticker file's ratio, or the
+            // rendered text block's. Delegates are recreated whenever the
+            // timeline changes, so an edited title re-measures.
             readonly property real spriteAspect:
-                Math.max(0.05, Stickers.aspect(modelData.stickerId))
+                Math.max(0.05, Project.overlay_aspect(modelData.id))
 
             // The sticker's unrotated bounds on screen; the frame rotates
             // with the item, exactly like the baked raster does.
@@ -83,7 +88,7 @@ Item {
             rotation: vr
 
             function pushLive() {
-                Playback.set_sticker_live(modelData.id, vx, vy, vs, vr);
+                Playback.set_overlay_live(modelData.id, vx, vy, vs, vr);
             }
             function commit() {
                 Actions.invoke("timeline.set_clip_transform", {
@@ -129,7 +134,8 @@ Item {
                 property real y0: 0
 
                 onPressed: function (mouse) {
-                    root.selectedId = modelData.id;
+                    Shell.set_selected_clip(modelData.id,
+                        modelData.stickerId ? "sticker" : "text");
                     var p = mapToItem(root, mouse.x, mouse.y);
                     press = Qt.point(p.x, p.y);
                     x0 = box.vx;

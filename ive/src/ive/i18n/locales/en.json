@@ -214,5 +214,21 @@
   "sticker.section.goodmorning": "Good morning",
   "sticker.section.greetings": "Greetings",
   "sticker.section.birthday": "Birthday",
-  "sticker.section.demo": "Demos"
+  "sticker.section.demo": "Demos",
+  "text.add_group": "Titles",
+  "text.add": "Add a title",
+  "text.default": "Title",
+  "text.hint": "The title lands at the playhead. Tap it on the video to move, scale or rotate it; tap it on the timeline or the video to edit its words here.",
+  "text.edit_group": "Edit the title",
+  "text.outline": "Outline",
+  "text.outline_none": "None",
+  "text.outline_black": "Black",
+  "text.outline_white": "White",
+  "text.font": "Font",
+  "text.font_default": "Default font",
+  "text.font_hint": "Every family is shown in its own face. The default follows the application font.",
+  "text.handles_hint": "Move, scale and rotate the title by grabbing it on the video.",
+  "text.place": "Add title",
+  "text.edit": "Edit title",
+  "text.transform": "Move title"
 }

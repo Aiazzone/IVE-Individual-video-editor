@@ -213,13 +213,18 @@ class _Worker(QObject):
                     from ive.stickers.raster import attach_sprites
 
                     sticker_spans = attach_sprites(sticker_spans)
+                text_spans = list(options.get("text_spans") or [])
+                if text_spans:
+                    from ive.text.raster import attach_text_sprites
+
+                    text_spans = attach_text_sprites(text_spans)
                 # use_proxies=False is not a detail: rendering a delivery from
                 # stand-in files is wasted work the user only finds afterwards.
                 graph = build_from_project(
                     clips, fps=fps, width=width, height=height, proxies=None,
                     use_proxies=False,
                     color_spans=list(options.get("color_spans") or []),
-                    sticker_spans=sticker_spans)
+                    sticker_spans=sticker_spans, text_spans=text_spans)
                 walker = SequenceWalker(graph, want_image=True,
                                         want_audio=True)
                 total = graph.length
@@ -537,6 +542,9 @@ class ExportService(QObject):
             stickers = getattr(self._playback, "sequence_sticker_spans", None)
             if callable(stickers):
                 options["sticker_spans"] = stickers()
+            texts = getattr(self._playback, "sequence_text_spans", None)
+            if callable(texts):
+                options["text_spans"] = texts()
 
         self._running = True
         self._done = 0

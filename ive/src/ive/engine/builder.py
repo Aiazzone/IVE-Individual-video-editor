@@ -116,7 +116,8 @@ class GraphBuilder:
 
     def build(self, clips: list[dict],
               color_spans: list[dict] | None = None,
-              sticker_spans: list[dict] | None = None) -> Tractor:
+              sticker_spans: list[dict] | None = None,
+              text_spans: list[dict] | None = None) -> Tractor:
         """Build a tractor from timeline clips.
 
         Each clip is ``{path, start, duration}`` in **seconds**, as the project
@@ -192,22 +193,24 @@ class GraphBuilder:
 
             tractor.filters.append(TimedColor(graded))
 
-        # The Sticker lane, composited AFTER the grade: a sticker keeps its
-        # own colours, whatever look sits under it. Spans arrive in seconds
-        # with their `sprite` closures already attached (stickers/raster.py
-        # does that, so the engine never imports Qt). The ORIGINAL dicts
-        # are handed over, not copies: Overlays reads x/y at process time,
-        # which is what lets the transport move a sticker live while the
-        # user drags a handle on the preview.
+        # The Sticker and Text lanes, composited AFTER the grade: an overlay
+        # keeps its own colours, whatever look sits under it. Spans arrive in
+        # seconds with their `sprite` closures already attached (stickers/
+        # raster.py and text/raster.py do that, so the engine never imports
+        # Qt). The ORIGINAL dicts are handed over, not copies: Overlays reads
+        # x/y at process time, which is what lets the transport move an
+        # overlay live while the user drags a handle on the preview. Text
+        # comes AFTER stickers in the list, so titles draw above them.
         overlays = [
-            s for s in (sticker_spans or []) if callable(s.get("sprite"))
+            s for s in list(sticker_spans or []) + list(text_spans or [])
+            if callable(s.get("sprite"))
         ]
         if overlays:
             from ive.engine.filters import Overlays
 
             tractor.filters.append(Overlays(overlays, self.timebase))
 
-        log.info("Graph built: %d clip(s), %d colour span(s), %d sticker "
+        log.info("Graph built: %d clip(s), %d colour span(s), %d overlay "
                  "span(s), %d frames at %s",
                  len(usable), len(graded), len(overlays), tractor.length,
                  self.timebase)
@@ -220,8 +223,9 @@ def build_from_project(clips: list[dict], *, fps: float = 25.0,
                        height: int = DEFAULT_HEIGHT,
                        proxies=None, use_proxies: bool = True,
                        color_spans: list[dict] | None = None,
-                       sticker_spans: list[dict] | None = None) -> Tractor:
+                       sticker_spans: list[dict] | None = None,
+                       text_spans: list[dict] | None = None) -> Tractor:
     """One-shot build, for tests and scripts."""
     builder = GraphBuilder(Timebase(Fraction(fps).limit_denominator(1001)),
                            AudioFormat(), width, height, proxies, use_proxies)
-    return builder.build(clips, color_spans, sticker_spans)
+    return builder.build(clips, color_spans, sticker_spans, text_spans)

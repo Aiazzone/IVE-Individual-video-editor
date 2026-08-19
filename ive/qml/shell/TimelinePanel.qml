@@ -106,6 +106,16 @@ Item {
                                       name: c.name, film: false,
                                       id: c.id, wave: false };
                          }) });
+        var tx = clips.filter(function (c) { return c.track === 3; });
+        if (tx.length > 0)
+            lanes.push({ name: "Text", kind: "text", audio: false,
+                         height: Theme.m.trackHeightAudio,
+                         clips: tx.map(function (c) {
+                             return { from: c.start, to: c.end,
+                                      color: Theme.c.clipText,
+                                      name: c.name, film: false,
+                                      id: c.id, wave: false };
+                         }) });
         return lanes;
     }
 
@@ -124,6 +134,23 @@ Item {
     // tools on the other for the same underlying clip.
     property string selectedClipId: ""
     property string selectedKind: ""
+
+    // Mirrored into the shell state, so the on-video handles and the Text
+    // panel see the SAME selection the timeline does (and back: selecting
+    // a title on the video opens its words in the panel).
+    onSelectedClipIdChanged: Shell.set_selected_clip(selectedClipId,
+                                                     selectedKind)
+    onSelectedKindChanged: Shell.set_selected_clip(selectedClipId,
+                                                   selectedKind)
+    Connections {
+        target: Shell
+        function onChanged() {
+            if (Shell.v.selectedClipId !== root.selectedClipId) {
+                root.selectedClipId = Shell.v.selectedClipId;
+                root.selectedKind = Shell.v.selectedKind;
+            }
+        }
+    }
 
     /*! The selected clip's data, live from the project; null when nothing
         is selected or the clip was deleted under the selection. */
@@ -213,7 +240,7 @@ Item {
     readonly property var contextActions: [
         { icon: Icons.split,
           label: Tr.s["timeline.split"] || "",
-          kinds: ["video", "audio", "color"],
+          kinds: ["video", "audio", "color", "sticker", "text"],
           can: function (clip) {
               return root.position > clip.start + 0.05
                   && root.position < clip.end - 0.05;
@@ -244,7 +271,7 @@ Item {
           } },
         { icon: Icons.trash,
           label: Tr.s["timeline.delete"] || "",
-          kinds: ["video", "color", "sticker"],
+          kinds: ["video", "color", "sticker", "text"],
           run: function () { root.deleteSelected(); } },
         { icon: Icons.trash,
           label: Tr.s["timeline.remove_audio"] || "",

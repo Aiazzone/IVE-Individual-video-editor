@@ -66,13 +66,18 @@ between the two, on Windows and Linux:
   and export; install more by dropping files in a folder. Grab a
   sticker on the paused video to move it, scale it from the corner
   knob or rotate it from the stalk — live, one undo step per gesture
+- Text and titles: one click places a title at the playhead on its own
+  lane; type and the frame follows keystroke by keystroke; colour,
+  outline, bold/italic and any installed font; grab the title on the
+  video to move, scale and rotate it like a sticker — same pixels in
+  preview and export
 - Proxy editing for 4K sources; multilingual UI (EN, IT, ES, PT); dark and
   light themes
 
 ## Roadmap (short version)
 
-Text and titles, stickers,
-transitions, AI tools (auto-cut, subtitles), content packs (`.ivepack`).
+Transitions, sticker motion presets,
+AI tools (auto-cut, subtitles), content packs (`.ivepack`).
 The living checklist is [`ROADMAP.md`](ROADMAP.md); the detailed
 engineering plan lives in [`docs/ROADMAP.md`](docs/ROADMAP.md).
 

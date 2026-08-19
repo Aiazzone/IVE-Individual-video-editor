@@ -259,6 +259,7 @@ Item {
                     case "export":   return "ExportContent.qml";
                     case "color":    return "ColorContent.qml";
                     case "stickers": return "StickersContent.qml";
+                    case "text":     return "TextContent.qml";
                     default: return "";
                     }
                 }

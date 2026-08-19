@@ -14,4 +14,5 @@ ExportContent 1.0 ExportContent.qml
 ColorContent 1.0 ColorContent.qml
 StickersContent 1.0 StickersContent.qml
 StickerHandles 1.0 StickerHandles.qml
+TextContent 1.0 TextContent.qml
 IdleBackdrop 1.0 IdleBackdrop.qml
