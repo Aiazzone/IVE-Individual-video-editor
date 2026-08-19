@@ -10,6 +10,25 @@ log = logging.getLogger(__name__)
 
 
 @action(
+    id="transition.toggle_favorite",
+    title_key="transition.favorite",
+    desc_key="Star a transition, or unstar it. Starred transitions gather "
+             "in the Favorites tab of the Transitions panel.",
+    category="transitions",
+    params={"transition_id": Param(str, required=True)},
+)
+def toggle_favorite(ctx, transition_id: str):
+    settings = ctx.require("settings")
+    favorites = [str(v) for v in (settings.get("transition.favorites") or [])]
+    if transition_id in favorites:
+        favorites.remove(transition_id)
+    else:
+        favorites.append(transition_id)
+    settings.set("transition.favorites", favorites)
+    log.info("Transition favourites now: %s", favorites)
+
+
+@action(
     id="timeline.set_transition",
     title_key="transition.set",
     desc_key="Dress one edge of a video clip with a transition (or clear "

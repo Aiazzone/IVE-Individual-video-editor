@@ -240,5 +240,12 @@
   "transition.section.dissolve": "Fundidos",
   "transition.section.wipe": "Cortinillas",
   "transition.section.motion": "Movimiento",
-  "transition.duration": "Duración de la transición"
+  "transition.duration": "Duración de la transición",
+  "sticker.tab.favorites": "Favoritos",
+  "sticker.fav_empty": "Aún no hay stickers favoritos. Marca con la estrella un sticker en cualquier familia y se reúne aquí.",
+  "sticker.favorite": "Sticker favorito",
+  "transition.tab.all": "Transiciones",
+  "transition.tab.favorites": "Favoritos",
+  "transition.fav_empty": "Aún no hay transiciones favoritas. Marca con la estrella una transición en cualquier familia y se reúne aquí.",
+  "transition.favorite": "Transición favorita"
 }

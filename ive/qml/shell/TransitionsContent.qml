@@ -19,11 +19,20 @@ Item {
 
     /*! "" = the family list; a section id = the transitions inside it. */
     property string section: ""
+    property string tab: "transitions"
 
     readonly property var gridTransitions: {
         var live = Transitions.sections;
+        if (root.tab === "favorites") {
+            var favs = Transitions.favorites;
+            return Transitions.favorite_transitions();
+        }
         return root.section !== ""
             ? Transitions.transitions(root.section) : [];
+    }
+
+    function isFavorite(transitionId) {
+        return Transitions.favorites.indexOf(transitionId) >= 0;
     }
 
     /*! The transition being dragged towards a cut, "" when none. Read by
@@ -78,9 +87,22 @@ Item {
                   margins: Theme.m.space3 }
         spacing: Theme.m.space3
 
+        // ── tabs ──────────────────────────────────────────────────
+        Segmented {
+            Layout.fillWidth: true
+            value: root.tab
+            model: [
+                { value: "transitions",
+                  text: Tr.s["transition.tab.all"] || "" },
+                { value: "favorites",
+                  text: Tr.s["transition.tab.favorites"] || "" }
+            ]
+            onPicked: function (v) { root.tab = v; root.section = ""; }
+        }
+
         // ── the families ──────────────────────────────────────────
         CardGroup {
-            visible: root.section === ""
+            visible: root.tab === "transitions" && root.section === ""
             title: Tr.s["transition.sections"] || ""
 
             Repeater {
@@ -142,12 +164,26 @@ Item {
             }
         }
 
-        // ── the transitions of one family ─────────────────────────
+        // ── the transitions: one family, or the favourites ────────
         CardGroup {
-            visible: root.section !== ""
-            title: root.sectionLabel(root.section)
+            visible: root.section !== "" || root.tab === "favorites"
+            title: root.tab === "favorites"
+                ? (Tr.s["transition.tab.favorites"] || "")
+                : root.sectionLabel(root.section)
+
+            Text {
+                visible: root.tab === "favorites"
+                         && root.gridTransitions.length === 0
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                text: Tr.s["transition.fav_empty"] || ""
+                color: Theme.c.textDisabled
+                font.pixelSize: Theme.m.fontSizeXs
+                lineHeight: 1.35
+            }
 
             RowLayout {
+                visible: root.tab !== "favorites"
                 Layout.fillWidth: true
                 spacing: Theme.m.space2
                 IconButton {
@@ -202,6 +238,17 @@ Item {
                                     return Transitions.preview_strip(
                                         card.modelData.id);
                                 }
+                            }
+
+                            StarButton {
+                                objectName: "star_" + card.modelData.id
+                                anchors.top: parent.top
+                                anchors.right: parent.right
+                                anchors.margins: 2
+                                starred: root.isFavorite(card.modelData.id)
+                                onToggled: Actions.invoke(
+                                    "transition.toggle_favorite",
+                                    { transition_id: card.modelData.id })
                             }
                         }
 

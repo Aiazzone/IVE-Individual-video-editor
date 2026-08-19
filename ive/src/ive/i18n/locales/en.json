@@ -240,5 +240,12 @@
   "transition.section.dissolve": "Dissolves",
   "transition.section.wipe": "Wipes",
   "transition.section.motion": "Motion",
-  "transition.duration": "Transition length"
+  "transition.duration": "Transition length",
+  "sticker.tab.favorites": "Favorites",
+  "sticker.fav_empty": "No favourite stickers yet. Star a sticker in any family and it gathers here.",
+  "sticker.favorite": "Favorite sticker",
+  "transition.tab.all": "Transitions",
+  "transition.tab.favorites": "Favorites",
+  "transition.fav_empty": "No favourite transitions yet. Star a transition in any family and it gathers here.",
+  "transition.favorite": "Favorite transition"
 }

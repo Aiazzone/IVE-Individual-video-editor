@@ -240,5 +240,12 @@
   "transition.section.dissolve": "Fusões",
   "transition.section.wipe": "Cortinas",
   "transition.section.motion": "Movimento",
-  "transition.duration": "Duração da transição"
+  "transition.duration": "Duração da transição",
+  "sticker.tab.favorites": "Favoritos",
+  "sticker.fav_empty": "Ainda não há stickers favoritos. Marque um sticker com a estrela em qualquer família e ele reúne-se aqui.",
+  "sticker.favorite": "Sticker favorito",
+  "transition.tab.all": "Transições",
+  "transition.tab.favorites": "Favoritos",
+  "transition.fav_empty": "Ainda não há transições favoritas. Marque uma transição com a estrela em qualquer família e ela reúne-se aqui.",
+  "transition.favorite": "Transição favorita"
 }

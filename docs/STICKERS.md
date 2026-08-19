@@ -83,6 +83,14 @@ Trappola nomi: l'objectName dell'anteprima e' `anim_preview_*`, NON
 `sticker_*` — gli id animati iniziano gia' per "anim_" e i test contano
 le card per prefisso.
 
+**Preferiti (2026-08-19)**: ogni card porta la stella
+(`components/StarButton.qml`, lo STESSO componente dei colori e delle
+transizioni) e il pannello ha la terza tab Preferiti, che raccoglie gli
+sticker stellati di entrambi i tipi nell'ordine in cui sono stati
+stellati (persistenza in settings `sticker.favorites`, azione
+`sticker.toggle_favorite`). Tolto il badge "Lottie": nome di formato,
+gergo per l'utente — l'anteprima all'hover dice gia' che si muove.
+
 ## 4. Composizione nel motore (FATTO 2026-08-11)
 
 Uno sticker sul video e' un clip su una corsia **Sticker** (track 2,

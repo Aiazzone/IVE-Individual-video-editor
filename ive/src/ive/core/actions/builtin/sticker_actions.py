@@ -28,6 +28,25 @@ def place_sticker(ctx, sticker_id: str, at: float, duration: float):
 
 
 @action(
+    id="sticker.toggle_favorite",
+    title_key="sticker.favorite",
+    desc_key="Star a sticker, or unstar it. Starred stickers gather in the "
+             "Favorites tab of the Stickers panel.",
+    category="stickers",
+    params={"sticker_id": Param(str, required=True)},
+)
+def toggle_favorite(ctx, sticker_id: str):
+    settings = ctx.require("settings")
+    favorites = [str(v) for v in (settings.get("sticker.favorites") or [])]
+    if sticker_id in favorites:
+        favorites.remove(sticker_id)
+    else:
+        favorites.append(sticker_id)
+    settings.set("sticker.favorites", favorites)
+    log.info("Sticker favourites now: %s", favorites)
+
+
+@action(
     id="timeline.set_clip_transform",
     title_key="sticker.transform",
     desc_key="Reposition a sticker on the canvas: centre (x, y) in canvas "

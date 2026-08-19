@@ -115,6 +115,11 @@ niente rendering live. La striscia si genera pigramente al PRIMO hover
 sticker Lottie (striscia rlottie a fotogrammi quadrati trasparenti,
 `Stickers.preview_strip`).
 
+**Preferiti (2026-08-19)**: ogni card porta la stella
+(`components/StarButton.qml`, condiviso con colori e sticker) e il
+pannello ha la tab Preferiti (persistenza in settings
+`transition.favorites`, azione `transition.toggle_favorite`).
+
 ## 5. Performance (misurate, tests/test_transitions.py)
 
 Budget di frame a 25 fps: 40 ms. Costi per frame 1280x720 (canvas di

@@ -102,8 +102,9 @@ class Application:
         from ive.ui.waveforms import WaveformService
 
         self.colorfx = ColorLibraryService(self.translations, self.settings)
-        self.stickers = StickerLibraryService(self.translations)
-        self.transitions = TransitionLibraryService(self.translations)
+        self.stickers = StickerLibraryService(self.translations, self.settings)
+        self.transitions = TransitionLibraryService(self.translations,
+                                                    self.settings)
         self.thumbs = ThumbnailService()
         self.waves = WaveformService()
         register_singletons(

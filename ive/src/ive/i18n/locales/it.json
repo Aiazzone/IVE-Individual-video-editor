@@ -240,5 +240,12 @@
   "transition.section.dissolve": "Dissolvenze",
   "transition.section.wipe": "Tendine",
   "transition.section.motion": "Movimento",
-  "transition.duration": "Durata transizione"
+  "transition.duration": "Durata transizione",
+  "sticker.tab.favorites": "Preferiti",
+  "sticker.fav_empty": "Nessuno sticker preferito, per ora. Metti la stella a uno sticker in qualunque famiglia e lo ritrovi qui.",
+  "sticker.favorite": "Sticker preferito",
+  "transition.tab.all": "Transizioni",
+  "transition.tab.favorites": "Preferiti",
+  "transition.fav_empty": "Nessuna transizione preferita, per ora. Metti la stella a una transizione in qualunque famiglia e la ritrovi qui.",
+  "transition.favorite": "Transizione preferita"
 }

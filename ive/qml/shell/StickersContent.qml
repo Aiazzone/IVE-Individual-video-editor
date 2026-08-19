@@ -24,12 +24,22 @@ Item {
     /*! "" = the family grid; a section id = the stickers inside it. */
     property string section: ""
 
-    /*! What the grid shows: the open family's stickers. Reading
-        Stickers.staticSections keeps the binding live on language flips. */
+    /*! What the grid shows: the open family's stickers, or the starred
+        ones (both kinds mixed). Reading Stickers.staticSections and
+        Stickers.favorites keeps the binding live on language flips and
+        on every star toggle. */
     readonly property var gridStickers: {
         var live = Stickers.staticSections;
+        if (root.tab === "favorites") {
+            var favs = Stickers.favorites;
+            return Stickers.favorite_stickers();
+        }
         return root.section !== ""
             ? Stickers.stickers(root.tab, root.section) : [];
+    }
+
+    function isFavorite(stickerId) {
+        return Stickers.favorites.indexOf(stickerId) >= 0;
     }
 
     /*! The sticker being dragged towards the timeline, "" when none. Read
@@ -100,14 +110,15 @@ Item {
             value: root.tab
             model: [
                 { value: "static", text: Tr.s["sticker.tab.static"] || "" },
-                { value: "animated", text: Tr.s["sticker.tab.animated"] || "" }
+                { value: "animated", text: Tr.s["sticker.tab.animated"] || "" },
+                { value: "favorites", text: Tr.s["sticker.tab.favorites"] || "" }
             ]
             onPicked: function (v) { root.tab = v; root.section = ""; }
         }
 
         // ── the families of the open tab ──────────────────────────
         CardGroup {
-            visible: root.section === ""
+            visible: root.section === "" && root.tab !== "favorites"
             title: Tr.s["sticker.sections"] || ""
 
             Repeater {
@@ -172,14 +183,28 @@ Item {
             }
         }
 
-        // ── the stickers of one family ────────────────────────────
+        // ── the stickers: one family, or the favourites ───────────
         CardGroup {
-            visible: root.section !== ""
-            title: root.sectionLabel(root.section)
+            visible: root.section !== "" || root.tab === "favorites"
+            title: root.tab === "favorites"
+                ? (Tr.s["sticker.tab.favorites"] || "")
+                : root.sectionLabel(root.section)
+
+            Text {
+                visible: root.tab === "favorites"
+                         && root.gridStickers.length === 0
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                text: Tr.s["sticker.fav_empty"] || ""
+                color: Theme.c.textDisabled
+                font.pixelSize: Theme.m.fontSizeXs
+                lineHeight: 1.35
+            }
 
             // The way back sits first: a sub-page without an exit teaches
             // the user to close the whole panel instead.
             RowLayout {
+                visible: root.tab !== "favorites"
                 Layout.fillWidth: true
                 spacing: Theme.m.space2
                 IconButton {
@@ -257,22 +282,18 @@ Item {
                                         card.modelData.id);
                                 }
                             }
-                            Rectangle {
-                                visible: card.modelData.kind === "animated"
+                            // No "Lottie" badge: a format name means
+                            // nothing to the user - the hover preview
+                            // already shows that this one MOVES.
+                            StarButton {
+                                objectName: "star_" + card.modelData.id
                                 anchors.top: parent.top
                                 anchors.right: parent.right
-                                anchors.margins: 4
-                                width: lottieTag.implicitWidth + 10
-                                height: lottieTag.implicitHeight + 4
-                                radius: height / 2
-                                color: Qt.alpha(Theme.c.accent, 0.35)
-                                Text {
-                                    id: lottieTag
-                                    anchors.centerIn: parent
-                                    text: "Lottie"
-                                    color: Theme.c.text
-                                    font.pixelSize: Theme.m.fontSizeXs
-                                }
+                                anchors.margins: 2
+                                starred: root.isFavorite(card.modelData.id)
+                                onToggled: Actions.invoke(
+                                    "sticker.toggle_favorite",
+                                    { sticker_id: card.modelData.id })
                             }
                         }
 

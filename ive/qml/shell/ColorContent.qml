@@ -266,55 +266,16 @@ Item {
                                 source: root.thumbSource(look.modelData.id)
                             }
 
-                            // ── the star ──────────────────────────
-                            // Hollow = not starred; gold = starred. On a
-                            // dark round plate so it reads on any frame.
-                            Item {
-                                id: starButton
+                            // ── the star (shared StarButton) ──────
+                            StarButton {
                                 objectName: "star_" + look.modelData.id
-                                width: 22
-                                height: 22
                                 anchors.top: parent.top
                                 anchors.right: parent.right
                                 anchors.margins: 2
-                                z: 5
-
-                                readonly property bool starred:
-                                    root.isFavorite(look.modelData.id)
-
-                                Rectangle {
-                                    anchors.fill: parent
-                                    radius: width / 2
-                                    color: "#66000000"
-                                    visible: starButton.starred || starHover.hovered
-                                }
-                                Shape {
-                                    anchors.centerIn: parent
-                                    width: 14
-                                    height: 14
-                                    preferredRendererType: Shape.CurveRenderer
-                                    ShapePath {
-                                        strokeColor: starButton.starred
-                                            ? "#FFC53D" : "#E6FFFFFF"
-                                        strokeWidth: 1.3
-                                        fillColor: starButton.starred
-                                            ? "#FFC53D" : "transparent"
-                                        joinStyle: ShapePath.RoundJoin
-                                        scale: Qt.size(14 / 24, 14 / 24)
-                                        PathSvg {
-                                            path: "M12 2.6l2.8 5.9 6.4.8-4.7 4.4 1.2 6.3-5.7-3.1-5.7 3.1 1.2-6.3-4.7-4.4 6.4-.8z"
-                                        }
-                                    }
-                                }
-                                HoverHandler {
-                                    id: starHover
-                                    cursorShape: Qt.PointingHandCursor
-                                }
-                                TapHandler {
-                                    onTapped: Actions.invoke(
-                                        "color.toggle_favorite",
-                                        { effect_id: look.modelData.id })
-                                }
+                                starred: root.isFavorite(look.modelData.id)
+                                onToggled: Actions.invoke(
+                                    "color.toggle_favorite",
+                                    { effect_id: look.modelData.id })
                             }
                         }
                         Text {

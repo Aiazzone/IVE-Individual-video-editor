@@ -116,6 +116,14 @@ SETTINGS: dict[str, Setting] = {
            doc="Ids of the colour effects starred by the user, in the order "
                "they were starred."),
 
+        # ── stickers and transitions ────────────────────────────────────
+        _s("sticker.favorites", [], list,
+           doc="Ids of the stickers starred by the user, in the order they "
+               "were starred."),
+        _s("transition.favorites", [], list,
+           doc="Ids of the transitions starred by the user, in the order "
+               "they were starred."),
+
         # ── appearance / accessibility ─────────────────────────────────
         _s("appearance.glass", "auto", str, choices=("auto", "always", "never"),
            doc="Glass surfaces; 'auto' degrades on its own when unsupported "

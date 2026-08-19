@@ -25,13 +25,55 @@ class StickerLibraryService(QObject):
     """What the Stickers panel binds to."""
 
     changed = Signal()
+    favoritesChanged = Signal()
 
-    def __init__(self, translations=None,
+    def __init__(self, translations=None, settings=None,
                  parent: QObject | None = None) -> None:
         super().__init__(parent)
         self._translations = translations
+        self._settings = settings
         if translations is not None:
             translations.languageChanged.connect(self.changed)
+        if settings is not None:
+            settings.changed.connect(self._on_setting_changed)
+
+    def _on_setting_changed(self, key: str, _value) -> None:
+        if key == "sticker.favorites":
+            self.favoritesChanged.emit()
+
+    @Property("QVariantList", notify=favoritesChanged)
+    def favorites(self) -> list[str]:
+        """Starred sticker ids, in the order they were starred."""
+        if self._settings is None:
+            return []
+        try:
+            return [str(v)
+                    for v in (self._settings.get("sticker.favorites") or [])]
+        except Exception:
+            return []
+
+    @Slot(result="QVariantList")
+    def favorite_stickers(self) -> list[dict[str, Any]]:
+        """The starred stickers, localised, in starred order - both kinds
+        mixed, which is the point of the tab. A starred id whose files
+        are gone is simply skipped."""
+        from ive.stickers.library import sticker_by_id
+
+        lang = self._language()
+        out = []
+        for sticker_id in self.favorites:
+            sticker = sticker_by_id(sticker_id)
+            if sticker is None:
+                continue
+            out.append({
+                "id": sticker["id"],
+                "name": sticker["names"].get(lang)
+                        or sticker["names"].get("en") or sticker["id"],
+                "kind": sticker["kind"],
+                "fileUrl": QUrl.fromLocalFile(sticker["path"]).toString(),
+                "builtin": sticker["builtin"],
+            })
+        return out
 
     def _language(self) -> str:
         try:

@@ -26,13 +26,51 @@ class TransitionLibraryService(QObject):
     """What the Transitions panel binds to."""
 
     changed = Signal()
+    favoritesChanged = Signal()
 
-    def __init__(self, translations=None,
+    def __init__(self, translations=None, settings=None,
                  parent: QObject | None = None) -> None:
         super().__init__(parent)
         self._translations = translations
+        self._settings = settings
         if translations is not None:
             translations.languageChanged.connect(self.changed)
+        if settings is not None:
+            settings.changed.connect(self._on_setting_changed)
+
+    def _on_setting_changed(self, key: str, _value) -> None:
+        if key == "transition.favorites":
+            self.favoritesChanged.emit()
+
+    @Property("QVariantList", notify=favoritesChanged)
+    def favorites(self) -> list[str]:
+        """Starred transition ids, in the order they were starred."""
+        if self._settings is None:
+            return []
+        try:
+            return [str(v) for v in
+                    (self._settings.get("transition.favorites") or [])]
+        except Exception:
+            return []
+
+    @Slot(result="QVariantList")
+    def favorite_transitions(self) -> list[dict[str, Any]]:
+        """The starred transitions, localised, in starred order; a
+        starred id whose recipe is gone is simply skipped."""
+        lang = self._language()
+        out = []
+        for transition_id in self.favorites:
+            transition = transition_by_id(transition_id)
+            if transition is None:
+                continue
+            out.append({
+                "id": transition["id"],
+                "name": transition["names"].get(lang)
+                        or transition["names"].get("en") or transition["id"],
+                "duration": transition["duration"],
+                "builtin": transition["builtin"],
+            })
+        return out
 
     def _language(self) -> str:
         try:
