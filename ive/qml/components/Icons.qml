@@ -45,6 +45,9 @@ QtObject {
         "M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"
     readonly property string text:
         "M4 7V4h16v3 M9 20h6 M12 4v16"
+    // A parcel: the content packs.
+    readonly property string pack:
+        "M21 8l-9-5-9 5 9 5 9-5Z M3 8v8l9 5 9-5V8 M12 13v10"
     // A frame split by the diagonal: the classic mark for a transition.
     readonly property string transition:
         "M4 3h16a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"

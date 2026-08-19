@@ -108,10 +108,17 @@ def _scan(folder: Path, builtin: bool) -> list[dict[str, Any]]:
 
 
 def _load() -> list[dict[str, Any]]:
+    from ive.packs.pack import pack_content_dirs
+
     stickers: list[dict[str, Any]] = []
     seen: set[str] = set()
-    for sticker in (_scan(get_defaults_path("stickers"), True)
-                    + _scan(get_data_path("stickers"), False)):
+    scanned = (_scan(get_defaults_path("stickers"), True)
+               + _scan(get_data_path("stickers"), False))
+    # Installed content packs bring their own stickers (graphics ride
+    # relative to each pack's own folder); same duplicate-id rules.
+    for folder in pack_content_dirs("stickers"):
+        scanned += _scan(folder, False)
+    for sticker in scanned:
         if sticker["id"] in seen:
             log.warning("Duplicate sticker id %r ignored", sticker["id"])
             continue

@@ -99,10 +99,17 @@ def _scan(folder: Path, builtin: bool) -> list[dict[str, Any]]:
 
 
 def _load() -> list[dict[str, Any]]:
+    from ive.packs.pack import pack_content_dirs
+
     transitions: list[dict[str, Any]] = []
     seen: set[str] = set()
-    for transition in (_scan(get_defaults_path("transitions"), True)
-                       + _scan(get_data_path("transitions"), False)):
+    scanned = (_scan(get_defaults_path("transitions"), True)
+               + _scan(get_data_path("transitions"), False))
+    # Installed content packs bring their own recipes (luma maps ride
+    # relative to each pack's own folder); same duplicate-id rules.
+    for folder in pack_content_dirs("transitions"):
+        scanned += _scan(folder, False)
+    for transition in scanned:
         if transition["id"] in seen:
             log.warning("Duplicate transition id %r ignored",
                         transition["id"])

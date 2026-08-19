@@ -320,6 +320,14 @@ Window {
                 : Theme.m.space2
         }
 
+        // The pack confirmation card, above everything: a dropped
+        // .ivepack (or "install from file") shows WHAT it carries
+        // before anything lands on disk.
+        PackInstallOverlay {
+            anchors.fill: parent
+            z: 50
+        }
+
         FloatingPanel {
             id: panel
             // The docked edge is pinned and only the width animates. Animating
@@ -356,6 +364,17 @@ Window {
             var list = [];
             for (var i = 0; i < drop.urls.length; i++)
                 list.push(String(drop.urls[i]));
+            // A .ivepack is a content pack, not media: it needs no open
+            // project, and it goes through the confirmation card.
+            var packs = list.filter(function (u) {
+                return u.toLowerCase().indexOf(".ivepack") ===
+                       u.length - ".ivepack".length;
+            });
+            if (packs.length > 0) {
+                Actions.invoke("pack.install", { path: packs[0] });
+                drop.accept();
+                return;
+            }
             if (!Project.isOpen) {
                 win.openSection("new");
                 return;

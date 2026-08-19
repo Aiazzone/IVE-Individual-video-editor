@@ -261,6 +261,7 @@ Item {
                     case "stickers": return "StickersContent.qml";
                     case "text":     return "TextContent.qml";
                     case "transitions": return "TransitionsContent.qml";
+                    case "packs":    return "PacksContent.qml";
                     default: return "";
                     }
                 }

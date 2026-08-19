@@ -68,17 +68,26 @@ Updated together with the code, so this file always reflects reality.
       1.2–6 ms/frame at 720p (LUT + SIMD blend; the naive path was
       18x slower)
 
+- [x] Content packs (`.ivepack`): one shareable file bundling colour
+      effects, transitions (luma maps included) and stickers, with
+      author and description. A Packs panel creates one from ticked
+      contents (favourites as a shortcut) and manages the installed
+      ones as removable units; installing — from file or by dropping
+      the .ivepack on the window — always shows a confirmation card
+      with the contents and a duplicates warning first. Data only,
+      never code; nothing is ever overwritten
+
 ## 🔨 In progress / next up
 
-- [ ] Content packs (`.ivepack`): bundle colour effects, transitions,
-      stickers and export presets with author and description
+- [ ] Sticker motion presets (bounce, pulse, spin as JSON keyframe
+      recipes) and title enter/exit animations — shareable, and they
+      slot straight into the packs
 
 ## 🗺️ Planned
 
-- [ ] Sticker motion presets (bounce, pulse, spin as JSON keyframe
-      recipes) and title enter/exit animations; text style presets as
-      shareable JSON
+- [ ] Text style presets as shareable JSON
 - [ ] More factory luma maps (star, heart, brush stroke)
+- [ ] Export presets as a JSON catalogue, so they join the packs too
 - [ ] Multi-track timeline (music under video, picture-in-picture)
 - [ ] Export queue (one edit → YouTube + Reels + LinkedIn in sequence)
 - [ ] AI tools: auto-cut, subtitles, background removal (ONNX Runtime)

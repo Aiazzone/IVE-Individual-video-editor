@@ -6,6 +6,45 @@ una riga di codice.
 
 ---
 
+## 0. Stato: v1 implementata (2026-08-19)
+
+La prima versione e' viva e copre le tre categorie che oggi hanno un
+catalogo JSON: **effetti colore, transizioni (mappe luma comprese) e
+sticker (SVG e Lottie)**. Il resto di questo documento e' la specifica
+completa verso cui si cresce; le sezioni sotto valgono come scritte,
+con queste scelte concrete della v1:
+
+- **Struttura interna**: le stesse cartelle che i cataloghi gia'
+  scansionano — `pack.json` in cima, `color_effects/effects.json`,
+  `transitions/transitions.json` + `transitions/luma/`,
+  `stickers/pack_stickers.json` + `stickers/files/`.
+- **Installazione**: `user_data/packs/<pack_id>/`; ogni catalogo
+  scansiona anche quelle cartelle (`ive/packs/pack.py`,
+  `pack_content_dirs`). Id duplicati saltati con warning, mai
+  sovrascritto nulla. Percorsi dei membri sanificati (zip-slip).
+- **Disinstallazione**: si cancella la cartella (tab «Installati» del
+  pannello, o a mano). I progetti che usavano quei contenuti si aprono
+  lo stesso: quei tratti tornano neutri.
+- **UI** (layout «Opzione A», scelto su mockup): pannello **Pacchetti**
+  nella tool rail con due tab — «Crea» (dettagli, contenuti spuntabili
+  per categoria con contatori, scorciatoia «Aggiungi i preferiti»,
+  export) e «Installati» (unita' rimovibili + installa da file).
+  L'installazione passa SEMPRE dalla carta di conferma
+  (`PackInstallOverlay.qml`): nome, autore, contenuti, avviso sui
+  duplicati — mostrare, mai far approvare. Il drop di un `.ivepack`
+  sulla finestra arriva alla stessa carta.
+- **Azioni**: `pack.create`, `pack.install`, `pack.remove`.
+- Moduli: `ive/packs/` (core, senza Qt), `ive/ui/pack_service.py`
+  (bridge QML, singleton `Packs`).
+
+Test: `tests/test_packs.py` (build coi file dentro, preview coi
+duplicati, install/remove con i cataloghi che guadagnano e perdono,
+zip-slip, servizio), `tests/visual/test_packs_panel.py` (pannello
+reale: spunte, contatori, preferiti, export, carta di conferma
+cliccata, cestino).
+
+---
+
 ## 1. Due sistemi diversi, non confonderli
 
 | | **Content Pack** | **Plugin di codice** |

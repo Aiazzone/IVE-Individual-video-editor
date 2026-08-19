@@ -78,13 +78,18 @@ between the two, on Windows and Linux:
   crossfades at equal power and the export blends identically. A wipe
   is a greyscale **luma map** — draw a PNG in any image editor, add
   four lines of JSON, and you have made a new transition to share
+- Content packs: one `.ivepack` file bundles colour effects,
+  transitions and stickers with author and description — build one
+  from the Packs panel (your favourites are one click away), install
+  one by dropping the file on the window; a confirmation card shows
+  what is inside first, and installed packs remove as a unit
 - Proxy editing for 4K sources; multilingual UI (EN, IT, ES, PT); dark and
   light themes
 
 ## Roadmap (short version)
 
-Content packs (`.ivepack`), sticker motion presets,
-AI tools (auto-cut, subtitles).
+Sticker motion presets and title animations,
+AI tools (auto-cut, subtitles), export queue.
 The living checklist is [`ROADMAP.md`](ROADMAP.md); the detailed
 engineering plan lives in [`docs/ROADMAP.md`](docs/ROADMAP.md).
 

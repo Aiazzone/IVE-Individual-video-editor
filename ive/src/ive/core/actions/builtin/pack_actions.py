@@ -1,0 +1,62 @@
+"""Actions for the content packs (.ivepack)."""
+
+from __future__ import annotations
+
+import logging
+
+from ive.core.actions.registry import Param, action
+
+log = logging.getLogger(__name__)
+
+
+@action(
+    id="pack.create",
+    title_key="pack.create",
+    desc_key="Build a shareable .ivepack file from catalogue entries: "
+             "colour effects, transitions and stickers by id. Everything "
+             "inside is data, never code.",
+    category="packs",
+    params={
+        "name": Param(str, required=True),
+        "path": Param(str, required=True, doc="Destination .ivepack file."),
+        "author": Param(str, required=False),
+        "description": Param(str, required=False),
+        "color_ids": Param(list, required=False),
+        "transition_ids": Param(list, required=False),
+        "sticker_ids": Param(list, required=False),
+    },
+)
+def create(ctx, name: str, path: str, author: str = "",
+           description: str = "", color_ids: list = None,
+           transition_ids: list = None, sticker_ids: list = None):
+    if not ctx.require("packs").create(name, author, description,
+                                       color_ids or [], transition_ids or [],
+                                       sticker_ids or [], path):
+        raise RuntimeError("Pack export failed")
+
+
+@action(
+    id="pack.install",
+    title_key="pack.install",
+    desc_key="Preview a .ivepack file and put it up for the user's "
+             "confirmation; the install happens on confirm.",
+    category="packs",
+    params={"path": Param(str, required=True)},
+)
+def install(ctx, path: str):
+    if not ctx.require("packs").request_install(path):
+        raise RuntimeError(f"Not a usable pack: {path}")
+
+
+@action(
+    id="pack.remove",
+    title_key="pack.remove",
+    desc_key="Remove an installed content pack; its contents leave the "
+             "panels. Projects using them still open - those stretches "
+             "simply play plain.",
+    category="packs",
+    params={"pack_id": Param(str, required=True)},
+)
+def remove(ctx, pack_id: str):
+    if not ctx.require("packs").remove(pack_id):
+        raise RuntimeError(f"No installed pack {pack_id!r}")

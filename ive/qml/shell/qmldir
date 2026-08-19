@@ -16,4 +16,6 @@ StickersContent 1.0 StickersContent.qml
 StickerHandles 1.0 StickerHandles.qml
 TextContent 1.0 TextContent.qml
 TransitionsContent 1.0 TransitionsContent.qml
+PacksContent 1.0 PacksContent.qml
+PackInstallOverlay 1.0 PackInstallOverlay.qml
 IdleBackdrop 1.0 IdleBackdrop.qml

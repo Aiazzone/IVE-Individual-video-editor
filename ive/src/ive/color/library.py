@@ -84,10 +84,17 @@ def _scan(folder: Path, builtin: bool) -> list[dict[str, Any]]:
 
 
 def _load() -> list[dict[str, Any]]:
+    from ive.packs.pack import pack_content_dirs
+
     effects: list[dict[str, Any]] = []
     seen: set[str] = set()
-    for effect in (_scan(get_defaults_path("color_effects"), True)
-                   + _scan(get_data_path("effects/color"), False)):
+    scanned = (_scan(get_defaults_path("color_effects"), True)
+               + _scan(get_data_path("effects/color"), False))
+    # Installed content packs bring their own recipes; same rules,
+    # same duplicate-id protection.
+    for folder in pack_content_dirs("color_effects"):
+        scanned += _scan(folder, False)
+    for effect in scanned:
         if effect["id"] in seen:
             # A user effect never overrides a factory one silently; same
             # rule as export presets.
