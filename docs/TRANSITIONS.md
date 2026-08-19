@@ -64,12 +64,23 @@ la card del pannello DIRETTAMENTE sulla traccia video: il drop si
 aggancia al taglio piu' vicino, o alla testa/coda del filmato per
 intro/outro. La transizione presente e' una **pillola bianca col rombo
 dentro**, sopra la corsia V1, un po' piu' bassa dei clip (si legge "fra
-i video"); la sua larghezza E' la finestra del blend: **trascinare i
-bordi cambia la durata** (commit al rilascio, un undo), toccarla la
-seleziona e il cestino del toolbox la rimuove. Le MouseArea della
-pillola hanno `preventStealing` e consumano il press: senza, il
-DragHandler del clip sotto rubava il gesto e il cestino cancellava il
-CLIP.
+i video"); la sua larghezza E' la finestra del blend. Toccarla la
+seleziona; nel **toolbox della timeline** compaiono allora lo **slider
+della durata** (0.1-3 s, un undo per commit) e il cestino che la
+rimuove; su una pillola larga anche i bordi si trascinano.
+
+Lezioni pagate qui:
+- Le MouseArea della pillola hanno `preventStealing` e consumano il
+  press: coi pointer handler sparava anche il handler del clip sotto
+  (il cestino cancellava il CLIP) e il DragHandler del clip rubava il
+  trim a meta' gesto.
+- **A zoom 1 su un progetto reale una transizione da 0.7 s e' larga
+  pochi pixel**: le due zone di trim da 7 px mangiavano l'intera
+  pillola e non restava nulla di cliccabile — riportato dall'utente,
+  invisibile nel test (timeline da 6 s → pillola da 155 px). Ora la
+  pillola ha larghezza minima 26 px sempre selezionabile, le zone di
+  trim esistono solo sopra i 46 px, e la durata si regola comunque
+  dallo slider. Il test copre ANCHE la pillola minima.
 
 ## 4. Nel motore: A/B roll
 

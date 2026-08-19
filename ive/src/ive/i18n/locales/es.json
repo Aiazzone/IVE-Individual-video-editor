@@ -239,5 +239,6 @@
   "transition.place_hint": "Arrastra a la pista de vídeo cerca de un corte (o al principio/final). La píldora blanca la muestra: arrastra sus bordes para cambiar la duración, tócala y usa la papelera para quitarla.",
   "transition.section.dissolve": "Fundidos",
   "transition.section.wipe": "Cortinillas",
-  "transition.section.motion": "Movimiento"
+  "transition.section.motion": "Movimiento",
+  "transition.duration": "Duración de la transición"
 }

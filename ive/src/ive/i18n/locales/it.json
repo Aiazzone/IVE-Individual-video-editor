@@ -239,5 +239,6 @@
   "transition.place_hint": "Trascina sulla traccia video vicino a un taglio (o all'inizio/fine del filmato). La pillola bianca la mostra: trascina i bordi per cambiarne la durata, toccala e usa il cestino per rimuoverla.",
   "transition.section.dissolve": "Dissolvenze",
   "transition.section.wipe": "Tendine",
-  "transition.section.motion": "Movimento"
+  "transition.section.motion": "Movimento",
+  "transition.duration": "Durata transizione"
 }

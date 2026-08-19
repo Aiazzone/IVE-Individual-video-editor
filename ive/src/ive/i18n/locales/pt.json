@@ -239,5 +239,6 @@
   "transition.place_hint": "Arraste para a pista de vídeo perto de um corte (ou no início/fim do filme). A pílula branca mostra-a: arraste as bordas para mudar a duração, toque nela e use o caixote para a remover.",
   "transition.section.dissolve": "Fusões",
   "transition.section.wipe": "Cortinas",
-  "transition.section.motion": "Movimento"
+  "transition.section.motion": "Movimento",
+  "transition.duration": "Duração da transição"
 }

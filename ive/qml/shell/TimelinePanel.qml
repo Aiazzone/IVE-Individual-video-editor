@@ -450,6 +450,55 @@ Item {
                 font.family: "monospace"
             }
 
+            // The selected TRANSITION's duration. At default zoom a pill
+            // can be a handful of pixels wide, far too small to trim by
+            // its edges - this slider is the reliable way to stretch it.
+            // Committed on release: every commit reflows the timeline.
+            AppSlider {
+                id: transitionLength
+                objectName: "transition_duration_slider"
+                visible: root.selectedKind === "transition"
+                         && root.selectedTransition !== null
+                         && root.selectedClipData !== null
+                Layout.preferredWidth: 140
+                from: 0.1
+                to: 3.0
+                stepSize: 0.1
+                label: Tr.s["transition.duration"] || ""
+                value: {
+                    if (root.selectedClipData === null
+                            || root.selectedTransition === null)
+                        return 0.5;
+                    return root.selectedTransition.edge === "in"
+                        ? root.selectedClipData.transitionInDuration
+                        : root.selectedClipData.transitionDuration;
+                }
+                onCommitted: function (v) {
+                    if (root.selectedClipData === null
+                            || root.selectedTransition === null)
+                        return;
+                    var tid = root.selectedTransition.edge === "in"
+                        ? root.selectedClipData.transitionInId
+                        : root.selectedClipData.transitionId;
+                    if (tid === "")
+                        return;
+                    Actions.invoke("timeline.set_transition", {
+                        clip_id: root.selectedTransition.clipId,
+                        transition_id: tid,
+                        duration: Math.round(v * 10) / 10,
+                        edge: root.selectedTransition.edge
+                    });
+                }
+            }
+            Text {
+                visible: transitionLength.visible
+                Layout.preferredWidth: 34
+                text: transitionLength.effectiveValue.toFixed(1) + "s"
+                color: Qt.alpha(root.onGlass, 0.72)
+                font.pixelSize: Theme.m.fontSizeXs
+                font.family: "monospace"
+            }
+
             Item { Layout.fillWidth: true }
 
             IconButton { size: 26; iconSize: 15; icon: Icons.zoomOut
@@ -1111,11 +1160,17 @@ Item {
                             seconds becomes the new duration. */
                         property real trimLeftPx: 0
                         property real trimRightPx: 0
-                        x: modelData.from * lanes.pps + trimLeftPx
-                        y: lanes.trackY(0) + Theme.m.trackLanePadding + 5
-                        width: Math.max(14,
+                        // At default zoom a short transition is only a
+                        // handful of pixels: the pill keeps a minimum
+                        // width so it stays visible and TAPPABLE (the
+                        // toolbar slider handles the duration there).
+                        readonly property real spanPx:
                             (modelData.to - modelData.from) * lanes.pps
-                            - trimLeftPx + trimRightPx)
+                        readonly property bool wide: spanPx > 46
+                        x: modelData.from * lanes.pps + trimLeftPx
+                           - (width - (spanPx - trimLeftPx + trimRightPx)) / 2
+                        y: lanes.trackY(0) + Theme.m.trackLanePadding + 5
+                        width: Math.max(26, spanPx - trimLeftPx + trimRightPx)
                         height: (root.tracks.length > 0
                                  ? root.tracks[0].height : 64)
                                 - Theme.m.trackLanePadding * 2 - 10
@@ -1170,8 +1225,11 @@ Item {
                         // transition.
                         MouseArea {
                             anchors.fill: parent
-                            anchors.leftMargin: 7
-                            anchors.rightMargin: 7
+                            // On a narrow pill the WHOLE surface selects;
+                            // the trim zones only exist when there is
+                            // room for them too.
+                            anchors.leftMargin: pill.wide ? 8 : 0
+                            anchors.rightMargin: pill.wide ? 8 : 0
                             cursorShape: Qt.PointingHandCursor
                             onClicked: {
                                 root.selectedClipId = pill.modelData.clipId;
@@ -1186,7 +1244,8 @@ Item {
 
                         // ── trim: either edge resizes the window ──
                         MouseArea {
-                            width: 7
+                            visible: pill.wide
+                            width: 8
                             height: parent.height
                             anchors.left: parent.left
                             cursorShape: Qt.SizeHorCursor
@@ -1207,7 +1266,8 @@ Item {
                             onReleased: pill.commitTrim()
                         }
                         MouseArea {
-                            width: 7
+                            visible: pill.wide
+                            width: 8
                             height: parent.height
                             anchors.right: parent.right
                             cursorShape: Qt.SizeHorCursor

@@ -239,5 +239,6 @@
   "transition.place_hint": "Drag onto the video track near a cut (or at the film's start/end). The white pill shows it: drag its edges to change the duration, tap it and use the trash to remove it.",
   "transition.section.dissolve": "Dissolves",
   "transition.section.wipe": "Wipes",
-  "transition.section.motion": "Motion"
+  "transition.section.motion": "Motion",
+  "transition.duration": "Transition length"
 }
