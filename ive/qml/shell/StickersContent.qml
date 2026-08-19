@@ -236,17 +236,26 @@ Item {
                                     ? card.modelData.fileUrl : ""
                             }
 
-                            // Animated: a real frame of the animation,
-                            // rendered by rlottie, with a small tag.
-                            Image {
+                            // Animated: a real frame at rest, and the
+                            // ANIMATION itself under the mouse (a
+                            // cached rlottie film strip).
+                            AnimatedPreview {
                                 visible: card.modelData.kind === "animated"
+                                // NOT "sticker_*": the tests enumerate
+                                // cards by that prefix, and animated ids
+                                // already start with "anim_".
+                                objectName: "anim_preview_"
+                                            + card.modelData.id
                                 anchors.centerIn: parent
                                 width: 80
                                 height: 80
-                                fillMode: Image.PreserveAspectFit
-                                asynchronous: true
-                                source: card.modelData.kind === "animated"
+                                stillFillMode: Image.PreserveAspectFit
+                                still: card.modelData.kind === "animated"
                                     ? Stickers.preview(card.modelData.id) : ""
+                                provider: function () {
+                                    return Stickers.preview_strip(
+                                        card.modelData.id);
+                                }
                             }
                             Rectangle {
                                 visible: card.modelData.kind === "animated"

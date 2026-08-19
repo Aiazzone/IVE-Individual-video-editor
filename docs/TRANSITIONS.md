@@ -100,9 +100,20 @@ di calare di ~3 dB come farebbe una rampa lineare.
 I blender viaggiano come gli sprite degli sticker: span PURI
 (`sequence_transition_spans()`) attraverso il confine di thread, e
 `transitions/loader.attach_blenders` li arma (caricando le mappe con
-QImage) nel transport e nel worker di export. Anteprime delle card:
-il VERO blender del motore a t=0.55 su due lastre blu/arancio, PNG
-cachato.
+QImage) nel transport e nel worker di export.
+
+**Anteprime delle card (riviste 2026-08-19)**: due lastre leggibili —
+blu con una grande "A" (il clip uscente), arancio con una "B" (quello
+entrante). A riposo la card mostra il VERO blender a t=0.55; **al
+passaggio del mouse l'animazione parte davvero**: una STRISCIA di 16
+fotogrammi (A tenuta, il blend col suo easing, B tenuta) renderizzata
+dal blender del motore, salvata come UN solo PNG e cachata; il
+componente `components/AnimatedPreview.qml` la fa scorrere dietro una
+viewport ritagliata — riprodurla costa un offset di texture per tick,
+niente rendering live. La striscia si genera pigramente al PRIMO hover
+(~decine di ms, una volta). Lo stesso componente anima le card degli
+sticker Lottie (striscia rlottie a fotogrammi quadrati trasparenti,
+`Stickers.preview_strip`).
 
 ## 5. Performance (misurate, tests/test_transitions.py)
 

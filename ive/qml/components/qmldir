@@ -12,3 +12,4 @@ Segmented 1.0 Segmented.qml
 AppSlider 1.0 AppSlider.qml
 SettingRow 1.0 SettingRow.qml
 CardGroup 1.0 CardGroup.qml
+AnimatedPreview 1.0 AnimatedPreview.qml

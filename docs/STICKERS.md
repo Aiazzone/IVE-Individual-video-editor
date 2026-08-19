@@ -73,6 +73,16 @@ renderizzato da rlottie; sul video l'animazione va in LOOP dal suo punto
 zero, ovunque il clip sieda sulla timeline. Misura: ~0,9 ms a frame a
 400px — dentro il budget.
 
+**Anteprime vive all'hover (2026-08-19)**: passando il mouse su una
+card animata l'animazione PARTE — una striscia di 12 fotogrammi rlottie
+(quadrati, trasparenti, campionati lungo tutta l'animazione) salvata
+come un solo PNG cachato (`Stickers.preview_strip`) e riprodotta da
+`components/AnimatedPreview.qml` (lo stesso componente delle card
+transizioni): un offset di texture per tick, niente rendering live.
+Trappola nomi: l'objectName dell'anteprima e' `anim_preview_*`, NON
+`sticker_*` — gli id animati iniziano gia' per "anim_" e i test contano
+le card per prefisso.
+
 ## 4. Composizione nel motore (FATTO 2026-08-11)
 
 Uno sticker sul video e' un clip su una corsia **Sticker** (track 2,

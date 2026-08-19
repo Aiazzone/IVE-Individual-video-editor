@@ -189,12 +189,19 @@ Item {
                                 ? Theme.c.accent : Qt.alpha(Theme.c.glassOn, 0.12)
                             clip: true
 
-                            Image {
+                            // Still at rest, the REAL animation on
+                            // hover: A blending into B by this very
+                            // recipe (AnimatedPreview + a cached strip).
+                            AnimatedPreview {
+                                objectName: "transition_anim_"
+                                            + card.modelData.id
                                 anchors.fill: parent
                                 anchors.margins: 2
-                                asynchronous: true
-                                fillMode: Image.PreserveAspectCrop
-                                source: Transitions.preview(card.modelData.id)
+                                still: Transitions.preview(card.modelData.id)
+                                provider: function () {
+                                    return Transitions.preview_strip(
+                                        card.modelData.id);
+                                }
                             }
                         }
 

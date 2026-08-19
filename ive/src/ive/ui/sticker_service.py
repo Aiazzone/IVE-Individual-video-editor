@@ -120,6 +120,69 @@ class StickerLibraryService(QObject):
             tmp.replace(target)
         return QUrl.fromLocalFile(str(target)).toString()
 
+    @Slot(str, result="QVariantMap")
+    def preview_strip(self, sticker_id: str) -> dict:
+        """An ANIMATED sticker as a film strip for the hover preview.
+
+        Twelve frames spread across the whole animation, each rendered
+        by rlottie and centred on a square transparent canvas (so the
+        strip stretches into a square card without distortion), cached
+        as one PNG. AnimatedPreview.qml plays it on hover."""
+        import hashlib
+        import os
+
+        import numpy as np
+        from PySide6.QtGui import QImage
+
+        from ive.stickers.library import sticker_by_id
+        from ive.stickers.raster import lottie_info, render_lottie_frame
+        from ive.utils.paths import get_data_path
+
+        sticker = sticker_by_id(str(sticker_id))
+        if sticker is None or sticker["kind"] != "animated":
+            return {}
+        path = sticker["path"]
+        try:
+            mtime = int(os.path.getmtime(path))
+        except OSError:
+            return {}
+        info = lottie_info(path)
+        if info is None:
+            return {}
+        folder = get_data_path("cache/sticker_previews")
+        folder.mkdir(parents=True, exist_ok=True)
+        digest = hashlib.md5(
+            f"{path}|{mtime}|strip1".encode("utf-8")).hexdigest()[:20]
+        target = folder / f"{digest}.png"
+        side = 120
+        count = min(12, max(2, int(info["total"])))
+        if not target.is_file():
+            aspect = max(0.05, float(info["aspect"]))
+            height = side if aspect <= 1.0 else max(2, round(side / aspect))
+            cells = []
+            for index in range(count):
+                frame_index = int(index * info["total"] / count)
+                rgba = render_lottie_frame(path, height, frame_index)
+                cell = np.zeros((side, side, 4), dtype=np.uint8)
+                if rgba is not None:
+                    h, w = rgba.shape[:2]
+                    if w > side:
+                        x0 = (w - side) // 2
+                        rgba, w = rgba[:, x0:x0 + side], side
+                    top = (side - h) // 2
+                    left = (side - w) // 2
+                    cell[top:top + h, left:left + w] = rgba
+                cells.append(cell)
+            strip = np.ascontiguousarray(np.hstack(cells))
+            image = QImage(strip.tobytes(), strip.shape[1], strip.shape[0],
+                           strip.shape[1] * 4, QImage.Format.Format_RGBA8888)
+            tmp = target.with_suffix(".tmp.png")
+            if not image.save(str(tmp), "PNG"):
+                return {}
+            tmp.replace(target)
+        return {"url": QUrl.fromLocalFile(str(target)).toString(),
+                "frames": count, "width": side, "height": side}
+
     @Slot(str, result=float)
     def aspect(self, sticker_id: str) -> float:
         """Width / height of a sticker's graphic, for the preview handles."""
