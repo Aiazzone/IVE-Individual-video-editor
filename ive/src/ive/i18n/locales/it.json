@@ -230,5 +230,14 @@
   "text.handles_hint": "Sposta, scala e ruota il titolo afferrandolo sul video.",
   "text.place": "Aggiungi titolo",
   "text.edit": "Modifica titolo",
-  "text.transform": "Sposta titolo"
+  "text.transform": "Sposta titolo",
+  "rail.transitions": "Transizioni",
+  "transition.set": "Imposta transizione",
+  "transition.sections": "Famiglie di transizioni",
+  "transition.count": "{n} transizioni",
+  "transition.hint": "Apri una famiglia e trascina una transizione su un taglio fra due clip. Le tue vivono in user_data/transitions: un PNG in scala di grigi piu' un piccolo JSON E' una transizione nuova.",
+  "transition.place_hint": "Trascina sul rombo fra due clip. La clip successiva arretra della durata della transizione. Tocca un rombo acceso per rimuoverla.",
+  "transition.section.dissolve": "Dissolvenze",
+  "transition.section.wipe": "Tendine",
+  "transition.section.motion": "Movimento"
 }

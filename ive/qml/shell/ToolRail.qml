@@ -28,6 +28,7 @@ Item {
         { key: "text",      icon: Icons.text,      label: "rail.text",      shortcut: "2" },
         { key: "effects",   icon: Icons.effects,   label: "rail.effects",   shortcut: "3" },
         { key: "stickers",  icon: Icons.sticker,   label: "rail.stickers",  shortcut: "" },
+        { key: "transitions", icon: Icons.transition, label: "rail.transitions", shortcut: "" },
         { key: "audio",     icon: Icons.audio,     label: "rail.audio",     shortcut: "4" },
         { key: "color",     icon: Icons.color,     label: "rail.color",     shortcut: "5" },
         { key: "ai",        icon: Icons.ai,        label: "rail.ai",        shortcut: "6" },

@@ -126,6 +126,13 @@ class TimelineClip:
     #: For clips on the Sticker track (track 2): which sticker is shown.
     #: media_id is "" for these too.
     sticker_id: str = ""
+    #: Transition TOWARDS THE NEXT clip on the same track ("" = a plain
+    #: cut). It belongs to the outgoing clip, so it survives reorders.
+    #: CapCut semantics: the next clip is pulled back by the transition's
+    #: duration, so both sides have material - the sequence shortens by
+    #: that much and no extra source material ("handles") is ever needed.
+    transition_id: str = ""
+    transition_duration: float = 0.5
     #: For clips on the Text track (track 3): the words on the video. A
     #: non-empty text is what MAKES a clip a text clip, exactly as a
     #: non-empty sticker_id makes a sticker clip.
@@ -166,6 +173,9 @@ class TimelineClip:
             media_id=media_id,
             effect_id=effect_id,
             sticker_id=sticker_id,
+            transition_id=_as_str(data.get("transition_id")),
+            transition_duration=min(5.0, max(0.1, _as_float(
+                data.get("transition_duration"), 0.5))),
             text=text,
             font=_as_str(data.get("font")),
             color=_as_str(data.get("color"), "#FFFFFF") or "#FFFFFF",
@@ -272,10 +282,33 @@ class Project:
         arrives with ripple editing; until then a gap would just be a hole the
         user cannot see the rules of.
         """
+        self._lay(self.ordered_clips(track))
+
+    def transition_overlap(self, left: "TimelineClip",
+                           right: "TimelineClip") -> float:
+        """Seconds the two clips overlap for ``left``'s transition.
+
+        Capped at HALF of either clip, so a clip between two transitions
+        still has a stretch where it stands alone and the windows can
+        never touch each other.
+        """
+        if not left.transition_id:
+            return 0.0
+        return max(0.0, min(left.transition_duration,
+                            left.duration / 2, right.duration / 2))
+
+    def _lay(self, ordered: list["TimelineClip"]) -> None:
+        """Positions for a run of clips: back to back, except that a clip
+        after a transition starts EARLY by the overlap - both sides have
+        material there, and that is where the blend happens."""
         cursor = 0.0
-        for clip in self.ordered_clips(track):
-            clip.start = cursor
-            cursor += clip.duration
+        prev = None
+        for clip in ordered:
+            overlap = (self.transition_overlap(prev, clip)
+                       if prev is not None else 0.0)
+            clip.start = max(0.0, cursor - overlap)
+            cursor = clip.start + clip.duration
+            prev = clip
 
     @staticmethod
     def _insertion_index(ordered: list["TimelineClip"], point: float) -> int:
@@ -294,10 +327,7 @@ class Project:
 
     def _reorder(self, ordered: list["TimelineClip"], track: int) -> None:
         """Lay ``ordered`` back to back and adopt it as the track's order."""
-        cursor = 0.0
-        for item in ordered:
-            item.start = cursor
-            cursor += item.duration
+        self._lay(ordered)
         others = [c for c in self.timeline if c.track != track]
         self.timeline = others + ordered
 
@@ -403,6 +433,21 @@ class Project:
         clip.rotation = float(rotation)
         return True
 
+    def set_clip_transition(self, clip_id: str, transition_id: str,
+                            duration: float = 0.5) -> bool:
+        """Set (or clear, with "") the transition towards the next clip.
+
+        Only the A/V track has cuts to dress; the timeline reflows so the
+        next clip slides back by the overlap.
+        """
+        clip = self.find_clip(clip_id)
+        if clip is None or clip.track != 0:
+            return False
+        clip.transition_id = str(transition_id)
+        clip.transition_duration = min(5.0, max(0.1, float(duration)))
+        self.reflow(0)
+        return True
+
     def move_clip(self, clip_id: str, to: float) -> bool:
         """Reorder by dragging: ``to`` is the clip's proposed new start.
 
@@ -478,9 +523,19 @@ class Project:
             text=clip.text, font=clip.font, color=clip.color,
             outline=clip.outline, bold=clip.bold, italic=clip.italic,
             x=clip.x, y=clip.y, scale=clip.scale, rotation=clip.rotation,
+            # The transition OUT belongs to the tail: after a split it is
+            # the second half that meets the next clip.
+            transition_id=clip.transition_id,
+            transition_duration=clip.transition_duration,
         )
         clip.duration = offset
+        clip.transition_id = ""
         self.timeline.append(second)
+        if clip.track == 0:
+            # Durations changed under a possible overlap; keep positions
+            # honest (a no-op without transitions: the two halves already
+            # cover exactly the span the whole clip did).
+            self.reflow(0)
         return second
 
     def set_clip_volume(self, clip_id: str, volume: float) -> bool:

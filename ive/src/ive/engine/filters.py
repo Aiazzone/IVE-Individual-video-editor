@@ -206,6 +206,39 @@ class Gain(Filter):
         return self._wrap(frame, audio_fn=scaled)
 
 
+class AudioRamp(Filter):
+    """Equal-power fade over a window of TRACK frames.
+
+    The graph builder puts one on each side of a transition: the
+    outgoing clip fades out (cos), the incoming one fades in (sin), so
+    the summed loudness stays steady through the cut instead of dipping
+    (linear ramps lose ~3 dB in the middle). Gain is constant within a
+    frame - a step every 40 ms at 25 fps, inaudible over a real ramp.
+    """
+
+    def __init__(self, start_f: int, end_f: int, *, rising: bool) -> None:
+        self.start_f = int(start_f)
+        self.end_f = int(end_f)
+        self.rising = bool(rising)
+
+    def process(self, frame: Frame) -> Frame:
+        position = frame.position
+        if not (self.start_f <= position < self.end_f):
+            return frame
+        span = max(1, self.end_f - self.start_f - 1)
+        t = (position - self.start_f) / span
+        angle = t * np.pi / 2.0
+        gain = np.sin(angle) if self.rising else np.cos(angle)
+
+        def ramped():
+            audio = frame.audio()
+            if audio is None:
+                return None
+            return audio * np.float32(gain)
+
+        return self._wrap(frame, audio_fn=ramped)
+
+
 class Grayscale(Filter):
     """Rec.601 luma, kept as three channels so nothing downstream changes."""
 

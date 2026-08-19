@@ -101,8 +101,15 @@ class Tractor(Producer):
                     if composite is None:
                         composite = image.copy()
                     elif track.transition is not None:
-                        composite = track.transition.blend(composite, image,
-                                                           track.opacity)
+                        # A timed blend (engine/transitions.TimedBlend)
+                        # needs the position: transitions live in windows.
+                        # The legacy contract stays for whole-track blends.
+                        if hasattr(track.transition, "blend_at"):
+                            composite = track.transition.blend_at(
+                                position, composite, image)
+                        else:
+                            composite = track.transition.blend(
+                                composite, image, track.opacity)
                     else:
                         composite = _over(composite, image, track.opacity)
                     contributed = True

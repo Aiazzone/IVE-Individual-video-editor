@@ -114,6 +114,9 @@ class PlaybackService(QObject):
         #: Title stretches (seconds + words/style/transform) from the
         #: Text lane; same pure-data rule.
         self._text_spans: list[dict] = []
+        #: Transition windows (seconds + recipe payload) where adjacent
+        #: video clips overlap; blenders attach at graph build.
+        self._transition_spans: list[dict] = []
         self._playing = False
         self._position = 0.0                    # seconds on the timeline
         self._duration = 0.0                    # seconds
@@ -245,6 +248,7 @@ class PlaybackService(QObject):
         self._color_spans = []      # a bare file has no Color lane
         self._sticker_spans = []
         self._text_spans = []
+        self._transition_spans = []
         self._apply_segments([segment], sequence=False,
                              name=Path(str(path)).name)
         return True
@@ -267,6 +271,8 @@ class PlaybackService(QObject):
         spans: list[dict] = []
         sticker_spans: list[dict] = []
         text_spans: list[dict] = []
+        #: (start, end, transition id) of every A/V clip, for the cuts.
+        video_meta: list[dict] = []
         for entry in clips or []:
             text = str(entry.get("text") or "")
             if text:
@@ -334,6 +340,13 @@ class PlaybackService(QObject):
             if info is None or not (info.has_video or info.has_audio):
                 continue
             video = info.primary_video
+            if int(entry.get("track") or 0) == 0:
+                video_meta.append({
+                    "start": float(entry.get("start") or 0.0),
+                    "end": (float(entry.get("start") or 0.0)
+                            + float(entry.get("duration") or 0.0)),
+                    "tid": str(entry.get("transitionId") or ""),
+                })
             segments.append(_Segment(
                 path=path,
                 start=float(entry.get("start") or 0.0),
@@ -354,9 +367,36 @@ class PlaybackService(QObject):
         if not segments:
             self.close()
             return False
+
+        # Where an outgoing clip declares a transition AND the next one
+        # really starts inside it (the model pulled it back), a window is
+        # born. The recipe resolves HERE, so the graph (and the export,
+        # which shares it) never knows the catalogue; an unknown id just
+        # leaves the cut plain.
+        transition_spans: list[dict] = []
+        video_meta.sort(key=lambda m: m["start"])
+        for left, right in zip(video_meta, video_meta[1:]):
+            if not left["tid"] or right["start"] >= left["end"] - 1e-6:
+                continue
+            from ive.transitions.library import payload_for
+
+            payload = payload_for(left["tid"])
+            if payload is None:
+                log.warning("Unknown transition %r; the cut plays plain",
+                            left["tid"])
+                continue
+            transition_spans.append({
+                "start": right["start"],
+                "end": min(left["end"], right["start"] + 30.0),
+                "payload": {k: v for k, v in payload.items()
+                            if k != "easing"},
+                "easing": str(payload.get("easing") or "smooth"),
+            })
+
         self._color_spans = spans
         self._sticker_spans = sticker_spans
         self._text_spans = text_spans
+        self._transition_spans = transition_spans
         self._apply_segments(segments, sequence=True, name="")
         return True
 
@@ -382,6 +422,14 @@ class PlaybackService(QObject):
         boundary, closures stripped."""
         return [{k: v for k, v in span.items() if k != "sprite"}
                 for span in self._text_spans]
+
+    def sequence_transition_spans(self) -> list[dict]:
+        """The transition windows, recipes resolved, for the export.
+
+        Pure data: the worker attaches the blenders itself
+        (transitions/loader.attach_blenders)."""
+        return [{k: v for k, v in span.items() if k != "blender"}
+                for span in self._transition_spans]
 
     @Slot(str, float, float, float, float)
     def set_overlay_live(self, clip_id: str, x: float, y: float,
@@ -569,8 +617,14 @@ class PlaybackService(QObject):
             from ive.text.raster import attach_text_sprites
 
             text_spans = attach_text_sprites(text_spans)
+        transition_spans = self._transition_spans
+        if transition_spans:
+            from ive.transitions.loader import attach_blenders
+
+            transition_spans = attach_blenders(transition_spans)
         self._graph = self._builder.build(clips, self._color_spans,
-                                          sticker_spans, text_spans)
+                                          sticker_spans, text_spans,
+                                          transition_spans)
         self._graph_serial += 1
         self._graph_key = f"graph-{self._graph_serial}"
         log.info("Preview graph rebuilt at %dx%d: %d frames",
@@ -618,6 +672,7 @@ class PlaybackService(QObject):
         self._color_spans = []
         self._sticker_spans = []
         self._text_spans = []
+        self._transition_spans = []
         self._duration = 0.0
         self._position = 0.0
         self._name = ""

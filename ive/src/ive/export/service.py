@@ -218,13 +218,19 @@ class _Worker(QObject):
                     from ive.text.raster import attach_text_sprites
 
                     text_spans = attach_text_sprites(text_spans)
+                transition_spans = list(options.get("transition_spans") or [])
+                if transition_spans:
+                    from ive.transitions.loader import attach_blenders
+
+                    transition_spans = attach_blenders(transition_spans)
                 # use_proxies=False is not a detail: rendering a delivery from
                 # stand-in files is wasted work the user only finds afterwards.
                 graph = build_from_project(
                     clips, fps=fps, width=width, height=height, proxies=None,
                     use_proxies=False,
                     color_spans=list(options.get("color_spans") or []),
-                    sticker_spans=sticker_spans, text_spans=text_spans)
+                    sticker_spans=sticker_spans, text_spans=text_spans,
+                    transition_spans=transition_spans)
                 walker = SequenceWalker(graph, want_image=True,
                                         want_audio=True)
                 total = graph.length
@@ -545,6 +551,9 @@ class ExportService(QObject):
             texts = getattr(self._playback, "sequence_text_spans", None)
             if callable(texts):
                 options["text_spans"] = texts()
+            cuts = getattr(self._playback, "sequence_transition_spans", None)
+            if callable(cuts):
+                options["transition_spans"] = cuts()
 
         self._running = True
         self._done = 0

@@ -98,10 +98,12 @@ class Application:
         from ive.ui.color_service import ColorLibraryService
         from ive.ui.sticker_service import StickerLibraryService
         from ive.ui.thumbnails import ThumbnailService
+        from ive.ui.transition_service import TransitionLibraryService
         from ive.ui.waveforms import WaveformService
 
         self.colorfx = ColorLibraryService(self.translations, self.settings)
         self.stickers = StickerLibraryService(self.translations)
+        self.transitions = TransitionLibraryService(self.translations)
         self.thumbs = ThumbnailService()
         self.waves = WaveformService()
         register_singletons(
@@ -118,6 +120,7 @@ class Application:
             history=self.history,
             waves=self.waves,
             stickers=self.stickers,
+            transitions=self.transitions,
         )
         # Same rule as the singletons: register before the engine exists.
         qmlRegisterType(PreviewItem, "IVE", 1, 0, "PreviewItem")
@@ -204,6 +207,7 @@ class Application:
         from ive.core.actions.builtin import color_actions  # noqa: F401
         from ive.core.actions.builtin import sticker_actions  # noqa: F401
         from ive.core.actions.builtin import text_actions  # noqa: F401
+        from ive.core.actions.builtin import transition_actions  # noqa: F401
 
         self.registry.add_pending()
         log.info("Registered %d actions", len(tuple(self.registry.all())))

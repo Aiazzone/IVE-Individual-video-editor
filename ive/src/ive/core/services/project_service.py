@@ -187,6 +187,8 @@ class ProjectService(QObject):
                 "duration": clip.duration,
                 "end": clip.end,
                 "sourceIn": clip.source_in,
+                "transitionId": clip.transition_id,
+                "transitionDuration": clip.transition_duration,
                 "mediaDuration": (item.duration if item else 0.0),
                 "volume": clip.volume,
                 "audioEnabled": clip.audio_enabled,
@@ -360,6 +362,22 @@ class ProjectService(QObject):
         except Exception:
             log.exception("Could not measure overlay clip %s", clip_id)
         return 1.0
+
+    @Slot(str, str, float, result=bool)
+    def set_clip_transition(self, clip_id: str, transition_id: str,
+                            duration: float) -> bool:
+        """Dress (or undress, with "") the cut after one video clip."""
+        if self._project is None:
+            return False
+        if transition_id:
+            from ive.transitions.library import transition_by_id
+
+            if transition_by_id(transition_id) is None:
+                log.warning("Unknown transition %r", transition_id)
+                return False
+        return self._edit("transition.set",
+                          lambda: self._project.set_clip_transition(
+                              clip_id, transition_id, duration))
 
     @Slot(str, float, float, result=bool)
     def trim_clip(self, clip_id: str, source_in: float, duration: float) -> bool:

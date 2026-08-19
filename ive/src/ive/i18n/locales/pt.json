@@ -230,5 +230,14 @@
   "text.handles_hint": "Mova, escale e rode o título agarrando-o no vídeo.",
   "text.place": "Adicionar título",
   "text.edit": "Editar título",
-  "text.transform": "Mover título"
+  "text.transform": "Mover título",
+  "rail.transitions": "Transições",
+  "transition.set": "Definir transição",
+  "transition.sections": "Famílias de transições",
+  "transition.count": "{n} transições",
+  "transition.hint": "Abra uma família e arraste uma transição para um corte entre dois clipes. As suas vivem em user_data/transitions: um PNG em tons de cinzento mais um pequeno JSON É uma transição nova.",
+  "transition.place_hint": "Arraste para o losango entre dois clipes. O clipe seguinte recua a duração da transição. Toque num losango aceso para a remover.",
+  "transition.section.dissolve": "Fusões",
+  "transition.section.wipe": "Cortinas",
+  "transition.section.motion": "Movimento"
 }

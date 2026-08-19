@@ -199,6 +199,39 @@ Item {
             Actions.invoke("timeline.remove_clip", { clip_id: id });
     }
 
+    // ── the cuts between video clips ───────────────────────────────
+    // One junction per adjacent pair on V1. With a transition the two
+    // clips overlap, so the diamond sits at the MIDDLE of the overlap -
+    // the visual centre of the blend.
+    readonly property var junctions: {
+        var clips = Project.isOpen ? Project.timelineClips : [];
+        var video = clips.filter(function (c) {
+            return c.track === 0 && c.hasVideo;
+        }).sort(function (a, b) { return a.start - b.start; });
+        var out = [];
+        for (var i = 0; i + 1 < video.length; i++)
+            out.push({
+                leftId: video[i].id,
+                at: (video[i].end + video[i + 1].start) / 2,
+                transitionId: video[i].transitionId || ""
+            });
+        return out;
+    }
+
+    /*! The junction nearest to a point in time, or null. */
+    function junctionNear(seconds) {
+        var best = null;
+        var bestDistance = 1e9;
+        for (var i = 0; i < junctions.length; i++) {
+            var d = Math.abs(junctions[i].at - seconds);
+            if (d < bestDistance) {
+                bestDistance = d;
+                best = junctions[i];
+            }
+        }
+        return best;
+    }
+
     /*! Whether any clip covers this point in time. */
     function clipAt(seconds) {
         var clips = Project.timelineClips;
@@ -570,9 +603,28 @@ Item {
                 DropArea {
                     id: laneDrop
                     anchors.fill: parent
-                    keys: ["ive-media", "ive-effect", "ive-sticker"]
+                    keys: ["ive-media", "ive-effect", "ive-sticker",
+                           "ive-transition"]
                     onDropped: function (drop) {
                         var seconds = drop.x / lanes.pps;
+                        var transition = (drop.source
+                                          && drop.source.transitionId)
+                            ? drop.source.transitionId : "";
+                        if (transition !== "") {
+                            // A transition belongs to a CUT: the drop
+                            // lands on the nearest junction between two
+                            // video clips.
+                            var junction = root.junctionNear(seconds);
+                            if (junction !== null)
+                                Actions.invoke("timeline.set_transition", {
+                                    clip_id: junction.leftId,
+                                    transition_id: transition,
+                                    duration: Transitions.default_duration(
+                                        transition)
+                                });
+                            drop.accept();
+                            return;
+                        }
                         var sticker = (drop.source && drop.source.stickerId)
                             ? drop.source.stickerId : "";
                         if (sticker !== "") {
@@ -981,6 +1033,57 @@ Item {
                                     }
                                 }
                             }
+                        }
+                    }
+                }
+
+                // ── junction diamonds on V1 ───────────────────────
+                // One per cut between video clips: hollow when the cut
+                // is plain, filled with the accent when a transition
+                // dresses it. Tapping a dressed one takes the
+                // transition off (undoable, like everything).
+                Repeater {
+                    model: root.junctions
+                    delegate: Item {
+                        id: junction
+                        required property var modelData
+                        objectName: "junction_" + modelData.leftId
+                        readonly property bool dressed:
+                            modelData.transitionId !== ""
+                        x: modelData.at * lanes.pps - width / 2
+                        y: lanes.trackY(0)
+                           + (root.tracks.length > 0
+                              ? root.tracks[0].height : 64) / 2 - height / 2
+                        width: 18
+                        height: 18
+                        z: 7
+
+                        Rectangle {
+                            anchors.centerIn: parent
+                            width: 11
+                            height: 11
+                            rotation: 45
+                            radius: 2
+                            color: junction.dressed ? Theme.c.accent
+                                : (junctionHover.hovered ? "#59FFFFFF"
+                                                         : "#26FFFFFF")
+                            border.width: 1
+                            border.color: junction.dressed
+                                ? Qt.lighter(Theme.c.accent, 1.3)
+                                : "#8CFFFFFF"
+                        }
+                        HoverHandler {
+                            id: junctionHover
+                            cursorShape: junction.dressed
+                                ? Qt.PointingHandCursor : Qt.ArrowCursor
+                        }
+                        TapHandler {
+                            enabled: junction.dressed
+                            onTapped: Actions.invoke("timeline.set_transition", {
+                                clip_id: junction.modelData.leftId,
+                                transition_id: "",
+                                duration: 0.5
+                            })
                         }
                     }
                 }

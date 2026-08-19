@@ -16,7 +16,7 @@ import logging
 from fractions import Fraction
 from pathlib import Path
 
-from ive.engine.filters import Gain
+from ive.engine.filters import AudioRamp, Gain
 from ive.engine.frame import AudioFormat, Timebase
 from ive.engine.playlist import Entry, Playlist
 from ive.engine.producer import ClipProducer, ColourProducer, Producer
@@ -117,7 +117,8 @@ class GraphBuilder:
     def build(self, clips: list[dict],
               color_spans: list[dict] | None = None,
               sticker_spans: list[dict] | None = None,
-              text_spans: list[dict] | None = None) -> Tractor:
+              text_spans: list[dict] | None = None,
+              transition_spans: list[dict] | None = None) -> Tractor:
         """Build a tractor from timeline clips.
 
         Each clip is ``{path, start, duration}`` in **seconds**, as the project
@@ -153,18 +154,39 @@ class GraphBuilder:
             video=True, audio=False, name="black",
         ))
 
-        video_track = Playlist(self.timebase, self.audio_format, name="V1")
-        cursor = 0
+        # Transition windows, in sequence frames, resolved to blenders by
+        # ive/transitions/loader.py (the engine reads no files).
+        pending_windows: list[tuple] = []
+        for span in (transition_spans or []):
+            blender = span.get("blender")
+            if blender is None:
+                continue
+            start_f = self.timebase.seconds_to_frames(
+                float(span.get("start") or 0.0))
+            end_f = self.timebase.seconds_to_frames(
+                float(span.get("end") or 0.0))
+            if end_f > start_f:
+                pending_windows.append(
+                    (start_f, end_f, blender,
+                     str(span.get("easing") or "smooth")))
+
+        # Two video playlists, A/B roll: clips stay on one until a
+        # transition makes two of them overlap - then the incoming clip
+        # goes to the OTHER playlist, and the window on the upper track
+        # blends them. Without transitions everything lands on V1 and the
+        # graph is exactly what it always was.
+        roll_a = Playlist(self.timebase, self.audio_format, name="V1")
+        roll_b = Playlist(self.timebase, self.audio_format, name="V1b")
+        cursors = {id(roll_a): 0, id(roll_b): 0}
+        current = roll_a
+        windows: list[tuple] = []
+        prev_entry: Entry | None = None
+        prev_end = None
         for clip, producer in usable:
             start = self.timebase.seconds_to_frames(float(clip.get("start") or 0.0))
             length = self.timebase.seconds_to_frames(float(clip.get("duration") or 0.0))
             if length <= 0:
                 continue
-            if start > cursor:
-                video_track.append_blank(start - cursor)
-                cursor = start
-            volume = float(clip.get("volume", 1.0) if clip.get("volume")
-                           is not None else 1.0)
             entry = Entry(
                 producer=producer,
                 source_in=self.timebase.seconds_to_frames(
@@ -172,15 +194,52 @@ class GraphBuilder:
                 length=length,
                 clip_id=str(clip.get("id") or ""),
             )
+            overlap_end = min(prev_end, start + length) \
+                if (prev_end is not None and start < prev_end) else None
+            if overlap_end is not None:
+                # The OLD clip sits on `current`; roles flip when that is
+                # the UPPER track (a push must know which side is leaving).
+                flipped = current is roll_b
+                current = roll_b if current is roll_a else roll_a
+                window = next(
+                    (w for w in pending_windows
+                     if abs(w[0] - start) <= 1 and abs(w[1] - overlap_end) <= 1),
+                    None)
+                if window is not None:
+                    windows.append((start, overlap_end,
+                                    window[2], window[3], flipped))
+                    # Equal-power crossfade: the outgoing entry fades out,
+                    # the incoming fades in, over the same frames.
+                    if prev_entry is not None:
+                        prev_entry.filters.append(AudioRamp(
+                            start, overlap_end, rising=False))
+                    entry.filters.append(AudioRamp(
+                        start, overlap_end, rising=True))
+                # No window (recipe deleted, file gone): the tracks still
+                # alternate so nothing overlaps on one playlist, and the
+                # cut plays plain - the incoming clip simply covers.
+            cursor = cursors[id(current)]
+            if start > cursor:
+                current.append_blank(start - cursor)
+            volume = float(clip.get("volume", 1.0) if clip.get("volume")
+                           is not None else 1.0)
             # Per ENTRY, not per producer: two clips cut from the same file
             # share the producer but each keeps its own loudness.
             if abs(volume - 1.0) > 1e-6:
                 entry.filters.append(Gain(volume))
-            video_track.append(entry)
-            cursor += length
+            current.append(entry)
+            cursors[id(current)] = start + length
+            prev_entry = entry
+            prev_end = start + length
 
-        if video_track.length:
-            tractor.add_track(Track(video_track, video=True, audio=True, name="V1"))
+        if roll_a.length:
+            tractor.add_track(Track(roll_a, video=True, audio=True, name="V1"))
+        if roll_b.length:
+            from ive.engine.transitions import TimedBlend
+
+            tractor.add_track(Track(roll_b, video=True, audio=True,
+                                    transition=TimedBlend(windows),
+                                    name="V1b"))
 
         graded = [
             {"start": self.timebase.seconds_to_frames(float(s.get("start") or 0.0)),
@@ -224,8 +283,10 @@ def build_from_project(clips: list[dict], *, fps: float = 25.0,
                        proxies=None, use_proxies: bool = True,
                        color_spans: list[dict] | None = None,
                        sticker_spans: list[dict] | None = None,
-                       text_spans: list[dict] | None = None) -> Tractor:
+                       text_spans: list[dict] | None = None,
+                       transition_spans: list[dict] | None = None) -> Tractor:
     """One-shot build, for tests and scripts."""
     builder = GraphBuilder(Timebase(Fraction(fps).limit_denominator(1001)),
                            AudioFormat(), width, height, proxies, use_proxies)
-    return builder.build(clips, color_spans, sticker_spans, text_spans)
+    return builder.build(clips, color_spans, sticker_spans, text_spans,
+                         transition_spans)

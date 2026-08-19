@@ -230,5 +230,14 @@
   "text.handles_hint": "Move, scale and rotate the title by grabbing it on the video.",
   "text.place": "Add title",
   "text.edit": "Edit title",
-  "text.transform": "Move title"
+  "text.transform": "Move title",
+  "rail.transitions": "Transitions",
+  "transition.set": "Set transition",
+  "transition.sections": "Transition families",
+  "transition.count": "{n} transitions",
+  "transition.hint": "Open a family and drag a transition onto a cut between two clips. Your own live in user_data/transitions: a greyscale PNG plus a small JSON file IS a new transition.",
+  "transition.place_hint": "Drag onto the diamond between two clips. The next clip is pulled back by the transition's length. Tap a lit diamond to remove it.",
+  "transition.section.dissolve": "Dissolves",
+  "transition.section.wipe": "Wipes",
+  "transition.section.motion": "Motion"
 }

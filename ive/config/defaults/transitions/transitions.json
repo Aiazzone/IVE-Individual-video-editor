@@ -1,0 +1,281 @@
+[
+  {
+    "schema_version": 1,
+    "id": "crossfade",
+    "name": {
+      "en": "Crossfade",
+      "it": "Dissolvenza incrociata",
+      "es": "Fundido cruzado",
+      "pt": "Fusão cruzada"
+    },
+    "section": "dissolve",
+    "duration": 0.8,
+    "easing": "smooth",
+    "op": {
+      "kind": "mix"
+    }
+  },
+  {
+    "schema_version": 1,
+    "id": "dip_black",
+    "name": {
+      "en": "Dip to black",
+      "it": "Passaggio per il nero",
+      "es": "Fundido a negro",
+      "pt": "Passagem pelo preto"
+    },
+    "section": "dissolve",
+    "duration": 1.0,
+    "easing": "smooth",
+    "op": {
+      "kind": "through_color",
+      "color": "#000000"
+    }
+  },
+  {
+    "schema_version": 1,
+    "id": "dip_white",
+    "name": {
+      "en": "Dip to white",
+      "it": "Passaggio per il bianco",
+      "es": "Fundido a blanco",
+      "pt": "Passagem pelo branco"
+    },
+    "section": "dissolve",
+    "duration": 1.0,
+    "easing": "smooth",
+    "op": {
+      "kind": "through_color",
+      "color": "#FFFFFF"
+    }
+  },
+  {
+    "schema_version": 1,
+    "id": "wipe_left",
+    "name": {
+      "en": "Wipe left",
+      "it": "Tendina a sinistra",
+      "es": "Cortinilla a la izquierda",
+      "pt": "Cortina à esquerda"
+    },
+    "section": "wipe",
+    "duration": 0.7,
+    "easing": "smooth",
+    "op": {
+      "kind": "wipe",
+      "direction": "left",
+      "softness": 0.08
+    }
+  },
+  {
+    "schema_version": 1,
+    "id": "wipe_right",
+    "name": {
+      "en": "Wipe right",
+      "it": "Tendina a destra",
+      "es": "Cortinilla a la derecha",
+      "pt": "Cortina à direita"
+    },
+    "section": "wipe",
+    "duration": 0.7,
+    "easing": "smooth",
+    "op": {
+      "kind": "wipe",
+      "direction": "right",
+      "softness": 0.08
+    }
+  },
+  {
+    "schema_version": 1,
+    "id": "wipe_up",
+    "name": {
+      "en": "Wipe up",
+      "it": "Tendina in su",
+      "es": "Cortinilla hacia arriba",
+      "pt": "Cortina para cima"
+    },
+    "section": "wipe",
+    "duration": 0.7,
+    "easing": "smooth",
+    "op": {
+      "kind": "wipe",
+      "direction": "up",
+      "softness": 0.08
+    }
+  },
+  {
+    "schema_version": 1,
+    "id": "wipe_down",
+    "name": {
+      "en": "Wipe down",
+      "it": "Tendina in giu'",
+      "es": "Cortinilla hacia abajo",
+      "pt": "Cortina para baixo"
+    },
+    "section": "wipe",
+    "duration": 0.7,
+    "easing": "smooth",
+    "op": {
+      "kind": "wipe",
+      "direction": "down",
+      "softness": 0.08
+    }
+  },
+  {
+    "schema_version": 1,
+    "id": "circle_open",
+    "name": {
+      "en": "Circle open",
+      "it": "Cerchio che si apre",
+      "es": "Círculo que se abre",
+      "pt": "Círculo que se abre"
+    },
+    "section": "wipe",
+    "duration": 0.8,
+    "easing": "smooth",
+    "op": {
+      "kind": "wipe",
+      "direction": "circle_in",
+      "softness": 0.1
+    }
+  },
+  {
+    "schema_version": 1,
+    "id": "circle_close",
+    "name": {
+      "en": "Circle close",
+      "it": "Cerchio che si chiude",
+      "es": "Círculo que se cierra",
+      "pt": "Círculo que se fecha"
+    },
+    "section": "wipe",
+    "duration": 0.8,
+    "easing": "smooth",
+    "op": {
+      "kind": "wipe",
+      "direction": "circle_out",
+      "softness": 0.1
+    }
+  },
+  {
+    "schema_version": 1,
+    "id": "diagonal",
+    "name": {
+      "en": "Diagonal",
+      "it": "Diagonale",
+      "es": "Diagonal",
+      "pt": "Diagonal"
+    },
+    "section": "wipe",
+    "duration": 0.7,
+    "easing": "smooth",
+    "op": {
+      "kind": "luma",
+      "file": "luma/diagonal.png",
+      "softness": 0.1
+    }
+  },
+  {
+    "schema_version": 1,
+    "id": "clock",
+    "name": {
+      "en": "Clock sweep",
+      "it": "Lancetta d'orologio",
+      "es": "Barrido de reloj",
+      "pt": "Varrimento de relógio"
+    },
+    "section": "wipe",
+    "duration": 0.9,
+    "easing": "smooth",
+    "op": {
+      "kind": "luma",
+      "file": "luma/clock.png",
+      "softness": 0.06
+    }
+  },
+  {
+    "schema_version": 1,
+    "id": "blinds",
+    "name": {
+      "en": "Blinds",
+      "it": "Veneziane",
+      "es": "Persianas",
+      "pt": "Persianas"
+    },
+    "section": "wipe",
+    "duration": 0.7,
+    "easing": "smooth",
+    "op": {
+      "kind": "luma",
+      "file": "luma/blinds.png",
+      "softness": 0.12
+    }
+  },
+  {
+    "schema_version": 1,
+    "id": "push_left",
+    "name": {
+      "en": "Push left",
+      "it": "Spinta a sinistra",
+      "es": "Empuje a la izquierda",
+      "pt": "Empurrão à esquerda"
+    },
+    "section": "motion",
+    "duration": 0.6,
+    "easing": "smooth",
+    "op": {
+      "kind": "push",
+      "direction": "left"
+    }
+  },
+  {
+    "schema_version": 1,
+    "id": "push_right",
+    "name": {
+      "en": "Push right",
+      "it": "Spinta a destra",
+      "es": "Empuje a la derecha",
+      "pt": "Empurrão à direita"
+    },
+    "section": "motion",
+    "duration": 0.6,
+    "easing": "smooth",
+    "op": {
+      "kind": "push",
+      "direction": "right"
+    }
+  },
+  {
+    "schema_version": 1,
+    "id": "slide_up",
+    "name": {
+      "en": "Slide up",
+      "it": "Scorrimento in su",
+      "es": "Deslizamiento hacia arriba",
+      "pt": "Deslize para cima"
+    },
+    "section": "motion",
+    "duration": 0.6,
+    "easing": "smooth",
+    "op": {
+      "kind": "slide",
+      "direction": "up"
+    }
+  },
+  {
+    "schema_version": 1,
+    "id": "zoom_in",
+    "name": {
+      "en": "Zoom",
+      "it": "Zoom",
+      "es": "Zoom",
+      "pt": "Zoom"
+    },
+    "section": "motion",
+    "duration": 0.7,
+    "easing": "smooth",
+    "op": {
+      "kind": "zoom"
+    }
+  }
+]

@@ -260,6 +260,7 @@ Item {
                     case "color":    return "ColorContent.qml";
                     case "stickers": return "StickersContent.qml";
                     case "text":     return "TextContent.qml";
+                    case "transitions": return "TransitionsContent.qml";
                     default: return "";
                     }
                 }
