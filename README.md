@@ -72,10 +72,12 @@ between the two, on Windows and Linux:
   video to move, scale and rotate it like a sticker — same pixels in
   preview and export
 - Transitions between clips: drag one of the 16 built-ins (dissolves,
-  wipes, motion) onto the diamond between two clips; audio crossfades
-  at equal power and the export blends identically. A wipe is a
-  greyscale **luma map** — draw a PNG in any image editor, add four
-  lines of JSON, and you have made a new transition to share
+  wipes, motion) onto the video track — it snaps to the nearest cut,
+  or to the film's start/end where it plays from and to black. A white
+  pill marks it: drag its edges to change the duration. Audio
+  crossfades at equal power and the export blends identically. A wipe
+  is a greyscale **luma map** — draw a PNG in any image editor, add
+  four lines of JSON, and you have made a new transition to share
 - Proxy editing for 4K sources; multilingual UI (EN, IT, ES, PT); dark and
   light themes
 

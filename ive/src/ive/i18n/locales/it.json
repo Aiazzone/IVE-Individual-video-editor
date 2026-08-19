@@ -235,8 +235,8 @@
   "transition.set": "Imposta transizione",
   "transition.sections": "Famiglie di transizioni",
   "transition.count": "{n} transizioni",
-  "transition.hint": "Apri una famiglia e trascina una transizione su un taglio fra due clip. Le tue vivono in user_data/transitions: un PNG in scala di grigi piu' un piccolo JSON E' una transizione nuova.",
-  "transition.place_hint": "Trascina sul rombo fra due clip. La clip successiva arretra della durata della transizione. Tocca un rombo acceso per rimuoverla.",
+  "transition.hint": "Apri una famiglia e trascina una transizione sulla traccia video: si aggancia al taglio piu' vicino - o all'inizio o alla fine del filmato, dove parte dal nero e finisce nel nero. Le tue vivono in user_data/transitions: un PNG in scala di grigi piu' un piccolo JSON E' una transizione nuova.",
+  "transition.place_hint": "Trascina sulla traccia video vicino a un taglio (o all'inizio/fine del filmato). La pillola bianca la mostra: trascina i bordi per cambiarne la durata, toccala e usa il cestino per rimuoverla.",
   "transition.section.dissolve": "Dissolvenze",
   "transition.section.wipe": "Tendine",
   "transition.section.motion": "Movimento"

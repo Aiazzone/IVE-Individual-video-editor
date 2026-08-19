@@ -235,8 +235,8 @@
   "transition.set": "Set transition",
   "transition.sections": "Transition families",
   "transition.count": "{n} transitions",
-  "transition.hint": "Open a family and drag a transition onto a cut between two clips. Your own live in user_data/transitions: a greyscale PNG plus a small JSON file IS a new transition.",
-  "transition.place_hint": "Drag onto the diamond between two clips. The next clip is pulled back by the transition's length. Tap a lit diamond to remove it.",
+  "transition.hint": "Open a family and drag a transition onto the video track: it snaps to the nearest cut - or to the very start or end of the film, where it plays from and to black. Your own live in user_data/transitions: a greyscale PNG plus a small JSON file IS a new transition.",
+  "transition.place_hint": "Drag onto the video track near a cut (or at the film's start/end). The white pill shows it: drag its edges to change the duration, tap it and use the trash to remove it.",
   "transition.section.dissolve": "Dissolves",
   "transition.section.wipe": "Wipes",
   "transition.section.motion": "Motion"

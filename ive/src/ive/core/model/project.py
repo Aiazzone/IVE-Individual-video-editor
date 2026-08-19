@@ -126,13 +126,18 @@ class TimelineClip:
     #: For clips on the Sticker track (track 2): which sticker is shown.
     #: media_id is "" for these too.
     sticker_id: str = ""
-    #: Transition TOWARDS THE NEXT clip on the same track ("" = a plain
-    #: cut). It belongs to the outgoing clip, so it survives reorders.
-    #: CapCut semantics: the next clip is pulled back by the transition's
-    #: duration, so both sides have material - the sequence shortens by
-    #: that much and no extra source material ("handles") is ever needed.
+    #: Transition TOWARDS WHAT FOLLOWS this clip ("" = a plain cut). It
+    #: belongs to the outgoing clip, so it survives reorders. With a next
+    #: clip, CapCut semantics: the next clip is pulled back by the
+    #: transition's duration, so both sides have material - the sequence
+    #: shortens by that much and no extra source material ("handles") is
+    #: ever needed. On the LAST clip it plays as an OUTRO towards black.
     transition_id: str = ""
     transition_duration: float = 0.5
+    #: Transition FROM BLACK at this clip's head - the intro. Read only
+    #: on the first clip of the timeline.
+    transition_in_id: str = ""
+    transition_in_duration: float = 0.5
     #: For clips on the Text track (track 3): the words on the video. A
     #: non-empty text is what MAKES a clip a text clip, exactly as a
     #: non-empty sticker_id makes a sticker clip.
@@ -176,6 +181,9 @@ class TimelineClip:
             transition_id=_as_str(data.get("transition_id")),
             transition_duration=min(5.0, max(0.1, _as_float(
                 data.get("transition_duration"), 0.5))),
+            transition_in_id=_as_str(data.get("transition_in_id")),
+            transition_in_duration=min(5.0, max(0.1, _as_float(
+                data.get("transition_in_duration"), 0.5))),
             text=text,
             font=_as_str(data.get("font")),
             color=_as_str(data.get("color"), "#FFFFFF") or "#FFFFFF",
@@ -434,17 +442,26 @@ class Project:
         return True
 
     def set_clip_transition(self, clip_id: str, transition_id: str,
-                            duration: float = 0.5) -> bool:
-        """Set (or clear, with "") the transition towards the next clip.
+                            duration: float = 0.5,
+                            edge: str = "out") -> bool:
+        """Set (or clear, with "") a transition on one clip.
 
-        Only the A/V track has cuts to dress; the timeline reflows so the
+        ``edge`` "out" dresses the cut towards what follows (the next
+        clip, or black when this is the last one); "in" dresses the
+        clip's head - the intro from black, read on the first clip.
+        Only the A/V track has cuts to dress; the timeline reflows so a
         next clip slides back by the overlap.
         """
         clip = self.find_clip(clip_id)
         if clip is None or clip.track != 0:
             return False
-        clip.transition_id = str(transition_id)
-        clip.transition_duration = min(5.0, max(0.1, float(duration)))
+        duration = min(5.0, max(0.1, float(duration)))
+        if edge == "in":
+            clip.transition_in_id = str(transition_id)
+            clip.transition_in_duration = duration
+        else:
+            clip.transition_id = str(transition_id)
+            clip.transition_duration = duration
         self.reflow(0)
         return True
 

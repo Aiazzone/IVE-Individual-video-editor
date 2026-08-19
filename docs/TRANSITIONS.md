@@ -50,10 +50,26 @@ sequenza si accorcia di quel tanto e **non servono mai "maniglie"** di
 materiale extra. Cap: la sovrapposizione non supera meta' di nessuno
 dei due clip, cosi' due transizioni consecutive non si toccano mai.
 
-UI: un **rombo su ogni giunto** della corsia V1 — vuoto per un taglio
-secco, acceso (accent) quando vestito. Si trascina una card dal
-pannello Transizioni sul rombo; un tocco sul rombo acceso la rimuove.
-Tutto passa da `timeline.set_transition` (un passo di undo).
+**Intro e outro** (rivisti 2026-08-19 su feedback): la stessa
+transizione funziona anche ai bordi del filmato, verso il NERO.
+`transition_id` sull'ULTIMO clip = outro (clip→nero, ultima parte del
+clip); `transition_in_id` sul PRIMO clip = intro (nero→clip, prima
+parte). Nessuno dei due accorcia la sequenza; l'audio segue con un
+fade-in/fade-out equal-power. Azione: `timeline.set_transition` con
+`edge: "in" | "out"` ("out" copre giunto e outro: e' sempre "verso cio'
+che segue").
+
+UI (rivista 2026-08-19): **niente rombi fissi sui giunti**. Si trascina
+la card del pannello DIRETTAMENTE sulla traccia video: il drop si
+aggancia al taglio piu' vicino, o alla testa/coda del filmato per
+intro/outro. La transizione presente e' una **pillola bianca col rombo
+dentro**, sopra la corsia V1, un po' piu' bassa dei clip (si legge "fra
+i video"); la sua larghezza E' la finestra del blend: **trascinare i
+bordi cambia la durata** (commit al rilascio, un undo), toccarla la
+seleziona e il cestino del toolbox la rimuove. Le MouseArea della
+pillola hanno `preventStealing` e consumano il press: senza, il
+DragHandler del clip sotto rubava il gesto e il cestino cancellava il
+CLIP.
 
 ## 4. Nel motore: A/B roll
 
@@ -109,13 +125,14 @@ texture (la QML API non cambia); SIMD esplicito via cv2.UMat/OpenCL.
 
 ## 6. Prossimi passi
 
-1. Durata regolabile dal rombo (drag orizzontale sul giunto).
-2. Piu' mappe di fabbrica (stella, cuore, pennellata) — sono solo PNG.
-3. `.ivepack` che impacchetta transizioni + colori + sticker insieme.
+1. Piu' mappe di fabbrica (stella, cuore, pennellata) — sono solo PNG.
+2. `.ivepack` che impacchetta transizioni + colori + sticker insieme.
 
 Test: `tests/test_transitions.py` (catalogo, loader, modello con
 overlap/clamp/split/undo, pixel del grafo per crossfade/wipe/push,
-finestra FLIPPED, rampa audio, export accorciato coi pixel giusti,
-bench di performance con budget), `tests/visual/test_transitions_ui.py`
-(pannello, anteprime reali sulle card, drag sul rombo, pixel del
-preview a meta' wipe, tocco che rimuove, undo).
+finestra FLIPPED, intro dal nero e outro verso il nero coi fade audio,
+rampa audio del crossfade, export accorciato coi pixel giusti, bench
+di performance con budget), `tests/visual/test_transitions_ui.py`
+(pannello, anteprime reali sulle card, drag sulla TRACCIA che si
+aggancia al taglio, pillola bianca misurata sui pixel, trim del bordo,
+selezione+cestino, drop in testa che diventa intro, undo).

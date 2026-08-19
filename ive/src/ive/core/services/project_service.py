@@ -189,6 +189,8 @@ class ProjectService(QObject):
                 "sourceIn": clip.source_in,
                 "transitionId": clip.transition_id,
                 "transitionDuration": clip.transition_duration,
+                "transitionInId": clip.transition_in_id,
+                "transitionInDuration": clip.transition_in_duration,
                 "mediaDuration": (item.duration if item else 0.0),
                 "volume": clip.volume,
                 "audioEnabled": clip.audio_enabled,
@@ -364,9 +366,14 @@ class ProjectService(QObject):
         return 1.0
 
     @Slot(str, str, float, result=bool)
+    @Slot(str, str, float, str, result=bool)
     def set_clip_transition(self, clip_id: str, transition_id: str,
-                            duration: float) -> bool:
-        """Dress (or undress, with "") the cut after one video clip."""
+                            duration: float, edge: str = "out") -> bool:
+        """Dress (or undress, with "") one edge of a video clip.
+
+        ``edge`` "out" = the cut towards what follows (or the outro to
+        black on the last clip); "in" = the intro from black.
+        """
         if self._project is None:
             return False
         if transition_id:
@@ -377,7 +384,7 @@ class ProjectService(QObject):
                 return False
         return self._edit("transition.set",
                           lambda: self._project.set_clip_transition(
-                              clip_id, transition_id, duration))
+                              clip_id, transition_id, duration, edge))
 
     @Slot(str, float, float, result=bool)
     def trim_clip(self, clip_id: str, source_in: float, duration: float) -> bool:

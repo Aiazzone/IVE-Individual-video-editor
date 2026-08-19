@@ -346,6 +346,9 @@ class PlaybackService(QObject):
                     "end": (float(entry.get("start") or 0.0)
                             + float(entry.get("duration") or 0.0)),
                     "tid": str(entry.get("transitionId") or ""),
+                    "td": float(entry.get("transitionDuration") or 0.5),
+                    "tin": str(entry.get("transitionInId") or ""),
+                    "tind": float(entry.get("transitionInDuration") or 0.5),
                 })
             segments.append(_Segment(
                 path=path,
@@ -370,28 +373,58 @@ class PlaybackService(QObject):
 
         # Where an outgoing clip declares a transition AND the next one
         # really starts inside it (the model pulled it back), a window is
-        # born. The recipe resolves HERE, so the graph (and the export,
-        # which shares it) never knows the catalogue; an unknown id just
-        # leaves the cut plain.
+        # born; the LAST clip's plays as an outro to black, and the first
+        # clip's transition_in as the intro from black. The recipes
+        # resolve HERE, so the graph (and the export, which shares it)
+        # never knows the catalogue; an unknown id just plays plain.
         transition_spans: list[dict] = []
         video_meta.sort(key=lambda m: m["start"])
+
+        def resolved(transition_id):
+            from ive.transitions.library import payload_for
+
+            payload = payload_for(transition_id)
+            if payload is None:
+                log.warning("Unknown transition %r; the edge plays plain",
+                            transition_id)
+                return None, ""
+            return ({k: v for k, v in payload.items() if k != "easing"},
+                    str(payload.get("easing") or "smooth"))
+
         for left, right in zip(video_meta, video_meta[1:]):
             if not left["tid"] or right["start"] >= left["end"] - 1e-6:
                 continue
-            from ive.transitions.library import payload_for
-
-            payload = payload_for(left["tid"])
+            payload, easing = resolved(left["tid"])
             if payload is None:
-                log.warning("Unknown transition %r; the cut plays plain",
-                            left["tid"])
                 continue
             transition_spans.append({
-                "start": right["start"],
-                "end": min(left["end"], right["start"] + 30.0),
-                "payload": {k: v for k, v in payload.items()
-                            if k != "easing"},
-                "easing": str(payload.get("easing") or "smooth"),
+                "start": right["start"], "end": left["end"],
+                "payload": payload, "easing": easing, "edge": "cut",
             })
+        if video_meta:
+            first, last = video_meta[0], video_meta[-1]
+            if first["tin"]:
+                payload, easing = resolved(first["tin"])
+                if payload is not None:
+                    d = min(first["tind"],
+                            (first["end"] - first["start"]) / 2)
+                    transition_spans.append({
+                        "start": first["start"],
+                        "end": first["start"] + max(0.1, d),
+                        "payload": payload, "easing": easing, "edge": "in",
+                    })
+            if last["tid"]:
+                # The last clip has no next, so its transition is the
+                # outro towards black (the junction loop above can never
+                # have consumed it).
+                payload, easing = resolved(last["tid"])
+                if payload is not None:
+                    d = min(last["td"], (last["end"] - last["start"]) / 2)
+                    transition_spans.append({
+                        "start": last["end"] - max(0.1, d),
+                        "end": last["end"],
+                        "payload": payload, "easing": easing, "edge": "out",
+                    })
 
         self._color_spans = spans
         self._sticker_spans = sticker_spans

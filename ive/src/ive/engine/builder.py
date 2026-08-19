@@ -154,39 +154,29 @@ class GraphBuilder:
             video=True, audio=False, name="black",
         ))
 
-        # Transition windows, in sequence frames, resolved to blenders by
-        # ive/transitions/loader.py (the engine reads no files).
-        pending_windows: list[tuple] = []
-        for span in (transition_spans or []):
-            blender = span.get("blender")
-            if blender is None:
-                continue
-            start_f = self.timebase.seconds_to_frames(
-                float(span.get("start") or 0.0))
-            end_f = self.timebase.seconds_to_frames(
-                float(span.get("end") or 0.0))
-            if end_f > start_f:
-                pending_windows.append(
-                    (start_f, end_f, blender,
-                     str(span.get("easing") or "smooth")))
-
-        # Two video playlists, A/B roll: clips stay on one until a
-        # transition makes two of them overlap - then the incoming clip
-        # goes to the OTHER playlist, and the window on the upper track
-        # blends them. Without transitions everything lands on V1 and the
-        # graph is exactly what it always was.
+        # Two video playlists, A/B roll: clips stay on one until an
+        # overlap (a junction transition pulled the next clip back) makes
+        # two of them share frames - then the incoming clip goes to the
+        # OTHER playlist. Without transitions everything lands on V1 and
+        # the graph is exactly what it always was.
         roll_a = Playlist(self.timebase, self.audio_format, name="V1")
         roll_b = Playlist(self.timebase, self.audio_format, name="V1b")
         cursors = {id(roll_a): 0, id(roll_b): 0}
         current = roll_a
-        windows: list[tuple] = []
-        prev_entry: Entry | None = None
+        #: (entry, roll, start_f, end_f) of every placed clip, for the
+        #: window pass below.
+        placed: list[tuple] = []
         prev_end = None
         for clip, producer in usable:
             start = self.timebase.seconds_to_frames(float(clip.get("start") or 0.0))
             length = self.timebase.seconds_to_frames(float(clip.get("duration") or 0.0))
             if length <= 0:
                 continue
+            if prev_end is not None and start < prev_end:
+                # Alternate REGARDLESS of a usable recipe: two clips must
+                # never overlap on one playlist. With no blender the cut
+                # simply plays plain - the incoming clip covers.
+                current = roll_b if current is roll_a else roll_a
             entry = Entry(
                 producer=producer,
                 source_in=self.timebase.seconds_to_frames(
@@ -194,30 +184,6 @@ class GraphBuilder:
                 length=length,
                 clip_id=str(clip.get("id") or ""),
             )
-            overlap_end = min(prev_end, start + length) \
-                if (prev_end is not None and start < prev_end) else None
-            if overlap_end is not None:
-                # The OLD clip sits on `current`; roles flip when that is
-                # the UPPER track (a push must know which side is leaving).
-                flipped = current is roll_b
-                current = roll_b if current is roll_a else roll_a
-                window = next(
-                    (w for w in pending_windows
-                     if abs(w[0] - start) <= 1 and abs(w[1] - overlap_end) <= 1),
-                    None)
-                if window is not None:
-                    windows.append((start, overlap_end,
-                                    window[2], window[3], flipped))
-                    # Equal-power crossfade: the outgoing entry fades out,
-                    # the incoming fades in, over the same frames.
-                    if prev_entry is not None:
-                        prev_entry.filters.append(AudioRamp(
-                            start, overlap_end, rising=False))
-                    entry.filters.append(AudioRamp(
-                        start, overlap_end, rising=True))
-                # No window (recipe deleted, file gone): the tracks still
-                # alternate so nothing overlaps on one playlist, and the
-                # cut plays plain - the incoming clip simply covers.
             cursor = cursors[id(current)]
             if start > cursor:
                 current.append_blank(start - cursor)
@@ -229,17 +195,75 @@ class GraphBuilder:
                 entry.filters.append(Gain(volume))
             current.append(entry)
             cursors[id(current)] = start + length
-            prev_entry = entry
+            placed.append((entry, current, start, start + length))
             prev_end = start + length
 
-        if roll_a.length:
-            tractor.add_track(Track(roll_a, video=True, audio=True, name="V1"))
-        if roll_b.length:
-            from ive.engine.transitions import TimedBlend
+        # The windows: junction blends live on the UPPER roll (one of the
+        # two overlapping clips is always there, by construction), intro
+        # and outro blends against the black track live on their own
+        # clip's roll. `flipped` marks windows where the OUTGOING picture
+        # is the one on the track carrying the blend.
+        windows: dict[int, list] = {id(roll_a): [], id(roll_b): []}
+        for span in (transition_spans or []):
+            blender = span.get("blender")
+            if blender is None:
+                continue
+            start_f = self.timebase.seconds_to_frames(
+                float(span.get("start") or 0.0))
+            end_f = self.timebase.seconds_to_frames(
+                float(span.get("end") or 0.0))
+            if end_f <= start_f:
+                continue
+            easing = str(span.get("easing") or "smooth")
+            edge = str(span.get("edge") or "cut")
+            if edge == "in":
+                hit = next((p for p in placed if abs(p[2] - start_f) <= 1),
+                           None)
+                if hit is not None:
+                    windows[id(hit[1])].append(
+                        (start_f, end_f, blender, easing, False))
+                    hit[0].filters.append(AudioRamp(start_f, end_f,
+                                                    rising=True))
+            elif edge == "out":
+                hit = next((p for p in placed if abs(p[3] - end_f) <= 1),
+                           None)
+                if hit is not None:
+                    windows[id(hit[1])].append(
+                        (start_f, end_f, blender, easing, True))
+                    hit[0].filters.append(AudioRamp(start_f, end_f,
+                                                    rising=False))
+            else:
+                incoming = next(
+                    (p for p in placed if abs(p[2] - start_f) <= 1), None)
+                outgoing = next(
+                    (p for p in placed if abs(p[3] - end_f) <= 1), None)
+                if incoming is None or outgoing is None \
+                        or incoming[1] is outgoing[1]:
+                    continue
+                upper = incoming[1] if incoming[1] is roll_b else outgoing[1]
+                windows[id(upper)].append(
+                    (start_f, end_f, blender, easing,
+                     outgoing[1] is roll_b))
+                # Equal-power crossfade: the outgoing entry fades out,
+                # the incoming fades in, over the same frames.
+                outgoing[0].filters.append(AudioRamp(start_f, end_f,
+                                                     rising=False))
+                incoming[0].filters.append(AudioRamp(start_f, end_f,
+                                                     rising=True))
 
-            tractor.add_track(Track(roll_b, video=True, audio=True,
-                                    transition=TimedBlend(windows),
-                                    name="V1b"))
+        from ive.engine.transitions import TimedBlend
+
+        if roll_a.length:
+            tractor.add_track(Track(
+                roll_a, video=True, audio=True,
+                transition=(TimedBlend(windows[id(roll_a)])
+                            if windows[id(roll_a)] else None),
+                name="V1"))
+        if roll_b.length:
+            tractor.add_track(Track(
+                roll_b, video=True, audio=True,
+                transition=TimedBlend(windows[id(roll_b)]),
+                name="V1b"))
 
         graded = [
             {"start": self.timebase.seconds_to_frames(float(s.get("start") or 0.0)),

@@ -235,8 +235,8 @@
   "transition.set": "Definir transição",
   "transition.sections": "Famílias de transições",
   "transition.count": "{n} transições",
-  "transition.hint": "Abra uma família e arraste uma transição para um corte entre dois clipes. As suas vivem em user_data/transitions: um PNG em tons de cinzento mais um pequeno JSON É uma transição nova.",
-  "transition.place_hint": "Arraste para o losango entre dois clipes. O clipe seguinte recua a duração da transição. Toque num losango aceso para a remover.",
+  "transition.hint": "Abra uma família e arraste uma transição para a pista de vídeo: encaixa no corte mais próximo - ou no início ou no fim do filme, onde entra do preto e sai para o preto. As suas vivem em user_data/transitions: um PNG em tons de cinzento mais um pequeno JSON É uma transição nova.",
+  "transition.place_hint": "Arraste para a pista de vídeo perto de um corte (ou no início/fim do filme). A pílula branca mostra-a: arraste as bordas para mudar a duração, toque nela e use o caixote para a remover.",
   "transition.section.dissolve": "Fusões",
   "transition.section.wipe": "Cortinas",
   "transition.section.motion": "Movimento"

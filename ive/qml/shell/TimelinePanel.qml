@@ -167,6 +167,7 @@ Item {
     function clearSelection() {
         selectedClipId = "";
         selectedKind = "";
+        selectedTransition = null;
     }
 
     /*! Live clip data by id, for handlers that need sourceIn/mediaDuration
@@ -184,6 +185,17 @@ Item {
         the whole clip goes. The Delete key (Main.qml) and the trash button
         both land here. */
     function deleteSelected() {
+        // A selected transition pill deletes the TRANSITION, never the
+        // clip it happens to reference.
+        if (selectedKind === "transition" && selectedTransition !== null) {
+            var picked = selectedTransition;
+            clearSelection();
+            Actions.invoke("timeline.set_transition", {
+                clip_id: picked.clipId, transition_id: "",
+                duration: 0.5, edge: picked.edge
+            });
+            return;
+        }
         if (selectedClipData === null)
             return;
         var id = selectedClipId;
@@ -199,38 +211,80 @@ Item {
             Actions.invoke("timeline.remove_clip", { clip_id: id });
     }
 
-    // ── the cuts between video clips ───────────────────────────────
-    // One junction per adjacent pair on V1. With a transition the two
-    // clips overlap, so the diamond sits at the MIDDLE of the overlap -
-    // the visual centre of the blend.
-    readonly property var junctions: {
+    // ── transitions on V1 ──────────────────────────────────────────
+    /*! The video clips, sorted - the raw material for cuts and pills. */
+    function videoClips() {
         var clips = Project.isOpen ? Project.timelineClips : [];
-        var video = clips.filter(function (c) {
+        return clips.filter(function (c) {
             return c.track === 0 && c.hasVideo;
         }).sort(function (a, b) { return a.start - b.start; });
-        var out = [];
-        for (var i = 0; i + 1 < video.length; i++)
-            out.push({
-                leftId: video[i].id,
-                at: (video[i].end + video[i + 1].start) / 2,
-                transitionId: video[i].transitionId || ""
-            });
-        return out;
     }
 
-    /*! The junction nearest to a point in time, or null. */
-    function junctionNear(seconds) {
+    /*! Where a dropped transition can land: every cut between two
+        clips, plus the very head of the first clip (the intro from
+        black) and the very tail of the last (the outro to black). */
+    function transitionTargetNear(seconds) {
+        var video = videoClips();
+        if (video.length === 0)
+            return null;
+        var candidates = [];
+        for (var i = 0; i + 1 < video.length; i++)
+            candidates.push({ at: (video[i].end + video[i + 1].start) / 2,
+                              clipId: video[i].id, edge: "out" });
+        candidates.push({ at: video[0].start,
+                          clipId: video[0].id, edge: "in" });
+        candidates.push({ at: video[video.length - 1].end,
+                          clipId: video[video.length - 1].id, edge: "out" });
         var best = null;
         var bestDistance = 1e9;
-        for (var i = 0; i < junctions.length; i++) {
-            var d = Math.abs(junctions[i].at - seconds);
+        for (var k = 0; k < candidates.length; k++) {
+            var d = Math.abs(candidates[k].at - seconds);
             if (d < bestDistance) {
                 bestDistance = d;
-                best = junctions[i];
+                best = candidates[k];
             }
         }
         return best;
     }
+
+    /*! The placed transitions, as pills: the pill's span IS the blend
+        window, so its width is the duration the user can trim. */
+    readonly property var transitionPills: {
+        var video = videoClips();
+        var out = [];
+        for (var i = 0; i + 1 < video.length; i++) {
+            var left = video[i];
+            if (left.transitionId
+                    && video[i + 1].start < left.end - 1e-4)
+                out.push({ kind: "cut", clipId: left.id,
+                           tid: left.transitionId,
+                           from: video[i + 1].start, to: left.end });
+        }
+        if (video.length > 0) {
+            var first = video[0];
+            if (first.transitionInId)
+                out.push({ kind: "in", clipId: first.id,
+                           tid: first.transitionInId,
+                           from: first.start,
+                           to: first.start + Math.min(
+                               first.transitionInDuration,
+                               first.duration / 2) });
+            var last = video[video.length - 1];
+            if (last.transitionId)
+                // The LAST clip's outgoing transition has no next clip:
+                // it plays as the outro towards black (a junction never
+                // consumes it - there is no junction after the last).
+                out.push({ kind: "out", clipId: last.id,
+                           tid: last.transitionId,
+                           from: last.end - Math.min(
+                               last.transitionDuration, last.duration / 2),
+                           to: last.end });
+        }
+        return out;
+    }
+
+    /*! The pill selected for deletion, {clipId, edge} or null. */
+    property var selectedTransition: null
 
     /*! Whether any clip covers this point in time. */
     function clipAt(seconds) {
@@ -304,7 +358,7 @@ Item {
           } },
         { icon: Icons.trash,
           label: Tr.s["timeline.delete"] || "",
-          kinds: ["video", "color", "sticker", "text"],
+          kinds: ["video", "color", "sticker", "text", "transition"],
           run: function () { root.deleteSelected(); } },
         { icon: Icons.trash,
           label: Tr.s["timeline.remove_audio"] || "",
@@ -611,16 +665,18 @@ Item {
                                           && drop.source.transitionId)
                             ? drop.source.transitionId : "";
                         if (transition !== "") {
-                            // A transition belongs to a CUT: the drop
-                            // lands on the nearest junction between two
-                            // video clips.
-                            var junction = root.junctionNear(seconds);
-                            if (junction !== null)
+                            // A transition belongs to an EDGE: the drop
+                            // snaps to the nearest cut between two clips,
+                            // or to the head/tail of the timeline (the
+                            // intro from black / the outro to black).
+                            var target = root.transitionTargetNear(seconds);
+                            if (target !== null)
                                 Actions.invoke("timeline.set_transition", {
-                                    clip_id: junction.leftId,
+                                    clip_id: target.clipId,
                                     transition_id: transition,
                                     duration: Transitions.default_duration(
-                                        transition)
+                                        transition),
+                                    edge: target.edge
                                 });
                             drop.accept();
                             return;
@@ -1037,53 +1093,135 @@ Item {
                     }
                 }
 
-                // ── junction diamonds on V1 ───────────────────────
-                // One per cut between video clips: hollow when the cut
-                // is plain, filled with the accent when a transition
-                // dresses it. Tapping a dressed one takes the
-                // transition off (undoable, like everything).
+                // ── transition pills on V1 ────────────────────────
+                // One WHITE pill per placed transition, sitting over
+                // the video lane, a little shorter than the clips so it
+                // reads as "between them". Its span IS the blend
+                // window: trim either edge to change the duration, tap
+                // to select (the toolbox trash removes it).
                 Repeater {
-                    model: root.junctions
+                    model: root.transitionPills
                     delegate: Item {
-                        id: junction
+                        id: pill
                         required property var modelData
-                        objectName: "junction_" + modelData.leftId
-                        readonly property bool dressed:
-                            modelData.transitionId !== ""
-                        x: modelData.at * lanes.pps - width / 2
-                        y: lanes.trackY(0)
-                           + (root.tracks.length > 0
-                              ? root.tracks[0].height : 64) / 2 - height / 2
-                        width: 18
-                        height: 18
-                        z: 7
+                        objectName: "transition_pill_" + modelData.kind
+                                    + "_" + modelData.clipId
+                        /*! Live trim previews, in pixels; the MODEL is
+                            asked once, on release - the pill's width in
+                            seconds becomes the new duration. */
+                        property real trimLeftPx: 0
+                        property real trimRightPx: 0
+                        x: modelData.from * lanes.pps + trimLeftPx
+                        y: lanes.trackY(0) + Theme.m.trackLanePadding + 5
+                        width: Math.max(14,
+                            (modelData.to - modelData.from) * lanes.pps
+                            - trimLeftPx + trimRightPx)
+                        height: (root.tracks.length > 0
+                                 ? root.tracks[0].height : 64)
+                                - Theme.m.trackLanePadding * 2 - 10
+                        z: 8
+
+                        readonly property bool selected:
+                            root.selectedKind === "transition"
+                            && root.selectedTransition !== null
+                            && root.selectedTransition.clipId
+                               === modelData.clipId
+                            && root.selectedTransition.edge
+                               === (modelData.kind === "in" ? "in" : "out")
+
+                        function commitTrim() {
+                            var seconds = pill.width / lanes.pps;
+                            pill.trimLeftPx = 0;
+                            pill.trimRightPx = 0;
+                            Actions.invoke("timeline.set_transition", {
+                                clip_id: pill.modelData.clipId,
+                                transition_id: pill.modelData.tid,
+                                duration: Math.round(seconds * 100) / 100,
+                                edge: pill.modelData.kind === "in"
+                                    ? "in" : "out"
+                            });
+                        }
 
                         Rectangle {
+                            anchors.fill: parent
+                            radius: Theme.m.clipRadius
+                            color: "#FFFFFF"
+                            border.width: pill.selected ? 2 : 1
+                            border.color: pill.selected
+                                ? Theme.c.clipSelected : "#40000000"
+                        }
+                        // The diamond inside: the mark for a transition.
+                        Rectangle {
                             anchors.centerIn: parent
-                            width: 11
-                            height: 11
+                            width: Math.min(11, parent.height * 0.4)
+                            height: width
                             rotation: 45
-                            radius: 2
-                            color: junction.dressed ? Theme.c.accent
-                                : (junctionHover.hovered ? "#59FFFFFF"
-                                                         : "#26FFFFFF")
-                            border.width: 1
-                            border.color: junction.dressed
-                                ? Qt.lighter(Theme.c.accent, 1.3)
-                                : "#8CFFFFFF"
+                            radius: 1.5
+                            color: "transparent"
+                            border.width: 1.6
+                            border.color: "#59333333"
                         }
-                        HoverHandler {
-                            id: junctionHover
-                            cursorShape: junction.dressed
-                                ? Qt.PointingHandCursor : Qt.ArrowCursor
+
+                        // MouseAreas rather than handlers, DELIBERATELY:
+                        // a MouseArea consumes the press, so the clip
+                        // underneath never sees the tap - with handlers
+                        // both fired, the clip stole the selection and
+                        // the trash then deleted the CLIP, not the
+                        // transition.
+                        MouseArea {
+                            anchors.fill: parent
+                            anchors.leftMargin: 7
+                            anchors.rightMargin: 7
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                root.selectedClipId = pill.modelData.clipId;
+                                root.selectedKind = "transition";
+                                root.selectedTransition = {
+                                    clipId: pill.modelData.clipId,
+                                    edge: pill.modelData.kind === "in"
+                                        ? "in" : "out"
+                                };
+                            }
                         }
-                        TapHandler {
-                            enabled: junction.dressed
-                            onTapped: Actions.invoke("timeline.set_transition", {
-                                clip_id: junction.modelData.leftId,
-                                transition_id: "",
-                                duration: 0.5
-                            })
+
+                        // ── trim: either edge resizes the window ──
+                        MouseArea {
+                            width: 7
+                            height: parent.height
+                            anchors.left: parent.left
+                            cursorShape: Qt.SizeHorCursor
+                            // The clip's own DragHandler underneath is
+                            // allowed to take over from anything; without
+                            // this it steals the trim mid-drag and moves
+                            // the CLIP instead.
+                            preventStealing: true
+                            property real pressX: 0
+                            onPressed: function (mouse) {
+                                pressX = mapToItem(content, mouse.x, 0).x;
+                            }
+                            onPositionChanged: function (mouse) {
+                                if (pressed)
+                                    pill.trimLeftPx = mapToItem(
+                                        content, mouse.x, 0).x - pressX;
+                            }
+                            onReleased: pill.commitTrim()
+                        }
+                        MouseArea {
+                            width: 7
+                            height: parent.height
+                            anchors.right: parent.right
+                            cursorShape: Qt.SizeHorCursor
+                            preventStealing: true
+                            property real pressX: 0
+                            onPressed: function (mouse) {
+                                pressX = mapToItem(content, mouse.x, 0).x;
+                            }
+                            onPositionChanged: function (mouse) {
+                                if (pressed)
+                                    pill.trimRightPx = mapToItem(
+                                        content, mouse.x, 0).x - pressX;
+                            }
+                            onReleased: pill.commitTrim()
                         }
                     }
                 }

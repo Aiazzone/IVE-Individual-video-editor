@@ -55,14 +55,18 @@ Updated together with the code, so this file always reflects reality.
       export, one undo step per gesture
 
 - [x] Transitions between clips: 16 built-in in 3 families (dissolves,
-      wipes, motion), dragged onto the junction diamond between two
-      clips — the next clip is pulled back by the transition's length
-      (no extra source material ever needed), audio crossfades at
-      equal power, preview and export blend identically. A transition
-      is a JSON recipe; wipes are greyscale LUMA MAPS, so drawing a
-      PNG in any image editor creates a new one — shareable like the
-      colour effects. Measured 1.2–6 ms/frame at 720p (LUT + SIMD
-      blend; the naive path was 18x slower)
+      wipes, motion), dragged onto the video track — they snap to the
+      nearest cut, or to the film's start/end where they play from and
+      to black (intro/outro, audio fading with them). A white pill
+      over the lane shows each one: drag its edges to change the
+      duration, tap it and trash to remove. At a cut the next clip is
+      pulled back by the transition's length (no extra source material
+      ever needed) and audio crossfades at equal power; preview and
+      export blend identically. A transition is a JSON recipe; wipes
+      are greyscale LUMA MAPS, so drawing a PNG in any image editor
+      creates a new one — shareable like the colour effects. Measured
+      1.2–6 ms/frame at 720p (LUT + SIMD blend; the naive path was
+      18x slower)
 
 ## 🔨 In progress / next up
 
@@ -74,8 +78,7 @@ Updated together with the code, so this file always reflects reality.
 - [ ] Sticker motion presets (bounce, pulse, spin as JSON keyframe
       recipes) and title enter/exit animations; text style presets as
       shareable JSON
-- [ ] Adjustable transition duration by dragging on the junction
-      diamond; more factory luma maps (star, heart, brush stroke)
+- [ ] More factory luma maps (star, heart, brush stroke)
 - [ ] Multi-track timeline (music under video, picture-in-picture)
 - [ ] Export queue (one edit → YouTube + Reels + LinkedIn in sequence)
 - [ ] AI tools: auto-cut, subtitles, background removal (ONNX Runtime)
