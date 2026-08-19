@@ -76,35 +76,46 @@ class GraphBuilder:
 
     # ── producers ─────────────────────────────────────────────────────
 
-    def producer_for(self, path: str) -> Producer | None:
-        """Open a file once and keep it for later rebuilds."""
-        key = str(path)
+    def producer_for(self, path: str, bucket: str = "a") -> Producer | None:
+        """Open a file once PER BUCKET and keep it for later rebuilds.
+
+        The bucket is the A/B roll the entry lands on. Sharing one
+        decoder across both rolls was correct while pulls were strictly
+        sequential, but a transition between two cuts OF THE SAME FILE
+        pulls two different source positions on every frame of the
+        window - the shared decoder seeked back and forth each time,
+        measured at 229 ms/frame against ~15 outside. Two decoders,
+        each reading forward, is the whole fix.
+        """
+        key = f"{bucket}|{path}"
         existing = self._producers.get(key)
         if existing is not None:
             return existing
-        if not Path(key).is_file():
-            log.warning("Media missing, skipped: %s", key)
+        if not Path(str(path)).is_file():
+            log.warning("Media missing, skipped: %s", path)
             return None
 
+        source = str(path)
         proxy = None
         if self.use_proxies and self.proxies is not None:
-            resolved = self.proxies.resolve(key)
-            if resolved != key:
+            resolved = self.proxies.resolve(source)
+            if resolved != source:
                 proxy = resolved
         try:
-            producer = ClipProducer(key, self.timebase, self.audio_format, proxy,
-                                    canvas=(self.width, self.height))
+            producer = ClipProducer(source, self.timebase, self.audio_format,
+                                    proxy, canvas=(self.width, self.height))
         except Exception:
-            log.exception("Could not build a producer for %s", Path(key).name)
+            log.exception("Could not build a producer for %s",
+                          Path(source).name)
             return None
         self._producers[key] = producer
         return producer
 
     def release_unused(self, keep: set[str]) -> None:
-        """Close producers no longer referenced by the project."""
+        """Close producers (by bucket|path key) the build no longer uses."""
         for key in list(self._producers):
             if key not in keep:
-                log.debug("Releasing producer %s", Path(key).name)
+                log.debug("Releasing producer %s", key)
                 self._producers.pop(key).close()
 
     def close(self) -> None:
@@ -136,13 +147,14 @@ class GraphBuilder:
         usable = []
         for clip in clips or []:
             path = str(clip.get("path") or "")
-            producer = self.producer_for(path) if path else None
-            if producer is None:
+            if not path or not Path(path).is_file():
+                if path:
+                    log.warning("Media missing, skipped: %s", path)
                 continue
-            usable.append((clip, producer))
+            usable.append(clip)
 
         total = 0
-        for clip, _ in usable:
+        for clip in usable:
             end = float(clip.get("start") or 0.0) + float(clip.get("duration") or 0.0)
             total = max(total, self.timebase.seconds_to_frames(end))
 
@@ -166,8 +178,9 @@ class GraphBuilder:
         #: (entry, roll, start_f, end_f) of every placed clip, for the
         #: window pass below.
         placed: list[tuple] = []
+        used_keys: set[str] = set()
         prev_end = None
-        for clip, producer in usable:
+        for clip in usable:
             start = self.timebase.seconds_to_frames(float(clip.get("start") or 0.0))
             length = self.timebase.seconds_to_frames(float(clip.get("duration") or 0.0))
             if length <= 0:
@@ -177,6 +190,16 @@ class GraphBuilder:
                 # never overlap on one playlist. With no blender the cut
                 # simply plays plain - the incoming clip covers.
                 current = roll_b if current is roll_a else roll_a
+            # The producer is resolved PER ROLL: two cuts of the same
+            # file on opposite sides of a transition each get their own
+            # decoder (see producer_for for why sharing one was a seek
+            # storm).
+            bucket = "a" if current is roll_a else "b"
+            path = str(clip.get("path") or "")
+            producer = self.producer_for(path, bucket)
+            if producer is None:
+                continue
+            used_keys.add(f"{bucket}|{path}")
             entry = Entry(
                 producer=producer,
                 source_in=self.timebase.seconds_to_frames(
@@ -297,7 +320,7 @@ class GraphBuilder:
                  "span(s), %d frames at %s",
                  len(usable), len(graded), len(overlays), tractor.length,
                  self.timebase)
-        self.release_unused({str(c.get("path") or "") for c in (clips or [])})
+        self.release_unused(used_keys)
         return tractor
 
 

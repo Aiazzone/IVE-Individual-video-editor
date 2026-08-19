@@ -120,6 +120,22 @@ anteprima):
 Pull dal grafo DENTRO la finestra (doppia decodifica + blend):
 10.8 ms/frame contro 6.0 fuori — la transizione aggiunge ~5 ms.
 
+**La tempesta di seek (bug reale, riportato dall'utente il 2026-08-19)**:
+il builder condivideva UN decoder per file; con una transizione fra due
+TAGLI DELLO STESSO FILE (il caso piu' comune: split di un video), ogni
+frame della finestra chiedeva al decoder due posizioni sorgente diverse
+→ seek avanti e indietro a ogni frame: **229 ms/frame** misurati sul
+progetto dell'utente, contro 15 fuori. La condivisione era sicura solo
+finche' le letture erano strettamente sequenziali — l'A/B roll ha rotto
+quell'invariante. Fix: **un decoder PER CORSIA** (chiave di cache
+`bucket|path` in `producer_for`): i due lati della transizione leggono
+ciascuno il proprio, sempre in avanti. Rimisurato: 229 → **32 ms/frame**
+(7x), dentro il budget a 30 fps; il floor e' la doppia decodifica
+(~16 ms x 2), che il read-ahead assorbe. Il costo in memoria e' un
+decoder in piu' SOLO per i file presenti su entrambe le corsie.
+Regressione guardata da test: stesso file sui due lati → due producer
+distinti (`test_transitions.py`).
+
 **L'ottimizzazione che conta** (104 → 5.7 ms, 18x): il peso di un pixel
 luma dipende SOLO dal valore della mappa, quindi e' una **LUT a 256
 voci costruita una volta per frame**, applicata con `cv2.LUT` (gather
