@@ -149,6 +149,9 @@ class TimelineClip:
     outline: str = "#000000"
     bold: bool = True
     italic: bool = False
+    #: Motion preset applied to an overlay clip (sticker or text): the
+    #: id of a keyframe recipe from the motion catalogue, "" = still.
+    motion_id: str = ""
     #: Overlay placement (stickers AND text), in CANVAS FRACTIONS so it
     #: survives any export resolution: (x, y) is the centre, scale is the
     #: height as a fraction of the canvas height, rotation in degrees
@@ -190,6 +193,7 @@ class TimelineClip:
             # None (absent) falls back to the default; an explicit "" is
             # the user's "no outline" and survives the round trip.
             outline=_as_str(data.get("outline"), "#000000"),
+            motion_id=_as_str(data.get("motion_id")),
             bold=bool(data.get("bold", True)),
             italic=bool(data.get("italic", False)),
             start=max(0.0, _as_float(data.get("start"))),
@@ -429,6 +433,14 @@ class Project:
         clip.italic = bool(italic)
         return True
 
+    def set_clip_motion(self, clip_id: str, motion_id: str) -> bool:
+        """Apply (or clear, with "") a motion preset to an overlay clip."""
+        clip = self.find_clip(clip_id)
+        if clip is None or not (clip.sticker_id or clip.text):
+            return False
+        clip.motion_id = str(motion_id)
+        return True
+
     def set_clip_transform(self, clip_id: str, x: float, y: float,
                            scale: float, rotation: float) -> bool:
         """Reposition an overlay clip (sticker or text) on the canvas."""
@@ -539,6 +551,7 @@ class Project:
             sticker_id=clip.sticker_id,
             text=clip.text, font=clip.font, color=clip.color,
             outline=clip.outline, bold=clip.bold, italic=clip.italic,
+            motion_id=clip.motion_id,
             x=clip.x, y=clip.y, scale=clip.scale, rotation=clip.rotation,
             # The transition OUT belongs to the tail: after a split it is
             # the second half that meets the next clip.

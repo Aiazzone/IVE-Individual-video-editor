@@ -175,6 +175,7 @@ class ProjectService(QObject):
                 "effectId": clip.effect_id,
                 "stickerId": clip.sticker_id,
                 "text": clip.text,
+                "motionId": clip.motion_id,
                 "font": clip.font,
                 "color": clip.color,
                 "outline": clip.outline,
@@ -326,6 +327,21 @@ class ProjectService(QObject):
                           lambda: self._project.set_clip_text(
                               clip_id, text, font, color, outline,
                               bold, italic))
+
+    @Slot(str, str, result=bool)
+    def set_clip_motion(self, clip_id: str, motion_id: str) -> bool:
+        """Apply (or clear, with "") a motion preset to an overlay clip."""
+        if self._project is None:
+            return False
+        if motion_id:
+            from ive.motion.library import preset_by_id
+
+            if preset_by_id(motion_id) is None:
+                log.warning("Unknown motion preset %r", motion_id)
+                return False
+        return self._edit("motion.set",
+                          lambda: self._project.set_clip_motion(clip_id,
+                                                                motion_id))
 
     @Slot(str, float, float, float, float, result=bool)
     def set_clip_transform(self, clip_id: str, x: float, y: float,

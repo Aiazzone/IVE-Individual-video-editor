@@ -143,7 +143,15 @@ def attach_text_sprites(spans: list[dict]) -> list[dict]:
             continue
         cache: dict = {}
 
-        def sprite(canvas_h, seconds, _span=span, _cache=cache):
+        # `scale` and `rotation` overrides come from the Overlays filter
+        # when a MOTION PRESET modulates the clip's transform per frame;
+        # None means "read the span" (what the live paths mutate).
+        def sprite(canvas_h, seconds, scale=None, rotation=None,
+                   *, _span=span, _cache=cache):
+            if scale is None:
+                scale = float(_span.get("scale") or 0.1)
+            if rotation is None:
+                rotation = float(_span.get("rotation") or 0.0)
             key = (
                 str(_span.get("text") or ""),
                 str(_span.get("font") or ""),
@@ -151,8 +159,8 @@ def attach_text_sprites(spans: list[dict]) -> list[dict]:
                 str(_span.get("outline") or ""),
                 bool(_span.get("bold", True)),
                 bool(_span.get("italic", False)),
-                int(round(canvas_h * float(_span.get("scale") or 0.1))),
-                round(float(_span.get("rotation") or 0.0), 1),
+                int(round(canvas_h * scale)),
+                round(rotation, 1),
             )
             arr = _cache.get(key)
             if arr is None:

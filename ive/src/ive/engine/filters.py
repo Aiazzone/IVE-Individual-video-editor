@@ -577,21 +577,45 @@ class Overlays(Filter):
             out = image.copy()
             for start_f, span in active:
                 local = self._timebase.frames_to_seconds(position - start_f)
-                rgba = span["sprite"](out.shape[0], local)
+                x = float(span.get("x", 0.5))
+                y = float(span.get("y", 0.5))
+                opacity = 1.0
+                motion = span.get("motion")
+                if callable(motion):
+                    # A motion preset modulates the clip's own transform
+                    # per frame: offsets add, scale multiplies, rotation
+                    # adds, opacity scales the alpha (ive/motion).
+                    clip_seconds = (float(span.get("end", 0.0))
+                                    - float(span.get("start", 0.0)))
+                    values = motion(local, clip_seconds)
+                    x += float(values.get("dx", 0.0))
+                    y += float(values.get("dy", 0.0))
+                    opacity = max(0.0, min(1.0,
+                                           float(values.get("opacity", 1.0))))
+                    if opacity <= 0.0:
+                        continue
+                    rgba = span["sprite"](
+                        out.shape[0], local,
+                        float(span.get("scale", 0.3))
+                        * float(values.get("scale", 1.0)),
+                        float(span.get("rotation", 0.0))
+                        + float(values.get("rotation", 0.0)))
+                else:
+                    rgba = span["sprite"](out.shape[0], local)
                 if rgba is None:
                     continue
-                _blend_over(out, rgba,
-                            float(span.get("x", 0.5)) * out.shape[1],
-                            float(span.get("y", 0.5)) * out.shape[0])
+                _blend_over(out, rgba, x * out.shape[1], y * out.shape[0],
+                            opacity)
             return out
 
         return self._wrap(frame, image_fn=overlaid)
 
 
 def _blend_over(image: np.ndarray, sprite: np.ndarray,
-                cx: float, cy: float) -> None:
+                cx: float, cy: float, opacity: float = 1.0) -> None:
     """Alpha-over ``sprite`` (straight RGBA) onto ``image``, centred on
-    ``(cx, cy)`` pixels, in place. Off-frame parts are clipped away."""
+    ``(cx, cy)`` pixels, in place, at ``opacity`` (a motion preset's
+    fade). Off-frame parts are clipped away."""
     sh, sw = sprite.shape[:2]
     ih, iw = image.shape[:2]
     x0 = int(round(cx - sw / 2.0))
@@ -602,6 +626,8 @@ def _blend_over(image: np.ndarray, sprite: np.ndarray,
         return
     part = sprite[iy0 - y0:iy1 - y0, ix0 - x0:ix1 - x0]
     alpha = part[..., 3:4].astype(np.float32) / 255.0
+    if opacity < 1.0:
+        alpha = alpha * np.float32(max(0.0, opacity))
     roi = image[iy0:iy1, ix0:ix1].astype(np.float32)
     image[iy0:iy1, ix0:ix1] = (
         part[..., :3].astype(np.float32) * alpha + roi * (1.0 - alpha)

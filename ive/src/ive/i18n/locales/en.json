@@ -278,5 +278,11 @@
   "pack.create": "Create pack",
   "pack.duplicates": "{n} entries have ids already in your catalogues and will be skipped (nothing is ever overwritten).",
   "pack.already_installed": "This pack is already installed. Remove it first to install this file.",
-  "pack.safe_note": "Data only, no code: installing is safe."
+  "pack.safe_note": "Data only, no code: installing is safe.",
+  "motion.section": "Animation",
+  "motion.none": "None",
+  "motion.set": "Apply animation",
+  "motion.kind.in": "In",
+  "motion.kind.out": "Out",
+  "motion.kind.loop": "Loop"
 }

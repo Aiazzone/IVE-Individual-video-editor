@@ -279,11 +279,21 @@ class PlaybackService(QObject):
                 # A Text-lane clip: not a segment, an overlaid title. The
                 # words and style travel whole, so the graph (and the
                 # export, which shares it) never knows the model.
+                text_motion = None
+                text_motion_id = str(entry.get("motionId") or "")
+                if text_motion_id:
+                    from ive.motion.library import recipe_for
+
+                    text_motion = recipe_for(text_motion_id)
+                    if text_motion is None:
+                        log.warning("Unknown motion preset %r; the title "
+                                    "stands still", text_motion_id)
                 text_spans.append({
                     "id": str(entry.get("id") or ""),
                     "start": float(entry.get("start") or 0.0),
                     "end": float(entry.get("end") or 0.0),
                     "text": text,
+                    "motion_recipe": text_motion,
                     "font": str(entry.get("font") or ""),
                     "color": str(entry.get("color") or "#FFFFFF"),
                     "outline": str(entry.get("outline") or ""),
@@ -306,12 +316,22 @@ class PlaybackService(QObject):
                 if sticker is None:
                     log.warning("Unknown sticker %r skipped", sticker_id)
                     continue
+                motion_recipe = None
+                motion_id = str(entry.get("motionId") or "")
+                if motion_id:
+                    from ive.motion.library import recipe_for
+
+                    motion_recipe = recipe_for(motion_id)
+                    if motion_recipe is None:
+                        log.warning("Unknown motion preset %r; the sticker "
+                                    "stands still", motion_id)
                 sticker_spans.append({
                     "id": str(entry.get("id") or ""),
                     "start": float(entry.get("start") or 0.0),
                     "end": float(entry.get("end") or 0.0),
                     "path": sticker["path"],
                     "kind": sticker["kind"],
+                    "motion_recipe": motion_recipe,
                     "x": float(entry.get("x", 0.5)),
                     "y": float(entry.get("y", 0.5)),
                     "scale": float(entry.get("scale", 0.3)),
@@ -445,15 +465,18 @@ class PlaybackService(QObject):
         the sprite closures itself (stickers/raster.attach_sprites). The
         preview attaches its own closures IN PLACE on these dicts, so the
         copy strips them explicitly."""
-        return [{k: v for k, v in span.items() if k != "sprite"}
+        return [{k: v for k, v in span.items()
+                 if k not in ("sprite", "motion")}
                 for span in self._sticker_spans]
 
     def sequence_text_spans(self) -> list[dict]:
         """The Text-lane stretches, words and style, for the export.
 
         Same rules as the sticker spans: pure data across the thread
-        boundary, closures stripped."""
-        return [{k: v for k, v in span.items() if k != "sprite"}
+        boundary, closures stripped (the motion RECIPE stays: it is
+        data; the evaluator re-attaches on the worker)."""
+        return [{k: v for k, v in span.items()
+                 if k not in ("sprite", "motion")}
                 for span in self._text_spans]
 
     def sequence_transition_spans(self) -> list[dict]:
@@ -642,14 +665,18 @@ class PlaybackService(QObject):
         ]
         sticker_spans = self._sticker_spans
         if sticker_spans:
+            from ive.motion.runtime import attach_motion
             from ive.stickers.raster import attach_sprites
 
             sticker_spans = attach_sprites(sticker_spans)
+            attach_motion(sticker_spans)
         text_spans = self._text_spans
         if text_spans:
+            from ive.motion.runtime import attach_motion
             from ive.text.raster import attach_text_sprites
 
             text_spans = attach_text_sprites(text_spans)
+            attach_motion(text_spans)
         transition_spans = self._transition_spans
         if transition_spans:
             from ive.transitions.loader import attach_blenders

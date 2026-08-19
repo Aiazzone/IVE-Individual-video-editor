@@ -1,0 +1,425 @@
+[
+  {
+    "schema_version": 1,
+    "id": "bounce",
+    "name": {
+      "en": "Bounce",
+      "it": "Rimbalzo",
+      "es": "Rebote",
+      "pt": "Salto"
+    },
+    "kind": "loop",
+    "duration": 0.9,
+    "tracks": [
+      {
+        "parameter": "y",
+        "keyframes": [
+          {
+            "t": 0.0,
+            "value": 0.0,
+            "easing": "out_quad"
+          },
+          {
+            "t": 0.5,
+            "value": -0.06,
+            "easing": "in_quad"
+          },
+          {
+            "t": 1.0,
+            "value": 0.0
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "schema_version": 1,
+    "id": "pulse",
+    "name": {
+      "en": "Pulse",
+      "it": "Pulsazione",
+      "es": "Pulso",
+      "pt": "Pulso"
+    },
+    "kind": "loop",
+    "duration": 1.0,
+    "tracks": [
+      {
+        "parameter": "scale",
+        "keyframes": [
+          {
+            "t": 0.0,
+            "value": 1.0,
+            "easing": "in_out_quad"
+          },
+          {
+            "t": 0.5,
+            "value": 1.12,
+            "easing": "in_out_quad"
+          },
+          {
+            "t": 1.0,
+            "value": 1.0
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "schema_version": 1,
+    "id": "spin",
+    "name": {
+      "en": "Spin",
+      "it": "Rotazione",
+      "es": "Giro",
+      "pt": "Rotação"
+    },
+    "kind": "loop",
+    "duration": 2.0,
+    "tracks": [
+      {
+        "parameter": "rotation",
+        "keyframes": [
+          {
+            "t": 0.0,
+            "value": 0.0
+          },
+          {
+            "t": 1.0,
+            "value": 360.0
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "schema_version": 1,
+    "id": "sway",
+    "name": {
+      "en": "Sway",
+      "it": "Ondeggia",
+      "es": "Balanceo",
+      "pt": "Balanço"
+    },
+    "kind": "loop",
+    "duration": 1.6,
+    "tracks": [
+      {
+        "parameter": "rotation",
+        "keyframes": [
+          {
+            "t": 0.0,
+            "value": -8.0,
+            "easing": "in_out_quad"
+          },
+          {
+            "t": 0.5,
+            "value": 8.0,
+            "easing": "in_out_quad"
+          },
+          {
+            "t": 1.0,
+            "value": -8.0
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "schema_version": 1,
+    "id": "float",
+    "name": {
+      "en": "Float",
+      "it": "Fluttua",
+      "es": "Flotar",
+      "pt": "Flutuar"
+    },
+    "kind": "loop",
+    "duration": 2.2,
+    "tracks": [
+      {
+        "parameter": "y",
+        "keyframes": [
+          {
+            "t": 0.0,
+            "value": -0.018,
+            "easing": "in_out_quad"
+          },
+          {
+            "t": 0.5,
+            "value": 0.018,
+            "easing": "in_out_quad"
+          },
+          {
+            "t": 1.0,
+            "value": -0.018
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "schema_version": 1,
+    "id": "fade_in",
+    "name": {
+      "en": "Fade in",
+      "it": "Dissolvenza in entrata",
+      "es": "Fundido de entrada",
+      "pt": "Fusão de entrada"
+    },
+    "kind": "in",
+    "duration": 0.5,
+    "tracks": [
+      {
+        "parameter": "opacity",
+        "keyframes": [
+          {
+            "t": 0.0,
+            "value": 0.0,
+            "easing": "out_quad"
+          },
+          {
+            "t": 1.0,
+            "value": 1.0
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "schema_version": 1,
+    "id": "pop_in",
+    "name": {
+      "en": "Pop in",
+      "it": "Comparsa",
+      "es": "Aparición",
+      "pt": "Aparição"
+    },
+    "kind": "in",
+    "duration": 0.5,
+    "tracks": [
+      {
+        "parameter": "scale",
+        "keyframes": [
+          {
+            "t": 0.0,
+            "value": 0.0,
+            "easing": "out_back"
+          },
+          {
+            "t": 1.0,
+            "value": 1.0
+          }
+        ]
+      },
+      {
+        "parameter": "opacity",
+        "keyframes": [
+          {
+            "t": 0.0,
+            "value": 0.0,
+            "easing": "out_quad"
+          },
+          {
+            "t": 0.4,
+            "value": 1.0
+          },
+          {
+            "t": 1.0,
+            "value": 1.0
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "schema_version": 1,
+    "id": "slide_in_left",
+    "name": {
+      "en": "Slide in left",
+      "it": "Entrata da sinistra",
+      "es": "Entrada por la izquierda",
+      "pt": "Entrada pela esquerda"
+    },
+    "kind": "in",
+    "duration": 0.6,
+    "tracks": [
+      {
+        "parameter": "x",
+        "keyframes": [
+          {
+            "t": 0.0,
+            "value": -0.4,
+            "easing": "out_cubic"
+          },
+          {
+            "t": 1.0,
+            "value": 0.0
+          }
+        ]
+      },
+      {
+        "parameter": "opacity",
+        "keyframes": [
+          {
+            "t": 0.0,
+            "value": 0.0,
+            "easing": "out_quad"
+          },
+          {
+            "t": 0.5,
+            "value": 1.0
+          },
+          {
+            "t": 1.0,
+            "value": 1.0
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "schema_version": 1,
+    "id": "drop_in",
+    "name": {
+      "en": "Drop in",
+      "it": "Caduta dall'alto",
+      "es": "Caída desde arriba",
+      "pt": "Queda do alto"
+    },
+    "kind": "in",
+    "duration": 0.7,
+    "tracks": [
+      {
+        "parameter": "y",
+        "keyframes": [
+          {
+            "t": 0.0,
+            "value": -0.35,
+            "easing": "out_bounce"
+          },
+          {
+            "t": 1.0,
+            "value": 0.0
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "schema_version": 1,
+    "id": "fade_out",
+    "name": {
+      "en": "Fade out",
+      "it": "Dissolvenza in uscita",
+      "es": "Fundido de salida",
+      "pt": "Fusão de saída"
+    },
+    "kind": "out",
+    "duration": 0.5,
+    "tracks": [
+      {
+        "parameter": "opacity",
+        "keyframes": [
+          {
+            "t": 0.0,
+            "value": 1.0,
+            "easing": "in_quad"
+          },
+          {
+            "t": 1.0,
+            "value": 0.0
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "schema_version": 1,
+    "id": "pop_out",
+    "name": {
+      "en": "Pop out",
+      "it": "Scomparsa",
+      "es": "Desaparición",
+      "pt": "Desaparição"
+    },
+    "kind": "out",
+    "duration": 0.4,
+    "tracks": [
+      {
+        "parameter": "scale",
+        "keyframes": [
+          {
+            "t": 0.0,
+            "value": 1.0,
+            "easing": "in_cubic"
+          },
+          {
+            "t": 1.0,
+            "value": 0.0
+          }
+        ]
+      },
+      {
+        "parameter": "opacity",
+        "keyframes": [
+          {
+            "t": 0.0,
+            "value": 1.0,
+            "easing": "in_quad"
+          },
+          {
+            "t": 1.0,
+            "value": 0.0
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "schema_version": 1,
+    "id": "slide_out_right",
+    "name": {
+      "en": "Slide out right",
+      "it": "Uscita a destra",
+      "es": "Salida por la derecha",
+      "pt": "Saída pela direita"
+    },
+    "kind": "out",
+    "duration": 0.6,
+    "tracks": [
+      {
+        "parameter": "x",
+        "keyframes": [
+          {
+            "t": 0.0,
+            "value": 0.0,
+            "easing": "in_cubic"
+          },
+          {
+            "t": 1.0,
+            "value": 0.4
+          }
+        ]
+      },
+      {
+        "parameter": "opacity",
+        "keyframes": [
+          {
+            "t": 0.0,
+            "value": 1.0
+          },
+          {
+            "t": 0.5,
+            "value": 1.0,
+            "easing": "in_quad"
+          },
+          {
+            "t": 1.0,
+            "value": 0.0
+          }
+        ]
+      }
+    ]
+  }
+]

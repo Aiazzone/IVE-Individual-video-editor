@@ -210,14 +210,18 @@ class _Worker(QObject):
                 # closures attach here, on the worker.
                 sticker_spans = list(options.get("sticker_spans") or [])
                 if sticker_spans:
+                    from ive.motion.runtime import attach_motion
                     from ive.stickers.raster import attach_sprites
 
                     sticker_spans = attach_sprites(sticker_spans)
+                    attach_motion(sticker_spans)
                 text_spans = list(options.get("text_spans") or [])
                 if text_spans:
+                    from ive.motion.runtime import attach_motion
                     from ive.text.raster import attach_text_sprites
 
                     text_spans = attach_text_sprites(text_spans)
+                    attach_motion(text_spans)
                 transition_spans = list(options.get("transition_spans") or [])
                 if transition_spans:
                     from ive.transitions.loader import attach_blenders

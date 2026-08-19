@@ -220,34 +220,45 @@ def attach_sprites(spans: list[dict]) -> list[dict]:
             log.warning("Sticker span without a usable file skipped (%s)", path)
             continue
 
+        # `scale` and `rotation` overrides come from the Overlays filter
+        # when a MOTION PRESET modulates the clip's transform per frame;
+        # None means "read the span", which is also what the live drag
+        # mutates.
         if kind == "animated":
-            def sprite(canvas_h, seconds, _path=path, _span=span):
+            def sprite(canvas_h, seconds, scale=None, rotation=None,
+                       *, _path=path, _span=span):
                 info = lottie_info(_path)
                 if info is None:
                     return None
                 index = int(seconds * info["fps"])
-                scale = float(_span.get("scale") or 0.3)
+                if scale is None:
+                    scale = float(_span.get("scale") or 0.3)
                 arr = render_lottie_frame(
                     _path, int(round(canvas_h * scale)), index)
-                rotation = float(_span.get("rotation") or 0.0)
+                if rotation is None:
+                    rotation = float(_span.get("rotation") or 0.0)
                 if arr is not None and abs(rotation) > 0.01:
                     arr = _rotate_rgba(arr, rotation)
                 return arr
         else:
             cache: dict = {}
 
-            def sprite(canvas_h, seconds, _path=path, _span=span,
-                       _cache=cache):
-                scale = float(_span.get("scale") or 0.3)
-                rotation = round(float(_span.get("rotation") or 0.0), 1)
+            def sprite(canvas_h, seconds, scale=None, rotation=None,
+                       *, _path=path, _span=span, _cache=cache):
+                if scale is None:
+                    scale = float(_span.get("scale") or 0.3)
+                if rotation is None:
+                    rotation = float(_span.get("rotation") or 0.0)
+                rotation = round(rotation, 1)
                 height = int(round(canvas_h * scale))
                 key = (height, rotation)
                 arr = _cache.get(key)
                 if arr is None:
                     arr = render_static(_path, height, rotation)
                     _cache[key] = arr
-                    # A rotation drag sweeps hundreds of angles; keep the
-                    # cache from hoarding every one it passed through.
+                    # A rotation drag (or a motion preset) sweeps many
+                    # angles and sizes; keep the cache from hoarding
+                    # every one it passed through.
                     if len(_cache) > 64:
                         _cache.clear()
                         _cache[key] = arr

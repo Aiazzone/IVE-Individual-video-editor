@@ -225,6 +225,133 @@ class StickerLibraryService(QObject):
         return {"url": QUrl.fromLocalFile(str(target)).toString(),
                 "frames": count, "width": side, "height": side}
 
+    @Slot(str, result=str)
+    def still_url(self, sticker_id: str) -> str:
+        """A resting image for any sticker: the file itself for a
+        static one, the cached rlottie frame for an animated one."""
+        from ive.stickers.library import sticker_by_id
+
+        sticker = sticker_by_id(str(sticker_id))
+        if sticker is None:
+            return ""
+        if sticker["kind"] == "animated":
+            return self.preview(sticker_id)
+        return QUrl.fromLocalFile(sticker["path"]).toString()
+
+    @Slot(result="QVariantList")
+    def motion_presets(self) -> list[dict[str, Any]]:
+        """The motion catalogue, localised, grouped by kind order."""
+        from ive.motion.library import list_presets, sections
+
+        lang = self._language()
+        out = []
+        for kind in sections():
+            for preset in list_presets():
+                if preset["kind"] != kind:
+                    continue
+                out.append({
+                    "id": preset["id"],
+                    "name": preset["names"].get(lang)
+                            or preset["names"].get("en") or preset["id"],
+                    "kind": preset["kind"],
+                    "builtin": preset["builtin"],
+                })
+        return out
+
+    @Slot(str, str, result="QVariantMap")
+    def motion_strip(self, sticker_id: str, motion_id: str) -> dict:
+        """THIS sticker animated by THAT preset, as a hover film strip.
+
+        Fourteen frames across the preset's duration (one period for a
+        loop), each the sticker's own still transformed by the recipe -
+        so the card previews exactly what the video will do. Cached as
+        one PNG per (sticker, preset)."""
+        import hashlib
+        import os
+
+        import numpy as np
+        from PySide6.QtGui import QImage
+
+        from ive.motion.library import recipe_for
+        from ive.motion.runtime import make_motion
+        from ive.stickers.library import sticker_by_id
+        from ive.stickers.raster import (lottie_info, render_lottie_frame,
+                                         render_static)
+        from ive.utils.paths import get_data_path
+
+        sticker = sticker_by_id(str(sticker_id))
+        recipe = recipe_for(str(motion_id))
+        if sticker is None or recipe is None:
+            return {}
+        motion = make_motion(recipe)
+        if motion is None:
+            return {}
+        path = sticker["path"]
+        try:
+            mtime = int(os.path.getmtime(path))
+        except OSError:
+            return {}
+        folder = get_data_path("cache/sticker_previews")
+        folder.mkdir(parents=True, exist_ok=True)
+        digest = hashlib.md5(
+            f"{path}|{mtime}|{motion_id}|mstrip1".encode("utf-8")
+        ).hexdigest()[:20]
+        target = folder / f"{digest}.png"
+        side = 120
+        count = 14
+        if not target.is_file():
+            def still(height_px, rotation):
+                if sticker["kind"] == "animated":
+                    info = lottie_info(path)
+                    if info is None:
+                        return None
+                    frame = render_lottie_frame(path, height_px,
+                                                info["total"] // 3)
+                    if frame is not None and abs(rotation) > 0.01:
+                        from ive.stickers.raster import _rotate_rgba
+
+                        frame = _rotate_rgba(frame, rotation)
+                    return frame
+                return render_static(path, height_px, rotation)
+
+            duration = float(recipe.get("duration") or 0.8)
+            cells = []
+            for index in range(count):
+                t = index / (count - 1) * duration
+                values = motion(t, duration)
+                cell = np.zeros((side, side, 4), dtype=np.uint8)
+                opacity = max(0.0, min(1.0, values.get("opacity", 1.0)))
+                height = int(round(side * 0.55 * values.get("scale", 1.0)))
+                if opacity > 0.0 and height >= 2:
+                    rgba = still(height, values.get("rotation", 0.0))
+                    if rgba is not None:
+                        if opacity < 1.0:
+                            rgba = rgba.copy()
+                            rgba[..., 3] = (rgba[..., 3]
+                                            * opacity).astype(np.uint8)
+                        h, w = rgba.shape[:2]
+                        cx = side / 2 + values.get("dx", 0.0) * side
+                        cy = side / 2 + values.get("dy", 0.0) * side
+                        x0 = int(round(cx - w / 2))
+                        y0 = int(round(cy - h / 2))
+                        sx0, sy0 = max(0, -x0), max(0, -y0)
+                        dx0, dy0 = max(0, x0), max(0, y0)
+                        cw = min(side - dx0, w - sx0)
+                        ch = min(side - dy0, h - sy0)
+                        if cw > 0 and ch > 0:
+                            cell[dy0:dy0 + ch, dx0:dx0 + cw] = \
+                                rgba[sy0:sy0 + ch, sx0:sx0 + cw]
+                cells.append(cell)
+            strip = np.ascontiguousarray(np.hstack(cells))
+            image = QImage(strip.tobytes(), strip.shape[1], strip.shape[0],
+                           strip.shape[1] * 4, QImage.Format.Format_RGBA8888)
+            tmp = target.with_suffix(".tmp.png")
+            if not image.save(str(tmp), "PNG"):
+                return {}
+            tmp.replace(target)
+        return {"url": QUrl.fromLocalFile(str(target)).toString(),
+                "frames": count, "width": side, "height": side}
+
     @Slot(str, result=float)
     def aspect(self, sticker_id: str) -> float:
         """Width / height of a sticker's graphic, for the preview handles."""

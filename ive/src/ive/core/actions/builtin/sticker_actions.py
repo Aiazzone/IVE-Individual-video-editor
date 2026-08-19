@@ -47,6 +47,24 @@ def toggle_favorite(ctx, sticker_id: str):
 
 
 @action(
+    id="timeline.set_clip_motion",
+    title_key="motion.set",
+    desc_key="Apply a motion preset (bounce, pulse, fade in, ...) to a "
+             "sticker or title clip, or clear it with an empty motion_id. "
+             "Presets are keyframe recipes from the motion catalogue.",
+    category="timeline",
+    params={
+        "clip_id": Param(str, required=True),
+        "motion_id": Param(str, required=True, doc='"" removes the motion.'),
+    },
+)
+def set_clip_motion(ctx, clip_id: str, motion_id: str):
+    if not ctx.require("project").set_clip_motion(clip_id, motion_id):
+        raise RuntimeError(
+            f"Cannot set motion {motion_id!r} on {clip_id}")
+
+
+@action(
     id="timeline.set_clip_transform",
     title_key="sticker.transform",
     desc_key="Reposition a sticker on the canvas: centre (x, y) in canvas "

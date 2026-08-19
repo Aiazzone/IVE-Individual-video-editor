@@ -77,11 +77,19 @@ Updated together with the code, so this file always reflects reality.
       with the contents and a duplicates warning first. Data only,
       never code; nothing is ever overwritten
 
+- [x] Motion presets: 12 built-in keyframe recipes (enter, loop, exit)
+      that animate any sticker — select a sticker and the panel becomes
+      its animation editor, every card previewing THAT sticker moved by
+      THAT preset, alive on hover; a toolbox shortcut opens it from the
+      timeline. Recipes are shareable JSON (normalised time, offsets
+      relative to the clip's own transform) and the engine applies them
+      identically in preview and export; titles accept them via action
+
 ## 🔨 In progress / next up
 
-- [ ] Sticker motion presets (bounce, pulse, spin as JSON keyframe
-      recipes) and title enter/exit animations — shareable, and they
-      slot straight into the packs
+- [ ] The Animation section in the Text panel (titles already accept
+      presets via action); motion presets as a category in pack
+      creation (installed packs already provide them)
 
 ## 🗺️ Planned
 

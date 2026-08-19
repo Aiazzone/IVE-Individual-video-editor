@@ -54,6 +54,9 @@ Item {
     property string mediaName: ""
 
     signal mediaDropped(string mediaId, real seconds)
+    /*! Asks the shell to open a floating-panel section (the motion
+        button on a selected sticker opens the Stickers panel there). */
+    signal panelRequested(string key)
 
     // The timeline shows the PROJECT, not whatever is in the preview. Those
     // are different things, and conflating them hid the fact that a project
@@ -356,6 +359,12 @@ Item {
               Actions.invoke("timeline.set_clip_audio",
                              { clip_id: clip.id, enabled: true });
           } },
+        { icon: Icons.motion,
+          label: Tr.s["motion.set"] || "",
+          kinds: ["sticker"],
+          // The Stickers panel becomes the selected sticker's animation
+          // editor (the selection is already shared through Shell).
+          run: function () { root.panelRequested("stickers"); } },
         { icon: Icons.trash,
           label: Tr.s["timeline.delete"] || "",
           kinds: ["video", "color", "sticker", "text", "transition"],

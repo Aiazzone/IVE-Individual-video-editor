@@ -249,6 +249,11 @@ Window {
                 else
                     win.position = seconds;
             }
+            onPanelRequested: function (key) {
+                // openSection toggles; asked for explicitly, it must OPEN.
+                if (win.section !== key)
+                    win.openSection(key);
+            }
 
             Behavior on height {
                 enabled: !Shell.v.reduceMotion

@@ -78,6 +78,11 @@ between the two, on Windows and Linux:
   crossfades at equal power and the export blends identically. A wipe
   is a greyscale **luma map** — draw a PNG in any image editor, add
   four lines of JSON, and you have made a new transition to share
+- Motion presets: give any sticker an entrance, a loop or an exit
+  (bounce, pulse, spin, fade, drop…) — select it and every card in the
+  panel previews that very sticker moving; one click applies it, same
+  motion in preview and export. Presets are small JSON keyframe
+  recipes anyone can write and share
 - Content packs: one `.ivepack` file bundles colour effects,
   transitions and stickers with author and description — build one
   from the Packs panel (your favourites are one click away), install

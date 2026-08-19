@@ -45,6 +45,10 @@ QtObject {
         "M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"
     readonly property string text:
         "M4 7V4h16v3 M9 20h6 M12 4v16"
+    // A pulsing dot: motion presets.
+    readonly property string motion:
+        circle(12, 12, 3)
+        + " M17.7 6.3a8 8 0 0 1 0 11.4 M6.3 6.3a8 8 0 0 0 0 11.4"
     // A parcel: the content packs.
     readonly property string pack:
         "M21 8l-9-5-9 5 9 5 9-5Z M3 8v8l9 5 9-5V8 M12 13v10"

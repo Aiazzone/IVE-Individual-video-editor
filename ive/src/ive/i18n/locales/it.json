@@ -278,5 +278,11 @@
   "pack.create": "Crea pacchetto",
   "pack.duplicates": "{n} contenuti hanno id gia' presenti nei tuoi cataloghi e verranno saltati (mai sovrascritto nulla).",
   "pack.already_installed": "Questo pacchetto e' gia' installato. Rimuovilo prima di installare questo file.",
-  "pack.safe_note": "Solo dati, nessun codice: installare e' sicuro."
+  "pack.safe_note": "Solo dati, nessun codice: installare e' sicuro.",
+  "motion.section": "Animazione",
+  "motion.none": "Nessuna",
+  "motion.set": "Applica animazione",
+  "motion.kind.in": "Entrata",
+  "motion.kind.out": "Uscita",
+  "motion.kind.loop": "Continua"
 }
