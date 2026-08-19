@@ -498,41 +498,48 @@ class TimedColor(Filter):
 class Overlays(Filter):
     """Sticker clips as a filter over the composite.
 
-    ``spans`` is ``[{"start": f, "end": f, "x": 0..1, "y": 0..1,
-    "sprite": callable}, ...]`` in SEQUENCE frames. The sprite closure -
-    built by ive/stickers/raster.py, so this module stays free of Qt -
-    answers ``sprite(canvas_h_px, local_seconds) -> RGBA array``; local
-    time makes animated stickers loop from THEIR OWN start, wherever the
-    clip sits on the timeline. Alpha-over blend, clipped at the frame
-    borders so a sticker can hang off the edge.
+    ``spans`` is ``[{"start": s, "end": s, "x": 0..1, "y": 0..1,
+    "sprite": callable}, ...]`` in SECONDS. The sprite closure - built by
+    ive/stickers/raster.py, so this module stays free of Qt - answers
+    ``sprite(canvas_h_px, local_seconds) -> RGBA array``; local time
+    makes animated stickers loop from THEIR OWN start, wherever the clip
+    sits on the timeline. Alpha-over blend, clipped at the frame borders
+    so a sticker can hang off the edge.
+
+    The span DICTS are kept and read at process time, deliberately: the
+    transport shares these very objects and mutates x/y (the sprite
+    closure reads scale/rotation the same way) while the user drags a
+    handle on the preview, so the next pulled frame composites at the
+    new place without a graph rebuild. Times too are converted per frame
+    - a handful of spans, so the cost is nil. Scalar reads and writes
+    are atomic under the GIL, so the puller never sees a torn value.
     """
 
     def __init__(self, spans: list[dict], timebase) -> None:
-        self._spans = [
-            (int(s.get("start", 0)), int(s.get("end", 0)),
-             float(s.get("x", 0.5)), float(s.get("y", 0.5)), s["sprite"])
-            for s in spans or [] if callable(s.get("sprite"))
-        ]
+        self._spans = [s for s in spans or [] if callable(s.get("sprite"))]
         self._timebase = timebase
 
     def process(self, frame: Frame) -> Frame:
-        active = [s for s in self._spans if s[0] <= frame.position < s[1]]
+        seconds_now = self._timebase.frames_to_seconds(frame.position)
+        active = [s for s in self._spans
+                  if float(s.get("start", 0.0)) <= seconds_now
+                  < float(s.get("end", 0.0))]
         if not active:
             return frame
-
-        position = frame.position
 
         def overlaid():
             image = frame.image()
             if image is None:
                 return None
             out = image.copy()
-            for start, _end, x, y, sprite in active:
-                seconds = self._timebase.frames_to_seconds(position - start)
-                rgba = sprite(out.shape[0], seconds)
+            for span in active:
+                local = seconds_now - float(span.get("start", 0.0))
+                rgba = span["sprite"](out.shape[0], local)
                 if rgba is None:
                     continue
-                _blend_over(out, rgba, x * out.shape[1], y * out.shape[0])
+                _blend_over(out, rgba,
+                            float(span.get("x", 0.5)) * out.shape[1],
+                            float(span.get("y", 0.5)) * out.shape[0])
             return out
 
         return self._wrap(frame, image_fn=overlaid)

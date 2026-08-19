@@ -27,7 +27,7 @@ import numpy as np
 log = logging.getLogger(__name__)
 
 __all__ = ["attach_sprites", "render_static", "render_lottie_frame",
-           "lottie_info"]
+           "lottie_info", "sprite_aspect"]
 
 #: Height cap for a rendered sprite: a sticker never needs to be taller
 #: than a 4K frame.
@@ -153,44 +153,104 @@ def render_lottie_frame(path: str, height_px: int,
     return rgba
 
 
+def _rotate_rgba(rgba: np.ndarray, rotation: float) -> np.ndarray:
+    """Rotate a straight-RGBA array; the bounding box grows to fit.
+
+    Used for ANIMATED sprites, whose frames are cached unrotated (caching
+    every angle a rotation drag passes through would hoard memory for
+    variants never shown again). ~0.5 ms at sticker sizes.
+    """
+    from PySide6.QtCore import Qt
+    from PySide6.QtGui import QImage, QTransform
+
+    h, w = rgba.shape[:2]
+    image = QImage(rgba.tobytes(), w, h, w * 4,
+                   QImage.Format.Format_RGBA8888)
+    image = image.transformed(QTransform().rotate(float(rotation)),
+                              Qt.TransformationMode.SmoothTransformation)
+    image = image.convertToFormat(QImage.Format.Format_RGBA8888)
+    width, height = image.width(), image.height()
+    data = image.constBits().tobytes()
+    return np.frombuffer(data, dtype=np.uint8).reshape(
+        height, image.bytesPerLine() // 4, 4)[:, :width].copy()
+
+
+def sprite_aspect(path: str, kind: str = "static") -> float:
+    """Width / height of a sticker's graphic, for the on-video handles."""
+    if kind == "animated":
+        info = lottie_info(path)
+        return float(info["aspect"]) if info else 1.0
+    from PySide6.QtGui import QImage
+    from PySide6.QtSvg import QSvgRenderer
+
+    if Path(path).suffix.lower() == ".svg":
+        renderer = QSvgRenderer(str(path))
+        size = renderer.defaultSize() if renderer.isValid() else None
+        if size is not None and size.height() > 0:
+            return size.width() / size.height()
+        return 1.0
+    image = QImage(str(path))
+    if image.isNull() or image.height() == 0:
+        return 1.0
+    return image.width() / image.height()
+
+
 # ── the bridge to the engine ─────────────────────────────────────────
 
 def attach_sprites(spans: list[dict]) -> list[dict]:
-    """Give each sticker span its ``sprite`` closure.
+    """Give each sticker span its ``sprite`` closure, IN PLACE.
 
     A span is ``{path, kind, scale, rotation, ...}`` (times untouched).
     The closure signature the engine's Overlays filter calls is
     ``sprite(canvas_h_px, local_seconds) -> RGBA array | None``.
+
+    The closure reads ``scale`` and ``rotation`` from the span dict at
+    CALL time, and the sprite is attached on the caller's own dict, not
+    a copy: that is what lets the transport mutate a span while the user
+    drags a handle on the preview and have the very next pulled frame
+    composite at the new place - no graph rebuild, no undo entry. The
+    committed action still rebuilds; this is only the live path.
+    Returns the usable spans (a span whose file is gone is dropped).
     """
     out = []
     for span in spans or []:
-        span = dict(span)
         path = str(span.get("path") or "")
         kind = str(span.get("kind") or "static")
-        scale = float(span.get("scale") or 0.3)
-        rotation = float(span.get("rotation") or 0.0)
         if not path or not Path(path).is_file():
             log.warning("Sticker span without a usable file skipped (%s)", path)
             continue
 
         if kind == "animated":
-            def sprite(canvas_h, seconds, _path=path, _scale=scale):
+            def sprite(canvas_h, seconds, _path=path, _span=span):
                 info = lottie_info(_path)
                 if info is None:
                     return None
                 index = int(seconds * info["fps"])
-                return render_lottie_frame(
-                    _path, int(round(canvas_h * _scale)), index)
+                scale = float(_span.get("scale") or 0.3)
+                arr = render_lottie_frame(
+                    _path, int(round(canvas_h * scale)), index)
+                rotation = float(_span.get("rotation") or 0.0)
+                if arr is not None and abs(rotation) > 0.01:
+                    arr = _rotate_rgba(arr, rotation)
+                return arr
         else:
             cache: dict = {}
 
-            def sprite(canvas_h, seconds, _path=path, _scale=scale,
-                       _rot=rotation, _cache=cache):
-                height = int(round(canvas_h * _scale))
-                arr = _cache.get(height)
+            def sprite(canvas_h, seconds, _path=path, _span=span,
+                       _cache=cache):
+                scale = float(_span.get("scale") or 0.3)
+                rotation = round(float(_span.get("rotation") or 0.0), 1)
+                height = int(round(canvas_h * scale))
+                key = (height, rotation)
+                arr = _cache.get(key)
                 if arr is None:
-                    arr = render_static(_path, height, _rot)
-                    _cache[height] = arr
+                    arr = render_static(_path, height, rotation)
+                    _cache[key] = arr
+                    # A rotation drag sweeps hundreds of angles; keep the
+                    # cache from hoarding every one it passed through.
+                    if len(_cache) > 64:
+                        _cache.clear()
+                        _cache[key] = arr
                 return arr
 
         span["sprite"] = sprite

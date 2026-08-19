@@ -195,13 +195,12 @@ class GraphBuilder:
         # The Sticker lane, composited AFTER the grade: a sticker keeps its
         # own colours, whatever look sits under it. Spans arrive in seconds
         # with their `sprite` closures already attached (stickers/raster.py
-        # does that, so the engine never imports Qt).
+        # does that, so the engine never imports Qt). The ORIGINAL dicts
+        # are handed over, not copies: Overlays reads x/y at process time,
+        # which is what lets the transport move a sticker live while the
+        # user drags a handle on the preview.
         overlays = [
-            {"start": self.timebase.seconds_to_frames(float(s.get("start") or 0.0)),
-             "end": self.timebase.seconds_to_frames(float(s.get("end") or 0.0)),
-             "x": float(s.get("x", 0.5)), "y": float(s.get("y", 0.5)),
-             "sprite": s.get("sprite")}
-            for s in (sticker_spans or []) if callable(s.get("sprite"))
+            s for s in (sticker_spans or []) if callable(s.get("sprite"))
         ]
         if overlays:
             from ive.engine.filters import Overlays

@@ -1,7 +1,8 @@
 # IVE — Sticker
 
-Deciso il 2026-08-11. Regole e forma del sistema sticker; catalogo e
-pannello implementati, composizione sul video e player Lottie in arrivo.
+Deciso il 2026-08-11. Regole e forma del sistema sticker; catalogo,
+pannello, composizione sul video, player Lottie e maniglie nel preview
+implementati.
 
 ## 1. Uno sticker e' dati, mai codice
 
@@ -93,18 +94,61 @@ verso l'export come DATI PURI (una QVariantMap perderebbe le closure):
 il worker li riattacca con `attach_sprites`. Composizione DOPO il
 grading: uno sticker tiene i propri colori sotto qualunque look.
 
+## 4-bis. Maniglie nel preview (FATTO 2026-08-18)
+
+Con il playhead in pausa dentro lo span, sopra ogni sticker composto
+appare una cornice (`qml/shell/StickerHandles.qml`, primo figlio
+dell'overlay layer cosi' transport e pannelli restano cliccabili sopra).
+Click = selezione; trascinare la cornice sposta, il pomello d'angolo
+scala (distanza dal centro), lo stelo sopra ruota (snap a 3 gradi dai
+multipli di 90). Tutto in bianco fisso con ombra: sta sul video, che
+non segue il tema. La mappatura frazioni-canvas → pixel replica la
+regola "cover" di PreviewItem (canvas `Playback.aspect` scalato a
+coprire l'item e centrato), quindi la cornice siede esattamente sui
+pixel composti anche col canvas "auto".
+
+**Il gesto e' in due fasi** — la parte da non rompere:
+
+1. **Live**: a ogni mouse-move la QML chiama
+   `Playback.set_sticker_live(clip_id, x, y, scale, rotation)`. Il
+   transport muta GLI STESSI dict di span che il filtro `Overlays` (e le
+   closure sprite) leggono a process-time — per questo `attach_sprites`
+   attacca in place e non su copie, il builder passa i dict originali
+   senza convertirli (la conversione secondi→frame avviene nel filtro,
+   sono una manciata di span), e le closure leggono scale/rotation dal
+   dict a ogni chiamata. Poi ri-richiede il frame in pausa: lo sticker
+   segue la mano SENZA rebuild del grafo e SENZA toccare l'undo stack.
+   Letture/scritture di scalari sono atomiche sotto il GIL: il thread
+   che tira il grafo non vede mai valori strappati.
+2. **Commit**: al rilascio parte UNA `timeline.set_clip_transform` →
+   un solo passo di undo per l'intero trascinamento, rebuild dal
+   modello (regola ENGINE.md §3: il grafo derivato dal modello; il
+   percorso live e' l'eccezione documentata, e il commit riallinea).
+
+Dettagli: la rotazione degli sticker statici e' cotta nel raster con
+cache per (altezza, rotazione arrotondata a 0.1°, cap 64 voci — un drag
+di rotazione spazza centinaia di angoli); per gli animati il frame
+Lottie e' cachato NON ruotato e la rotazione si applica al volo
+(`_rotate_rgba`, ~0.5 ms), o la cache esploderebbe. `Stickers.aspect()`
+da' alla cornice il rapporto w/h della grafica.
+`sequence_sticker_spans()` spoglia le closure prima di consegnare gli
+span all'export (attraversano un confine di thread come QVariantMap).
+
 ## 5. Prossimi passi
 
-1. **Maniglie nel preview**: trascinare/scalare/ruotare lo sticker
-   direttamente sul video (oggi si sposta via azione).
-2. **Motion preset**: ricette JSON di keyframe (bounce, pulse, spin,
+1. **Motion preset**: ricette JSON di keyframe (bounce, pulse, spin,
    slide-in...) applicabili a QUALUNQUE sticker statico.
-3. GIF/WebP animati come sorgenti sticker (decodifica FFmpeg gia' in
+2. GIF/WebP animati come sorgenti sticker (decodifica FFmpeg gia' in
    casa).
 
 Test: `tests/test_stickers.py` (catalogo, validita' SVG/Lottie,
 degradazione), `tests/test_sticker_compositing.py` (modello+undo, oro
 dentro lo span / grigio fuori, la pallina Lottie che CADE fra due
 istanti, export con gli stessi pixel),
-`tests/visual/test_stickers_panel.py` (tab, famiglie, drag reale sulla
-timeline, pixel del preview composito).
+`tests/test_sticker_handles.py` (attach in place, x/scala/rotazione
+mutati sul grafo VIVO, clamp e no-undo di set_sticker_live, span
+spogliati per l'export), `tests/visual/test_stickers_panel.py` (tab,
+famiglie, drag reale sulla timeline, pixel del preview composito),
+`tests/visual/test_sticker_handles_ui.py` (gesti reali: move con
+verifica mid-drag, scala, rotazione, un passo di undo per gesto, pixel
+prima/dopo).

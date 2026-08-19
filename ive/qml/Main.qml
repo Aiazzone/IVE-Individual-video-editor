@@ -185,6 +185,18 @@ Window {
         id: overlayLayer
         anchors.fill: parent
 
+        // On-video sticker handles: first overlay child on purpose, so the
+        // transport pill, the timeline and the panels stay clickable above
+        // it. Laid exactly over the video item; only sticker boxes accept
+        // the mouse, the rest of the surface lets events through.
+        StickerHandles {
+            x: video.x
+            y: video.y
+            width: video.width
+            height: video.height
+            canvasAspect: Playback.hasMedia ? Playback.aspect : 16 / 9
+        }
+
         // Zones that reveal the playback controls. Each placement has its own;
         // only the active one is enabled, so an idle zone cannot keep the pill
         // on screen.

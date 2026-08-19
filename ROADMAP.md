@@ -43,6 +43,10 @@ Updated together with the code, so this file always reflects reality.
       engine composites them into the frame (same pixels in preview and
       export), undoable; animated Lottie stickers play in a loop via
       rlottie — drop a Lottie JSON in a folder to install more
+- [x] Sticker handles in the preview: click a sticker on the paused
+      video to select it, drag to move, corner knob to scale, stalk to
+      rotate (snapping near right angles) — live while the hand moves,
+      one undo step per gesture
 
 ## 🔨 In progress / next up
 
@@ -50,9 +54,8 @@ Updated together with the code, so this file always reflects reality.
 
 ## 🗺️ Planned
 
-- [ ] Sticker handles in the preview (drag/scale/rotate on the video —
-      today the transform is set via action) and motion presets
-      (bounce, pulse, spin as JSON keyframe recipes)
+- [ ] Sticker motion presets (bounce, pulse, spin as JSON keyframe
+      recipes)
 - [ ] Transitions between clips (the engine's Transition slot exists)
 - [ ] Multi-track timeline (music under video, picture-in-picture)
 - [ ] Content packs (`.ivepack`): bundle effects/presets/music with

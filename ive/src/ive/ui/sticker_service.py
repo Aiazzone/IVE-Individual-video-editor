@@ -120,6 +120,21 @@ class StickerLibraryService(QObject):
             tmp.replace(target)
         return QUrl.fromLocalFile(str(target)).toString()
 
+    @Slot(str, result=float)
+    def aspect(self, sticker_id: str) -> float:
+        """Width / height of a sticker's graphic, for the preview handles."""
+        from ive.stickers.library import sticker_by_id
+        from ive.stickers.raster import sprite_aspect
+
+        sticker = sticker_by_id(str(sticker_id))
+        if sticker is None:
+            return 1.0
+        try:
+            return float(sprite_aspect(sticker["path"], sticker["kind"]))
+        except Exception:
+            log.exception("Could not measure sticker %s", sticker_id)
+            return 1.0
+
     @Slot()
     def refresh(self) -> None:
         """Rescan the folders - the user just dropped a file in."""

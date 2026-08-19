@@ -275,6 +275,7 @@ class PlaybackService(QObject):
                     log.warning("Unknown sticker %r skipped", sticker_id)
                     continue
                 sticker_spans.append({
+                    "id": str(entry.get("id") or ""),
                     "start": float(entry.get("start") or 0.0),
                     "end": float(entry.get("end") or 0.0),
                     "path": sticker["path"],
@@ -341,8 +342,35 @@ class PlaybackService(QObject):
 
         Pure data on purpose: the export options cross a thread boundary
         as a QVariantMap, which would drop callables - the worker attaches
-        the sprite closures itself (stickers/raster.attach_sprites)."""
-        return [dict(span) for span in self._sticker_spans]
+        the sprite closures itself (stickers/raster.attach_sprites). The
+        preview attaches its own closures IN PLACE on these dicts, so the
+        copy strips them explicitly."""
+        return [{k: v for k, v in span.items() if k != "sprite"}
+                for span in self._sticker_spans]
+
+    @Slot(str, float, float, float, float)
+    def set_sticker_live(self, clip_id: str, x: float, y: float,
+                         scale: float, rotation: float) -> None:
+        """Move a sticker on the canvas WHILE a handle is being dragged.
+
+        This is the live half of the gesture: it mutates the very span
+        dicts the graph's Overlays filter (and the sprite closures) read
+        at process time - same clamps as the model - and re-requests the
+        paused frame, so the sticker follows the hand without a graph
+        rebuild and without touching the undo stack. The release commits
+        the real ``timeline.set_clip_transform`` action, which rebuilds
+        from the model and records ONE undo step for the whole drag.
+        """
+        for span in self._sticker_spans:
+            if span.get("id") != clip_id:
+                continue
+            span["x"] = min(1.0, max(0.0, float(x)))
+            span["y"] = min(1.0, max(0.0, float(y)))
+            span["scale"] = min(2.0, max(0.02, float(scale)))
+            span["rotation"] = float(rotation)
+            if not self._playing:
+                self._request_at(self._position)
+            return
 
     def _apply_segments(self, segments: list[_Segment], *, sequence: bool,
                         name: str) -> None:

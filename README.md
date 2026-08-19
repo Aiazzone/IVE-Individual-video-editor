@@ -63,7 +63,9 @@ between the two, on Windows and Linux:
 - Stickers on the video: static SVG families and animated Lottie
   stickers (rendered by rlottie, looping), dragged onto a dedicated
   timeline lane and composited into the frame — identical in preview
-  and export; install more by dropping files in a folder
+  and export; install more by dropping files in a folder. Grab a
+  sticker on the paused video to move it, scale it from the corner
+  knob or rotate it from the stalk — live, one undo step per gesture
 - Proxy editing for 4K sources; multilingual UI (EN, IT, ES, PT); dark and
   light themes
 
