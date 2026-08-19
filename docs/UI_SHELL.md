@@ -379,6 +379,34 @@ erano segnaposto senza comportamento e sono stati tolti: torneranno uno a
 uno INSIEME alla loro logica (nascondi/blocca/silenzia traccia), che e' il
 mestiere di quella colonna in ogni editor.
 
+### Scroll verticale delle tracce (2026-08-18)
+
+Con cinque corsie possibili (V1, A1, Color, Sticker, Text) le tracce
+superano i 232px del pannello, e la corsia Text nasceva TAGLIATA fuori
+vista. Regola: **il righello del tempo resta sempre visibile; a scorrere
+sono le tracce.**
+
+- Il righello sta FUORI dal Flickable, ancorato al fondo del pannello;
+  la striscia delle tacche segue `contentX` (i numeri restano sotto i
+  loro clip) e il tap sul righello muove ancora il playhead.
+- Il Flickable delle tracce scorre in entrambe le direzioni
+  (`contentHeight` = somma delle corsie). Scrollbar verticale fatta a
+  mano (niente Quick Controls): la maniglia e' un puro binding da
+  `contentY`, il MouseArea della striscia scrive `contentY` — nessun
+  `drag.target`, quindi nessun binding da rompere.
+- Le **intestazioni scorrono in sincrono** (`y: -contentY`, ritagliate
+  sopra la striscia del righello): un nome fermo mentre la sua traccia
+  scivola via etichetterebbe la corsia sbagliata.
+- Rotella sui NOMI = scroll verticale; rotella sulle corsie = zoom
+  (com'era), Shift+rotella = scroll verticale anche li'.
+- Il playhead e' fratello del Flickable, non figlio del contenuto: linea
+  che copre la parte di tracce in vista (segue solo `contentX`), goccia
+  nella striscia fissa del righello.
+
+Test: `tests/visual/test_timeline_scroll.py` (overflow reale a 4 corsie,
+Text fuori vista, drag della scrollbar col mouse, righello immobile,
+rotella sulle intestazioni).
+
 ### Toolbox contestuale (deciso 2026-08-09)
 
 La toolbar della timeline non ha piu' bottoni fissi a sinistra: quel lato

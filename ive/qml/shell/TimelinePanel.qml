@@ -397,38 +397,61 @@ Item {
             // another layout defaults it to TRUE, which silently overrides
             // preferredWidth. Without this the headers eat the whole row and
             // the lanes end up a few pixels wide.
-            ColumnLayout {
+            Item {
                 Layout.fillWidth: false
                 Layout.preferredWidth: Theme.m.trackHeaderWidth
                 Layout.minimumWidth: Theme.m.trackHeaderWidth
                 Layout.maximumWidth: Theme.m.trackHeaderWidth
                 Layout.fillHeight: true
-                spacing: 0
 
                 // Only the track NAME: the eye/lock/mute buttons that used
                 // to sit here were placeholders wired to nothing, and dead
                 // chrome teaches the user to ignore this column. They come
                 // back one by one WITH their behaviour (hide/lock/mute per
                 // track), which is what this column is for in every editor.
-                // No ruler spacer: the ruler lives at the BOTTOM now.
-                Repeater {
-                    model: root.tracks
-                    delegate: Item {
-                        required property var modelData
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: modelData.height
+                //
+                // The names ride the SAME vertical scroll as the lanes
+                // (y: -contentY), clipped above the ruler strip: a header
+                // that stays put while its track slides away would label
+                // the wrong lane.
+                Item {
+                    anchors.fill: parent
+                    anchors.bottomMargin: Theme.m.rulerHeight
+                    clip: true
 
-                        Text {
-                            anchors.verticalCenter: parent.verticalCenter
-                            x: Theme.m.space2
-                            text: parent.modelData.name
-                            color: Qt.alpha(root.onGlass, 0.72)
-                            font.pixelSize: Theme.m.fontSizeSm
-                            font.letterSpacing: 0.5
+                    Column {
+                        y: -scroller.contentY
+                        width: parent.width
+
+                        Repeater {
+                            model: root.tracks
+                            delegate: Item {
+                                required property var modelData
+                                width: parent.width
+                                height: modelData.height
+
+                                Text {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    x: Theme.m.space2
+                                    text: parent.modelData.name
+                                    color: Qt.alpha(root.onGlass, 0.72)
+                                    font.pixelSize: Theme.m.fontSizeSm
+                                    font.letterSpacing: 0.5
+                                }
+                            }
                         }
                     }
                 }
-                Item { Layout.fillWidth: true; Layout.fillHeight: true }
+
+                // Wheel over the names scrolls the tracks - the wheel over
+                // the lanes belongs to zoom.
+                WheelHandler {
+                    onWheel: function (event) {
+                        scroller.contentY = Math.max(0, Math.min(
+                            Math.max(0, scroller.contentHeight - scroller.height),
+                            scroller.contentY - event.angleDelta.y));
+                    }
+                }
             }
 
             Rectangle {
@@ -452,6 +475,13 @@ Item {
                 readonly property real pps:
                     width * root.zoom / Math.max(0.001, root.duration)
                 readonly property real rulerH: Theme.m.rulerHeight
+                /*! Every track stacked: what the vertical scroll covers. */
+                readonly property real tracksH: {
+                    var h = 0;
+                    for (var i = 0; i < root.tracks.length; i++)
+                        h += root.tracks[i].height;
+                    return h;
+                }
 
                 /*! Top edge of track `i`. Tracks start at the very top:
                     the ruler sits at the BOTTOM of the lanes. */
@@ -478,19 +508,28 @@ Item {
                     }
                 }
 
+                // The ruler is NOT inside this Flickable: the time must
+                // stay on screen whatever the tracks do. The Flickable
+                // scrolls the TRACKS both ways (the ruler strip below
+                // follows contentX so the ticks stay under the clips).
                 Flickable {
                     id: scroller
+                    objectName: "timeline_tracks_scroller"
                     anchors.fill: parent
+                    anchors.bottomMargin: lanes.rulerH
                     contentWidth: width * root.zoom
-                    contentHeight: height
-                    interactive: root.zoom > 1
-                    flickableDirection: Flickable.HorizontalFlick
+                    contentHeight: Math.max(lanes.tracksH, height)
+                    interactive: root.zoom > 1 || contentHeight > height + 1
+                    flickableDirection: Flickable.HorizontalAndVerticalFlick
                     boundsBehavior: Flickable.StopAtBounds
+                    // A lane that disappears (undo, delete) must not leave
+                    // the view parked past the new bottom.
+                    onContentHeightChanged: returnToBounds()
 
                 Item {
                     id: content
                     width: scroller.contentWidth
-                    height: scroller.height
+                    height: scroller.contentHeight
 
                 TapHandler {
                     onTapped: function (point) {
@@ -505,12 +544,20 @@ Item {
                 }
 
                 // Plain wheel over the lanes: zoom around the cursor, the
-                // editor meaning of the wheel. On the CONTENT item, not on
+                // editor meaning of the wheel. Shift+wheel scrolls the
+                // tracks vertically instead. On the CONTENT item, not on
                 // `lanes`: once interactive, the Flickable would swallow
                 // the wheel for panning before an outer handler saw it.
                 WheelHandler {
                     target: null
                     onWheel: function (event) {
+                        if (event.modifiers & Qt.ShiftModifier) {
+                            scroller.contentY = Math.max(0, Math.min(
+                                Math.max(0, scroller.contentHeight
+                                            - scroller.height),
+                                scroller.contentY - event.angleDelta.y));
+                            return;
+                        }
                         root.zoomBy(event.angleDelta.y > 0 ? 1.25 : 0.8,
                                     event.x - scroller.contentX);
                     }
@@ -585,54 +632,6 @@ Item {
                     text: Tr.s["timeline.drop_hint"] || ""
                     color: Qt.alpha(root.onGlass, 0.45)
                     font.pixelSize: Theme.m.fontSizeSm
-                }
-
-                // ── ruler, along the BOTTOM edge ──────────────────
-                // Mirrored from the usual top position: ticks grow upwards
-                // from the bottom edge and the labels sit at the bottom.
-                Item {
-                    id: ruler
-                    y: content.height - lanes.rulerH
-                    width: content.width
-                    height: lanes.rulerH
-
-                    Repeater {
-                        model: Math.floor(root.duration) + 1
-                        delegate: Item {
-                            id: tick
-                            required property int index
-                            readonly property bool major: index % 5 === 0
-                            x: index * lanes.pps
-                            y: 0
-                            width: 1
-                            height: ruler.height
-
-                            Rectangle {
-                                y: tick.major ? 0 : ruler.height * 0.55
-                                width: 1
-                                height: tick.major ? ruler.height : ruler.height * 0.45
-                                color: Qt.alpha(root.onGlass, tick.major ? 0.45 : 0.18)
-                            }
-                            Text {
-                                visible: tick.major && tick.index < root.duration
-                                x: 5
-                                anchors.bottom: parent.bottom
-                                anchors.bottomMargin: 3
-                                text: "00:%1:%2"
-                                    .arg(String(Math.floor(tick.index / 60)).padStart(2, "0"))
-                                    .arg(String(tick.index % 60).padStart(2, "0"))
-                                color: root.onGlass
-                                font.pixelSize: Theme.m.fontSizeXs
-                                font.family: "monospace"
-                            }
-                        }
-                    }
-                    Rectangle {
-                        anchors.top: parent.top
-                        width: parent.width
-                        height: 1
-                        color: Qt.alpha(root.onGlass, 0.10)
-                    }
                 }
 
                 // ── tracks ────────────────────────────────────────
@@ -986,27 +985,101 @@ Item {
                     }
                 }
 
+                }   // content
+                }   // scroller
+
+                // ── ruler, PINNED along the bottom edge ───────────
+                // Outside the Flickable on purpose: the time stays on
+                // screen however many lanes stack up - only the tracks
+                // scroll vertically. The tick strip follows contentX so
+                // the numbers stay under their clips, and tapping it
+                // still moves the playhead.
+                Item {
+                    id: ruler
+                    objectName: "timeline_ruler"
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.bottom: parent.bottom
+                    height: lanes.rulerH
+                    clip: true
+
+                    Item {
+                        width: scroller.contentWidth
+                        height: parent.height
+                        x: -scroller.contentX
+
+                        Repeater {
+                            model: Math.floor(root.duration) + 1
+                            delegate: Item {
+                                id: tick
+                                required property int index
+                                readonly property bool major: index % 5 === 0
+                                x: index * lanes.pps
+                                y: 0
+                                width: 1
+                                height: ruler.height
+
+                                Rectangle {
+                                    y: tick.major ? 0 : ruler.height * 0.55
+                                    width: 1
+                                    height: tick.major ? ruler.height : ruler.height * 0.45
+                                    color: Qt.alpha(root.onGlass, tick.major ? 0.45 : 0.18)
+                                }
+                                Text {
+                                    visible: tick.major && tick.index < root.duration
+                                    x: 5
+                                    anchors.bottom: parent.bottom
+                                    anchors.bottomMargin: 3
+                                    text: "00:%1:%2"
+                                        .arg(String(Math.floor(tick.index / 60)).padStart(2, "0"))
+                                        .arg(String(tick.index % 60).padStart(2, "0"))
+                                    color: root.onGlass
+                                    font.pixelSize: Theme.m.fontSizeXs
+                                    font.family: "monospace"
+                                }
+                            }
+                        }
+                    }
+                    Rectangle {
+                        anchors.top: parent.top
+                        width: parent.width
+                        height: 1
+                        color: Qt.alpha(root.onGlass, 0.10)
+                    }
+                    TapHandler {
+                        onTapped: function (point) {
+                            root.seekRequested((scroller.contentX
+                                                + point.position.x) / lanes.pps);
+                        }
+                    }
+                }
+
                 // ── playhead ──────────────────────────────────────
+                // A sibling of the Flickable, not a child of the scrolled
+                // content: the head lives in the pinned ruler strip and
+                // the line must span whatever part of the tracks is on
+                // show - it follows contentX only.
+                //
                 // The line ends where the head begins: the head is a HOLLOW
                 // rounded droplet (outline only), and a line running through
                 // its empty middle would read as a mistake. Apex up, body in
                 // the bottom ruler strip - the tapered tip is what continues
                 // into the line.
                 Item {
-                    x: root.position * lanes.pps
+                    x: root.position * lanes.pps - scroller.contentX
                     y: 0
                     width: 2
-                    height: content.height
+                    height: lanes.height
 
                     Rectangle {
                         width: 2
-                        height: content.height - lanes.rulerH
+                        height: lanes.height - lanes.rulerH
                         color: Theme.c.playhead
                     }
 
                     Shape {
                         x: -5   // centre the 12px head on the 2px line
-                        y: content.height - lanes.rulerH - 1
+                        y: lanes.height - lanes.rulerH - 1
                         width: 12
                         height: 16
                         preferredRendererType: Shape.CurveRenderer
@@ -1031,8 +1104,53 @@ Item {
                     }
                 }
 
-                }   // content
-                }   // scroller
+                // ── vertical scrollbar ────────────────────────────
+                // Hand-rolled (no Quick Controls in this shell): the
+                // handle is a pure binding from contentY, and pressing or
+                // dragging anywhere on the strip drives contentY - no
+                // drag.target, so there is no binding to break.
+                Item {
+                    id: vbar
+                    objectName: "timeline_vscroll"
+                    visible: scroller.contentHeight > scroller.height + 1
+                    x: lanes.width - width
+                    width: 10
+                    height: scroller.height
+
+                    Rectangle {
+                        id: vbarHandle
+                        x: 3
+                        width: 4
+                        radius: 2
+                        color: Qt.alpha(root.onGlass,
+                                        vbarArea.pressed ? 0.55
+                                        : vbarArea.containsMouse ? 0.40 : 0.25)
+                        height: Math.max(24, vbar.height * scroller.height
+                                             / Math.max(1, scroller.contentHeight))
+                        y: (vbar.height - height)
+                           * scroller.contentY
+                           / Math.max(1, scroller.contentHeight - scroller.height)
+                    }
+
+                    MouseArea {
+                        id: vbarArea
+                        anchors.fill: parent
+                        hoverEnabled: true
+
+                        function scrollTo(mouseY) {
+                            var span = Math.max(1, vbar.height - vbarHandle.height);
+                            var frac = Math.max(0, Math.min(1,
+                                (mouseY - vbarHandle.height / 2) / span));
+                            scroller.contentY = frac
+                                * (scroller.contentHeight - scroller.height);
+                        }
+                        onPressed: function (mouse) { scrollTo(mouse.y); }
+                        onPositionChanged: function (mouse) {
+                            if (pressed)
+                                scrollTo(mouse.y);
+                        }
+                    }
+                }
             }
         }
     }
