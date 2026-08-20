@@ -114,7 +114,10 @@ Item {
                           icon: Icons.transition, tint: Theme.c.textMuted },
                         { label: Tr.s["pack.cat.stickers"] || "",
                           count: root.pack.counts.stickers,
-                          icon: Icons.sticker, tint: Theme.c.clipSticker }
+                          icon: Icons.sticker, tint: Theme.c.clipSticker },
+                        { label: Tr.s["pack.cat.motion"] || "",
+                          count: root.pack.counts.motion || 0,
+                          icon: Icons.motion, tint: Theme.c.accent }
                     ]
                     delegate: Rectangle {
                         id: contentRow

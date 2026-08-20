@@ -6,18 +6,21 @@ una riga di codice.
 
 ---
 
-## 0. Stato: v1 implementata (2026-08-19)
+## 0. Stato: v1 implementata (2026-08-19, estesa il 2026-08-20)
 
-La prima versione e' viva e copre le tre categorie che oggi hanno un
-catalogo JSON: **effetti colore, transizioni (mappe luma comprese) e
-sticker (SVG e Lottie)**. Il resto di questo documento e' la specifica
+La prima versione e' viva e copre le categorie che oggi hanno un
+catalogo JSON: **effetti colore, transizioni (mappe luma comprese),
+sticker (SVG e Lottie), motion preset (ricette keyframe) ed export
+preset**. Il resto di questo documento e' la specifica
 completa verso cui si cresce; le sezioni sotto valgono come scritte,
 con queste scelte concrete della v1:
 
 - **Struttura interna**: le stesse cartelle che i cataloghi gia'
   scansionano — `pack.json` in cima, `color_effects/effects.json`,
   `transitions/transitions.json` + `transitions/luma/`,
-  `stickers/pack_stickers.json` + `stickers/files/`.
+  `stickers/pack_stickers.json` + `stickers/files/`,
+  `motion/motion.json` (ricette pure, nessun file esterno),
+  `export_presets/presets.json`.
 - **Installazione**: `user_data/packs/<pack_id>/`; ogni catalogo
   scansiona anche quelle cartelle (`ive/packs/pack.py`,
   `pack_content_dirs`). Id duplicati saltati con warning, mai
@@ -33,7 +36,14 @@ con queste scelte concrete della v1:
   (`PackInstallOverlay.qml`): nome, autore, contenuti, avviso sui
   duplicati — mostrare, mai far approvare. Il drop di un `.ivepack`
   sulla finestra arriva alla stessa carta.
-- **Azioni**: `pack.create`, `pack.install`, `pack.remove`.
+- **Azioni**: `pack.create` (con `color_ids`, `transition_ids`,
+  `sticker_ids`, `motion_ids`, `export_preset_ids`), `pack.install`,
+  `pack.remove`. Il servizio `Packs.create` riceve la selezione come
+  **mappa** per categoria: una categoria nuova e' una chiave in piu',
+  non un argomento posizionale in piu'.
+- Dopo install/remove il servizio rinfresca TUTTI i cataloghi (colori,
+  sticker, transizioni, motion, export) cosi' i pannelli cambiano
+  insieme.
 - Moduli: `ive/packs/` (core, senza Qt), `ive/ui/pack_service.py`
   (bridge QML, singleton `Packs`).
 

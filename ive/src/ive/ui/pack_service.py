@@ -63,7 +63,7 @@ class PackService(QObject):
         """Installed content must appear (or vanish) everywhere at once."""
         for service in (self._colorfx, self._stickers, self._transitions,
                         self._motion, self._export):
-            if service is not None:
+            if service is not None and hasattr(service, "refresh"):
                 try:
                     service.refresh()
                 except Exception:
@@ -86,6 +86,7 @@ class PackService(QObject):
                 "colors": counts["color_effects"],
                 "transitions": counts["transitions"],
                 "stickers": counts["stickers"],
+                "motion": counts.get("motion", 0),
             })
         return out
 
@@ -140,21 +141,27 @@ class PackService(QObject):
 
     # ── creating ──────────────────────────────────────────────────────
 
-    @Slot(str, str, str, "QVariantList", "QVariantList", "QVariantList",
-          str, result=bool)
+    @Slot(str, str, str, "QVariantMap", str, result=bool)
     def create(self, name: str, author: str, description: str,
-               color_ids: list, transition_ids: list, sticker_ids: list,
-               destination: str) -> bool:
-        """Build a ``.ivepack`` from the panel's selection."""
+               selection: dict, destination: str) -> bool:
+        """Build a ``.ivepack`` from the panel's selection.
+
+        ``selection`` holds id lists per category: ``colors``,
+        ``transitions``, ``stickers``, ``motion`` - a map, so a new
+        category is a new key, not a new positional argument."""
         path = local_path_from_url(str(destination))
+        selection = dict(selection or {})
+
+        def ids(key: str) -> list[str]:
+            return [str(v) for v in (selection.get(key) or [])]
+
         try:
             report = build_pack(path, name=name, author=author,
                                 description=description,
-                                color_ids=[str(v) for v in color_ids or []],
-                                transition_ids=[str(v) for v in
-                                                transition_ids or []],
-                                sticker_ids=[str(v) for v in
-                                             sticker_ids or []])
+                                color_ids=ids("colors"),
+                                transition_ids=ids("transitions"),
+                                sticker_ids=ids("stickers"),
+                                motion_ids=ids("motion"))
         except (ValueError, OSError) as exc:
             log.exception("Pack export failed")
             self.error.emit(str(exc))

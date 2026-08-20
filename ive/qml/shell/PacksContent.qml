@@ -27,12 +27,13 @@ Item {
     property string open: ""
     /*! Selected ids per category. Reassigned (never mutated) so every
         binding re-evaluates. */
-    property var picked: ({ colors: [], transitions: [], stickers: [] })
+    property var picked: ({ colors: [], transitions: [], stickers: [],
+                            motion: [] })
     property string status: ""
 
     readonly property int pickedCount:
         picked.colors.length + picked.transitions.length
-        + picked.stickers.length
+        + picked.stickers.length + picked.motion.length
 
     function isPicked(category, id) {
         return picked[category].indexOf(id) >= 0;
@@ -40,7 +41,8 @@ Item {
     function toggle(category, id) {
         var next = { colors: picked.colors.slice(),
                      transitions: picked.transitions.slice(),
-                     stickers: picked.stickers.slice() };
+                     stickers: picked.stickers.slice(),
+                     motion: picked.motion.slice() };
         var at = next[category].indexOf(id);
         if (at >= 0)
             next[category].splice(at, 1);
@@ -61,7 +63,8 @@ Item {
         picked = {
             colors: union(picked.colors, ColorFx.favorites),
             transitions: union(picked.transitions, Transitions.favorites),
-            stickers: union(picked.stickers, Stickers.favorites)
+            stickers: union(picked.stickers, Stickers.favorites),
+            motion: picked.motion
         };
     }
 
@@ -101,13 +104,25 @@ Item {
         return out;
     }
 
+    readonly property var motionItems: {
+        var out = [];
+        var all = Motion.presets;
+        for (var i = 0; i < all.length; i++)
+            out.push({ id: all[i].id, name: all[i].name,
+                       section: Tr.s["motion.kind." + all[i].kind]
+                                || all[i].kind });
+        return out;
+    }
+
     readonly property var categories: [
         { key: "colors", label: Tr.s["pack.cat.colors"] || "",
           items: colorItems },
         { key: "transitions", label: Tr.s["pack.cat.transitions"] || "",
           items: transitionItems },
         { key: "stickers", label: Tr.s["pack.cat.stickers"] || "",
-          items: stickerItems }
+          items: stickerItems },
+        { key: "motion", label: Tr.s["pack.cat.motion"] || "",
+          items: motionItems }
     ]
 
     Connections {
@@ -135,6 +150,7 @@ Item {
             color_ids: root.picked.colors,
             transition_ids: root.picked.transitions,
             sticker_ids: root.picked.stickers,
+            motion_ids: root.picked.motion,
             path: String(selectedFile)
         })
     }
@@ -538,6 +554,7 @@ Item {
                                             .replace("{c}", packRow.modelData.colors)
                                             .replace("{t}", packRow.modelData.transitions)
                                             .replace("{s}", packRow.modelData.stickers)
+                                            .replace("{m}", packRow.modelData.motion)
                                 color: Theme.c.textDisabled
                                 font.pixelSize: Theme.m.fontSizeXs
                                 elide: Text.ElideRight

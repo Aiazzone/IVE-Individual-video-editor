@@ -42,8 +42,9 @@ codice, condivisibile come tutto il resto.
 
 Cataloghi: fabbrica in `ive/config/defaults/motion/` (12 preset in 3
 tipi), utente in `user_data/motion/`, e i content pack portano i loro
-in `motion/` (la libreria li scansiona gia'; la creazione pack li
-includera' con la categoria dedicata — prossimo passo).
+in `motion/motion.json` — e la categoria «Animazioni» del pannello
+Pacchetti li include nella creazione (`build_pack(motion_ids=...)`,
+le ricette viaggiano pure, nessun file esterno).
 
 ## 2. Nel motore
 
