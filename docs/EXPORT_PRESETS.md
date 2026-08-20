@@ -74,6 +74,24 @@ Regole ferree:
 
 ## 2. Export preset
 
+**Stato (2026-08-20): catalogo JSON implementato.** I preset di
+fabbrica stanno in `ive/config/defaults/export_presets/social.json`,
+quelli dell'utente in `user_data/export_presets/*.json`, e i pack li
+portano in `export_presets/presets.json` (`ive/export/presets.py`:
+`list_presets`, `preset_by_id`, `reload`; il servizio `Export` espone
+`presets`/`platforms` con notify e `refresh()`, chiamato dal servizio
+pack dopo install/remove). La forma implementata e' il sottoinsieme
+qui sotto effettivamente usato dall'export di oggi — `container`,
+`video.{codec,width,height,fps,bitrate_kbps}`,
+`audio.{codec,bitrate_kbps}`, `constraints`, `platform`, `note`; i
+campi aggiuntivi dello schema completo (rate control, loudness,
+faststart...) sono accettati e ignorati finche' l'export non li
+implementa. Regole del loader: container o codec sconosciuti → preset
+saltato con warning (meglio una card in meno di un export che non
+parte); `platform` sconosciuta → raccolto sotto «Other» nella riga
+delle piattaforme, che appare solo se serve; id duplicato → ignorato,
+mai sovrascritto (fabbrica > utente > pack).
+
 ```json
 {
   "schema_version": 1,

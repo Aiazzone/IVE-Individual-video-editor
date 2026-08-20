@@ -1,0 +1,112 @@
+[
+  {
+    "schema_version": 1,
+    "id": "youtube_1080p",
+    "name": {"en": "YouTube 1080p"},
+    "platform": "youtube",
+    "container": "mp4",
+    "video": {"codec": "h264", "width": 1920, "height": 1080, "fps": "source", "bitrate_kbps": 12000},
+    "audio": {"codec": "aac", "bitrate_kbps": 384},
+    "constraints": {"recommended_aspect": "16:9", "max_duration_sec": 0},
+    "note": "16:9"
+  },
+  {
+    "schema_version": 1,
+    "id": "youtube_4k",
+    "name": {"en": "YouTube 4K"},
+    "platform": "youtube",
+    "container": "mp4",
+    "video": {"codec": "h265", "width": 3840, "height": 2160, "fps": "source", "bitrate_kbps": 45000},
+    "audio": {"codec": "aac", "bitrate_kbps": 384},
+    "constraints": {"recommended_aspect": "16:9", "max_duration_sec": 0},
+    "note": "16:9"
+  },
+  {
+    "schema_version": 1,
+    "id": "youtube_shorts",
+    "name": {"en": "YouTube Shorts"},
+    "platform": "youtube",
+    "container": "mp4",
+    "video": {"codec": "h264", "width": 1080, "height": 1920, "fps": "source", "bitrate_kbps": 10000},
+    "audio": {"codec": "aac", "bitrate_kbps": 192},
+    "constraints": {"recommended_aspect": "9:16", "max_duration_sec": 60},
+    "note": "9:16 · max 60s"
+  },
+  {
+    "schema_version": 1,
+    "id": "instagram_reels",
+    "name": {"en": "Instagram Reels"},
+    "platform": "instagram",
+    "container": "mp4",
+    "video": {"codec": "h264", "width": 1080, "height": 1920, "fps": "source", "bitrate_kbps": 9000},
+    "audio": {"codec": "aac", "bitrate_kbps": 192},
+    "constraints": {"recommended_aspect": "9:16", "max_duration_sec": 90},
+    "note": "9:16 · max 90s"
+  },
+  {
+    "schema_version": 1,
+    "id": "instagram_feed",
+    "name": {"en": "Instagram Feed"},
+    "platform": "instagram",
+    "container": "mp4",
+    "video": {"codec": "h264", "width": 1080, "height": 1350, "fps": "source", "bitrate_kbps": 8000},
+    "audio": {"codec": "aac", "bitrate_kbps": 192},
+    "constraints": {"recommended_aspect": "4:5", "max_duration_sec": 0},
+    "note": "4:5"
+  },
+  {
+    "schema_version": 1,
+    "id": "instagram_stories",
+    "name": {"en": "Instagram Stories"},
+    "platform": "instagram",
+    "container": "mp4",
+    "video": {"codec": "h264", "width": 1080, "height": 1920, "fps": "source", "bitrate_kbps": 9000},
+    "audio": {"codec": "aac", "bitrate_kbps": 192},
+    "constraints": {"recommended_aspect": "9:16", "max_duration_sec": 60},
+    "note": "9:16 · max 60s"
+  },
+  {
+    "schema_version": 1,
+    "id": "tiktok",
+    "name": {"en": "TikTok"},
+    "platform": "tiktok",
+    "container": "mp4",
+    "video": {"codec": "h264", "width": 1080, "height": 1920, "fps": "source", "bitrate_kbps": 9000},
+    "audio": {"codec": "aac", "bitrate_kbps": 192},
+    "constraints": {"recommended_aspect": "9:16", "max_duration_sec": 0},
+    "note": "9:16"
+  },
+  {
+    "schema_version": 1,
+    "id": "linkedin",
+    "name": {"en": "LinkedIn"},
+    "platform": "linkedin",
+    "container": "mp4",
+    "video": {"codec": "h264", "width": 1920, "height": 1080, "fps": "source", "bitrate_kbps": 8000},
+    "audio": {"codec": "aac", "bitrate_kbps": 192},
+    "constraints": {"recommended_aspect": "16:9", "max_duration_sec": 600},
+    "note": "16:9 · max 10 min"
+  },
+  {
+    "schema_version": 1,
+    "id": "facebook",
+    "name": {"en": "Facebook"},
+    "platform": "facebook",
+    "container": "mp4",
+    "video": {"codec": "h264", "width": 1920, "height": 1080, "fps": "source", "bitrate_kbps": 8000},
+    "audio": {"codec": "aac", "bitrate_kbps": 192},
+    "constraints": {"recommended_aspect": "16:9", "max_duration_sec": 0},
+    "note": "16:9"
+  },
+  {
+    "schema_version": 1,
+    "id": "whatsapp",
+    "name": {"en": "WhatsApp"},
+    "platform": "whatsapp",
+    "container": "mp4",
+    "video": {"codec": "h264", "width": 1280, "height": 720, "fps": "source", "bitrate_kbps": 2500},
+    "audio": {"codec": "aac", "bitrate_kbps": 128},
+    "constraints": {"recommended_aspect": "16:9", "max_duration_sec": 0},
+    "note": "light file"
+  }
+]

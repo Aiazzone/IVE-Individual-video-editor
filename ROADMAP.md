@@ -84,18 +84,24 @@ Updated together with the code, so this file always reflects reality.
       timeline. Recipes are shareable JSON (normalised time, offsets
       relative to the clip's own transform) and the engine applies them
       identically in preview and export; titles accept them via action
+- [x] Titles animate too: the Text panel's Animation section reuses the
+      same cards (one shared MotionPicker), previewing THESE words in
+      THIS style moved by each preset
+- [x] Motion presets are a pack category (Create checklist, install
+      card, installed list), and export presets became a JSON catalogue
+      (factory + user_data/export_presets + packs) so they travel in
+      packs as well - presets for a platform without an icon gather
+      under "Other" in the Export panel
 
 ## 🔨 In progress / next up
 
-- [ ] The Animation section in the Text panel (titles already accept
-      presets via action); motion presets as a category in pack
-      creation (installed packs already provide them)
+- [ ] docs/ARCHITECTURE.md module tree refresh (engine/, stickers/,
+      text/, color/, motion/, packs/ are missing from the plan's tree)
 
 ## 🗺️ Planned
 
 - [ ] Text style presets as shareable JSON
 - [ ] More factory luma maps (star, heart, brush stroke)
-- [ ] Export presets as a JSON catalogue, so they join the packs too
 - [ ] Multi-track timeline (music under video, picture-in-picture)
 - [ ] Export queue (one edit → YouTube + Reels + LinkedIn in sequence)
 - [ ] AI tools: auto-cut, subtitles, background removal (ONNX Runtime)

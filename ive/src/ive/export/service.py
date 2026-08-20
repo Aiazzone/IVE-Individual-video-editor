@@ -408,6 +408,7 @@ class ExportService(QObject):
     """Drives the export worker and reports progress to QML."""
 
     stateChanged = Signal()
+    presetsChanged = Signal()
     progressChanged = Signal()
     completed = Signal(str)
     failed = Signal(str)
@@ -466,18 +467,28 @@ class ExportService(QObject):
             for key, label in VIDEO_CODECS.items()
         ]
 
-    @Property("QVariantList", constant=True)
+    @Property("QVariantList", notify=presetsChanged)
     def presets(self) -> list[dict[str, Any]]:
+        """The preset catalogue: factory, the user's, installed packs'."""
         from ive.export.presets import as_maps
 
         return as_maps()
 
-    @Property("QVariantList", constant=True)
+    @Property("QVariantList", notify=presetsChanged)
     def platforms(self) -> list[dict[str, Any]]:
-        """The social platforms, one icon each, in display order."""
-        from ive.export.presets import PLATFORMS
+        """The social platforms, one icon each, in display order - plus
+        "Other" when some preset has no icon of its own."""
+        from ive.export.presets import platforms_in_use
 
-        return [dict(entry) for entry in PLATFORMS]
+        return platforms_in_use()
+
+    @Slot()
+    def refresh(self) -> None:
+        """Rescan the preset folders - a pack just came or went."""
+        from ive.export.presets import reload
+
+        reload()
+        self.presetsChanged.emit()
 
     @Property("QVariantList", constant=True)
     def containers(self) -> list[dict[str, Any]]:

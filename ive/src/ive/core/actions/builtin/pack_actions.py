@@ -13,8 +13,8 @@ log = logging.getLogger(__name__)
     id="pack.create",
     title_key="pack.create",
     desc_key="Build a shareable .ivepack file from catalogue entries: "
-             "colour effects, transitions, stickers and motion presets "
-             "by id. Everything inside is data, never code.",
+             "colour effects, transitions, stickers, motion presets and "
+             "export presets by id. Everything inside is data, never code.",
     category="packs",
     params={
         "name": Param(str, required=True),
@@ -25,15 +25,17 @@ log = logging.getLogger(__name__)
         "transition_ids": Param(list, required=False),
         "sticker_ids": Param(list, required=False),
         "motion_ids": Param(list, required=False),
+        "export_preset_ids": Param(list, required=False),
     },
 )
 def create(ctx, name: str, path: str, author: str = "",
            description: str = "", color_ids: list = None,
            transition_ids: list = None, sticker_ids: list = None,
-           motion_ids: list = None):
+           motion_ids: list = None, export_preset_ids: list = None):
     selection = {"colors": color_ids or [],
                  "transitions": transition_ids or [],
-                 "stickers": sticker_ids or [], "motion": motion_ids or []}
+                 "stickers": sticker_ids or [], "motion": motion_ids or [],
+                 "export_presets": export_preset_ids or []}
     if not ctx.require("packs").create(name, author, description,
                                        selection, path):
         raise RuntimeError("Pack export failed")

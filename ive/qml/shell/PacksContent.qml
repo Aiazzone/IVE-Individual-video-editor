@@ -28,12 +28,13 @@ Item {
     /*! Selected ids per category. Reassigned (never mutated) so every
         binding re-evaluates. */
     property var picked: ({ colors: [], transitions: [], stickers: [],
-                            motion: [] })
+                            motion: [], export_presets: [] })
     property string status: ""
 
     readonly property int pickedCount:
         picked.colors.length + picked.transitions.length
         + picked.stickers.length + picked.motion.length
+        + picked.export_presets.length
 
     function isPicked(category, id) {
         return picked[category].indexOf(id) >= 0;
@@ -42,7 +43,8 @@ Item {
         var next = { colors: picked.colors.slice(),
                      transitions: picked.transitions.slice(),
                      stickers: picked.stickers.slice(),
-                     motion: picked.motion.slice() };
+                     motion: picked.motion.slice(),
+                     export_presets: picked.export_presets.slice() };
         var at = next[category].indexOf(id);
         if (at >= 0)
             next[category].splice(at, 1);
@@ -64,7 +66,8 @@ Item {
             colors: union(picked.colors, ColorFx.favorites),
             transitions: union(picked.transitions, Transitions.favorites),
             stickers: union(picked.stickers, Stickers.favorites),
-            motion: picked.motion
+            motion: picked.motion,
+            export_presets: picked.export_presets
         };
     }
 
@@ -114,6 +117,20 @@ Item {
         return out;
     }
 
+    readonly property var exportItems: {
+        var out = [];
+        var all = Export.presets;
+        var platforms = Export.platforms;
+        for (var i = 0; i < all.length; i++) {
+            var label = all[i].platform;
+            for (var k = 0; k < platforms.length; k++)
+                if (platforms[k].id === all[i].platform)
+                    label = platforms[k].label;
+            out.push({ id: all[i].id, name: all[i].label, section: label });
+        }
+        return out;
+    }
+
     readonly property var categories: [
         { key: "colors", label: Tr.s["pack.cat.colors"] || "",
           items: colorItems },
@@ -122,7 +139,9 @@ Item {
         { key: "stickers", label: Tr.s["pack.cat.stickers"] || "",
           items: stickerItems },
         { key: "motion", label: Tr.s["pack.cat.motion"] || "",
-          items: motionItems }
+          items: motionItems },
+        { key: "export_presets", label: Tr.s["pack.cat.export_presets"] || "",
+          items: exportItems }
     ]
 
     Connections {
@@ -151,6 +170,7 @@ Item {
             transition_ids: root.picked.transitions,
             sticker_ids: root.picked.stickers,
             motion_ids: root.picked.motion,
+            export_preset_ids: root.picked.export_presets,
             path: String(selectedFile)
         })
     }
@@ -555,6 +575,7 @@ Item {
                                             .replace("{t}", packRow.modelData.transitions)
                                             .replace("{s}", packRow.modelData.stickers)
                                             .replace("{m}", packRow.modelData.motion)
+                                            .replace("{e}", packRow.modelData.exportPresets)
                                 color: Theme.c.textDisabled
                                 font.pixelSize: Theme.m.fontSizeXs
                                 elide: Text.ElideRight

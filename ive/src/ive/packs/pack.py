@@ -11,6 +11,7 @@ the same folder shapes the catalogues already scan:
     stickers/pack_stickers.json     sticker manifest
     stickers/files/<graphics>       SVG / PNG / Lottie JSON
     motion/motion.json              motion preset recipes (keyframes)
+    export_presets/presets.json     export presets (logical codecs)
 
 Install = unpack into ``user_data/packs/<pack_id>/`` (each catalogue
 also scans those folders); uninstall = delete that folder. Nothing
@@ -67,7 +68,8 @@ def build_pack(destination: str | Path, *, name: str, author: str = "",
                color_ids: list[str] | None = None,
                transition_ids: list[str] | None = None,
                sticker_ids: list[str] | None = None,
-               motion_ids: list[str] | None = None) -> dict[str, Any]:
+               motion_ids: list[str] | None = None,
+               export_preset_ids: list[str] | None = None) -> dict[str, Any]:
     """Write a ``.ivepack`` with the selected catalogue entries.
 
     Recipes are re-serialised from the LIVE catalogues (so a pack always
@@ -78,6 +80,7 @@ def build_pack(destination: str | Path, *, name: str, author: str = "",
     unknown id (a pack must never ship half of what was asked).
     """
     from ive.color.library import effect_by_id
+    from ive.export.presets import preset_by_id as export_by_id
     from ive.motion.library import preset_by_id as motion_by_id
     from ive.stickers.library import sticker_by_id
     from ive.transitions.library import transition_by_id
@@ -87,7 +90,9 @@ def build_pack(destination: str | Path, *, name: str, author: str = "",
     transition_ids = [str(v) for v in (transition_ids or [])]
     sticker_ids = [str(v) for v in (sticker_ids or [])]
     motion_ids = [str(v) for v in (motion_ids or [])]
-    if not (color_ids or transition_ids or sticker_ids or motion_ids):
+    export_preset_ids = [str(v) for v in (export_preset_ids or [])]
+    if not (color_ids or transition_ids or sticker_ids or motion_ids
+            or export_preset_ids):
         raise ValueError("empty selection")
 
     effects = []
@@ -149,6 +154,13 @@ def build_pack(destination: str | Path, *, name: str, author: str = "",
             "tracks": [dict(t) for t in preset["tracks"]],
         })
 
+    exports = []
+    for preset_id in export_preset_ids:
+        preset = export_by_id(preset_id)
+        if preset is None:
+            raise ValueError(f"unknown export preset {preset_id!r}")
+        exports.append(preset.to_recipe())
+
     manifest = {
         "schema_version": SCHEMA_VERSION,
         "id": _slug(f"{author}-{name}" if author else name),
@@ -161,6 +173,7 @@ def build_pack(destination: str | Path, *, name: str, author: str = "",
             "transitions": [t["id"] for t in transitions],
             "stickers": [s["id"] for s in stickers],
             "motion": [m["id"] for m in motions],
+            "export_presets": [e["id"] for e in exports],
         },
     }
 
@@ -187,9 +200,12 @@ def build_pack(destination: str | Path, *, name: str, author: str = "",
                 archive.write(source, f"stickers/files/{arcname}")
         if motions:
             archive.writestr("motion/motion.json", dumps(motions))
+        if exports:
+            archive.writestr("export_presets/presets.json", dumps(exports))
 
     counts = {"color_effects": len(effects), "transitions": len(transitions),
-              "stickers": len(stickers), "motion": len(motions)}
+              "stickers": len(stickers), "motion": len(motions),
+              "export_presets": len(exports)}
     log.info("Pack written: %s (%s)", destination, counts)
     return {"path": str(destination), "counts": counts,
             "id": manifest["id"]}
@@ -220,6 +236,7 @@ def preview_pack(path: str | Path) -> dict[str, Any]:
     card shows this. ``{ok, name, author, version, description, counts,
     duplicates, already_installed, error}``."""
     from ive.color.library import effect_by_id
+    from ive.export.presets import preset_by_id as export_by_id
     from ive.motion.library import preset_by_id as motion_by_id
     from ive.stickers.library import sticker_by_id
     from ive.transitions.library import transition_by_id
@@ -247,6 +264,8 @@ def preview_pack(path: str | Path) -> dict[str, Any]:
         "transitions": [str(v) for v in (contents.get("transitions") or [])],
         "stickers": [str(v) for v in (contents.get("stickers") or [])],
         "motion": [str(v) for v in (contents.get("motion") or [])],
+        "export_presets": [str(v) for v in
+                           (contents.get("export_presets") or [])],
     }
     duplicates = (
         sum(1 for v in ids["color_effects"] if effect_by_id(v) is not None)
@@ -254,6 +273,8 @@ def preview_pack(path: str | Path) -> dict[str, Any]:
               if transition_by_id(v) is not None)
         + sum(1 for v in ids["stickers"] if sticker_by_id(v) is not None)
         + sum(1 for v in ids["motion"] if motion_by_id(v) is not None)
+        + sum(1 for v in ids["export_presets"]
+              if export_by_id(v) is not None)
     )
     pack_id = _slug(str(manifest.get("id") or manifest.get("name") or
                         path.stem))
@@ -347,6 +368,7 @@ def installed_packs() -> list[dict[str, Any]]:
                 "transitions": len(contents.get("transitions") or []),
                 "stickers": len(contents.get("stickers") or []),
                 "motion": len(contents.get("motion") or []),
+                "export_presets": len(contents.get("export_presets") or []),
             },
             "folder": str(folder),
         })

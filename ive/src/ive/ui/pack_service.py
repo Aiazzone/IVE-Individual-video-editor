@@ -87,6 +87,7 @@ class PackService(QObject):
                 "transitions": counts["transitions"],
                 "stickers": counts["stickers"],
                 "motion": counts.get("motion", 0),
+                "exportPresets": counts.get("export_presets", 0),
             })
         return out
 
@@ -147,7 +148,8 @@ class PackService(QObject):
         """Build a ``.ivepack`` from the panel's selection.
 
         ``selection`` holds id lists per category: ``colors``,
-        ``transitions``, ``stickers``, ``motion`` - a map, so a new
+        ``transitions``, ``stickers``, ``motion``, ``export_presets`` -
+        a map, so a new
         category is a new key, not a new positional argument."""
         path = local_path_from_url(str(destination))
         selection = dict(selection or {})
@@ -161,7 +163,8 @@ class PackService(QObject):
                                 color_ids=ids("colors"),
                                 transition_ids=ids("transitions"),
                                 sticker_ids=ids("stickers"),
-                                motion_ids=ids("motion"))
+                                motion_ids=ids("motion"),
+                                export_preset_ids=ids("export_presets"))
         except (ValueError, OSError) as exc:
             log.exception("Pack export failed")
             self.error.emit(str(exc))
