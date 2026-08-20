@@ -58,6 +58,20 @@ Item {
         button on a selected sticker opens the Stickers panel there). */
     signal panelRequested(string key)
 
+    /*! The floating-panel section that edits a lane's clips. Tapping a
+        clip on the timeline opens it, so the tool for what was just
+        selected is already on screen: a title's words, a sticker's
+        catalogue and animation, a colour look, the media bin. */
+    readonly property var panelForKind: ({
+        video: "project", audio: "audio", color: "color",
+        sticker: "stickers", text: "text", transition: "transitions"
+    })
+    function openPanelFor(kind) {
+        var key = panelForKind[kind];
+        if (key !== undefined)
+            root.panelRequested(key);
+    }
+
     // The timeline shows the PROJECT, not whatever is in the preview. Those
     // are different things, and conflating them hid the fact that a project
     // holds many clips.
@@ -968,6 +982,7 @@ Item {
                                         root.selectedClipId = clip.modelData.id;
                                         root.selectedKind =
                                             lane.modelData.kind;
+                                        root.openPanelFor(lane.modelData.kind);
                                     }
                                     onDoubleTapped: {
                                         if (clip.modelData.id)

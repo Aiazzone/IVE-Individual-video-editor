@@ -119,9 +119,6 @@ Item {
 
         // ── tabs ──────────────────────────────────────────────────
         Segmented {
-            // While a sticker clip is selected the panel is ITS
-            // animation editor; the browse chrome would just distract.
-            visible: root.motionClip === null
             Layout.fillWidth: true
             value: root.tab
             model: [
@@ -132,34 +129,9 @@ Item {
             onPicked: function (v) { root.tab = v; root.section = ""; }
         }
 
-        // ── the SELECTED sticker's animation ──────────────────────
-        // Shown whenever a sticker clip is selected (on the timeline or
-        // by tapping it on the video): every card previews THIS sticker
-        // moved by THAT preset - still at rest, alive under the mouse.
-        CardGroup {
-            visible: root.motionClip !== null
-            title: (Tr.s["motion.section"] || "")
-                   + " — " + (root.motionClip !== null
-                              ? root.motionClip.name : "")
-
-            MotionPicker {
-                Layout.fillWidth: true
-                clip: root.motionClip
-                presets: Stickers.motion_presets()
-                still: root.motionClip !== null
-                    ? Stickers.still_url(root.motionClip.stickerId) : ""
-                stripFor: function (presetId) {
-                    return root.motionClip === null ? null
-                        : Stickers.motion_strip(root.motionClip.stickerId,
-                                                presetId);
-                }
-            }
-        }
-
         // ── the families of the open tab ──────────────────────────
         CardGroup {
             visible: root.section === "" && root.tab !== "favorites"
-                     && root.motionClip === null
             title: Tr.s["sticker.sections"] || ""
 
             Repeater {
@@ -226,8 +198,7 @@ Item {
 
         // ── the stickers: one family, or the favourites ───────────
         CardGroup {
-            visible: (root.section !== "" || root.tab === "favorites")
-                     && root.motionClip === null
+            visible: root.section !== "" || root.tab === "favorites"
             title: root.tab === "favorites"
                 ? (Tr.s["sticker.tab.favorites"] || "")
                 : root.sectionLabel(root.section)
@@ -378,6 +349,31 @@ Item {
                             }
                         }
                     }
+                }
+            }
+        }
+        // ── the SELECTED sticker's animation ──────────────────────
+        // Under the catalogue, like the Text panel's: shown whenever a
+        // sticker clip is selected (on the timeline or by tapping it on
+        // the video), browsing stays available above. Every card
+        // previews THIS sticker moved by THAT preset - still at rest,
+        // alive under the mouse.
+        CardGroup {
+            visible: root.motionClip !== null
+            title: (Tr.s["motion.section"] || "")
+                   + " — " + (root.motionClip !== null
+                              ? root.motionClip.name : "")
+
+            MotionPicker {
+                Layout.fillWidth: true
+                clip: root.motionClip
+                presets: Stickers.motion_presets()
+                still: root.motionClip !== null
+                    ? Stickers.still_url(root.motionClip.stickerId) : ""
+                stripFor: function (presetId) {
+                    return root.motionClip === null ? null
+                        : Stickers.motion_strip(root.motionClip.stickerId,
+                                                presetId);
                 }
             }
         }

@@ -788,3 +788,13 @@ In piu':
 8. [ ] Non riduce l'area libera senza riscalare il video
 9. [ ] Il suo stato (dimensione, posizione, apertura) e' persistito
 10. [ ] Testato a schermo intero su 1080p e su 4K
+
+## Tap sulla timeline → pannello (2026-08-20)
+
+Toccare un clip sulla timeline seleziona E apre la sezione del pannello
+fluttuante che lo modifica (`TimelinePanel.panelForKind`, segnale
+`panelRequested` → `Main.openSection`): video → `project` (media),
+audio → `audio`, color → `color`, sticker → `stickers`, text → `text`,
+transizione → `transitions`. Solo il TAP lo fa: l'inizio di un drag o
+di un trim seleziona senza cambiare pannello. Test:
+`tests/visual/test_timeline_autopanel.py`.

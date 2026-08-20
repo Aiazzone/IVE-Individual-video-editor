@@ -62,11 +62,13 @@ dentro `_blend_over`. Anteprima ed export identici per costruzione.
 
 ## 3. UI
 
-- **Il pannello Sticker e' l'editor dell'animazione del clip
-  selezionato**: selezioni uno sticker (timeline o tocco sul video —
-  selezione condivisa via Shell) e il pannello mostra la sezione
-  «Animazione — <nome>»: card «Nessuna» + una card per preset con il
-  chip del tipo (Entrata/Continua/Uscita). Ogni card mostra **QUESTO
+- **Il pannello Sticker mostra l'animazione del clip selezionato SOTTO
+  il catalogo** (rivisto il 2026-08-20 su feedback utente: prima
+  sostituiva il catalogo, ora lo affianca come nel pannello Testo):
+  selezioni uno sticker (timeline o tocco sul video — selezione
+  condivisa via Shell) e in fondo compare la sezione «Animazione —
+  <nome>»: card «Nessuna» + una card per preset con il chip del tipo
+  (Entrata/Continua/Uscita); tab e famiglie restano sopra. Ogni card mostra **QUESTO
   sticker mosso da QUEL preset**: fermo a riposo, vivo all'hover
   (striscia `Stickers.motion_strip`, stesso `AnimatedPreview` di
   transizioni e Lottie, cache su disco per (sticker, preset)).
