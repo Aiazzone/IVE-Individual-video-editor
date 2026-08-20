@@ -284,5 +284,6 @@
   "motion.set": "Apply animation",
   "motion.kind.in": "In",
   "motion.kind.out": "Out",
+  "text.motion_hint": "Entrances play over the title's first moments, exits end on its last, loops run throughout. Hover a card to see these words move.",
   "motion.kind.loop": "Loop"
 }

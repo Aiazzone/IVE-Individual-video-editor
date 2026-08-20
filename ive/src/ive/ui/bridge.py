@@ -186,7 +186,7 @@ def register_singletons(*, theme, translations, shell, actions,
                         project=None, export=None, proxies=None,
                         colorfx=None, thumbs=None, history=None,
                         waves=None, stickers=None, transitions=None,
-                        packs=None) -> None:
+                        packs=None, motion=None) -> None:
     """Expose the four singletons to QML under the ``IVE`` import namespace.
 
     .. warning::
@@ -241,4 +241,7 @@ def register_singletons(*, theme, translations, shell, actions,
     if packs is not None:
         qmlRegisterSingletonInstance(type(packs), "IVE", 1, 0,
                                      "Packs", packs)
+    if motion is not None:
+        qmlRegisterSingletonInstance(type(motion), "IVE", 1, 0,
+                                     "Motion", motion)
     log.debug("QML singletons registered under the IVE namespace")

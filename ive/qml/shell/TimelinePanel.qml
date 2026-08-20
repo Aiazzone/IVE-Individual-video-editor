@@ -361,10 +361,14 @@ Item {
           } },
         { icon: Icons.motion,
           label: Tr.s["motion.set"] || "",
-          kinds: ["sticker"],
-          // The Stickers panel becomes the selected sticker's animation
-          // editor (the selection is already shared through Shell).
-          run: function () { root.panelRequested("stickers"); } },
+          kinds: ["sticker", "text"],
+          // The Stickers (or Text) panel becomes the selected clip's
+          // animation editor (the selection is already shared through
+          // Shell).
+          run: function () {
+              root.panelRequested(root.selectedKind === "text"
+                                  ? "text" : "stickers");
+          } },
         { icon: Icons.trash,
           label: Tr.s["timeline.delete"] || "",
           kinds: ["video", "color", "sticker", "text", "transition"],

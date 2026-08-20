@@ -67,10 +67,6 @@ Item {
         return null;
     }
 
-    function kindLabel(kind) {
-        return Tr.s["motion.kind." + kind] || kind;
-    }
-
     // The ghost that follows the pointer lives on the WINDOW, not in this
     // panel: the panel clips its children, and the attached Drag publishes
     // its position only when its item MOVES - same pattern as the colour
@@ -146,134 +142,16 @@ Item {
                    + " — " + (root.motionClip !== null
                               ? root.motionClip.name : "")
 
-            Flow {
+            MotionPicker {
                 Layout.fillWidth: true
-                spacing: Theme.m.space2
-
-                // "None": the resting state, and the way back to it.
-                Item {
-                    objectName: "motion_none"
-                    width: 104
-                    height: 96
-                    Rectangle {
-                        width: 104
-                        height: 74
-                        radius: Theme.m.radiusSm
-                        color: Qt.alpha(Theme.c.glassOn, 0.06)
-                        border.width: root.motionClip !== null
-                                      && root.motionClip.motionId === ""
-                            ? 2 : 1
-                        border.color: root.motionClip !== null
-                                      && root.motionClip.motionId === ""
-                            ? Theme.c.accent
-                            : (noneHover.hovered
-                               ? Theme.c.accent
-                               : Qt.alpha(Theme.c.glassOn, 0.12))
-                        Glyph {
-                            anchors.centerIn: parent
-                            width: 22; height: 22
-                            path: Icons.close
-                            color: Theme.c.textDisabled
-                        }
-                    }
-                    Text {
-                        anchors.bottom: parent.bottom
-                        width: parent.width
-                        horizontalAlignment: Text.AlignHCenter
-                        text: Tr.s["motion.none"] || ""
-                        color: Theme.c.textMuted
-                        font.pixelSize: Theme.m.fontSizeXs
-                        elide: Text.ElideRight
-                    }
-                    HoverHandler { id: noneHover
-                                   cursorShape: Qt.PointingHandCursor }
-                    TapHandler {
-                        onTapped: Actions.invoke("timeline.set_clip_motion", {
-                            clip_id: root.motionClip.id, motion_id: ""
-                        })
-                    }
-                }
-
-                Repeater {
-                    model: root.motionClip !== null
-                        ? Stickers.motion_presets() : []
-                    delegate: Item {
-                        id: motionCard
-                        required property var modelData
-                        objectName: "motion_" + modelData.id
-                        width: 104
-                        height: 96
-
-                        readonly property bool current:
-                            root.motionClip !== null
-                            && root.motionClip.motionId === modelData.id
-
-                        Rectangle {
-                            width: 104
-                            height: 74
-                            radius: Theme.m.radiusSm
-                            color: Qt.alpha(Theme.c.glassOn, 0.06)
-                            border.width: motionCard.current ? 2 : 1
-                            border.color: motionCard.current
-                                ? Theme.c.accent
-                                : (motionHover.hovered
-                                   ? Theme.c.accent
-                                   : Qt.alpha(Theme.c.glassOn, 0.12))
-                            clip: true
-
-                            AnimatedPreview {
-                                anchors.fill: parent
-                                anchors.margins: 4
-                                stillFillMode: Image.PreserveAspectFit
-                                interval: 60
-                                still: root.motionClip !== null
-                                    ? Stickers.still_url(
-                                          root.motionClip.stickerId) : ""
-                                provider: function () {
-                                    return root.motionClip === null ? null
-                                        : Stickers.motion_strip(
-                                              root.motionClip.stickerId,
-                                              motionCard.modelData.id);
-                                }
-                            }
-
-                            Rectangle {
-                                anchors.top: parent.top
-                                anchors.left: parent.left
-                                anchors.margins: 4
-                                width: kindTag.implicitWidth + 10
-                                height: kindTag.implicitHeight + 4
-                                radius: height / 2
-                                color: Qt.alpha(Theme.c.accent, 0.25)
-                                Text {
-                                    id: kindTag
-                                    anchors.centerIn: parent
-                                    text: root.kindLabel(
-                                        motionCard.modelData.kind)
-                                    color: Theme.c.text
-                                    font.pixelSize: Theme.m.fontSizeXs
-                                }
-                            }
-                        }
-                        Text {
-                            anchors.bottom: parent.bottom
-                            width: parent.width
-                            horizontalAlignment: Text.AlignHCenter
-                            text: motionCard.modelData.name
-                            color: Theme.c.textMuted
-                            font.pixelSize: Theme.m.fontSizeXs
-                            elide: Text.ElideRight
-                        }
-                        HoverHandler { id: motionHover
-                                       cursorShape: Qt.PointingHandCursor }
-                        TapHandler {
-                            onTapped: Actions.invoke(
-                                "timeline.set_clip_motion", {
-                                    clip_id: root.motionClip.id,
-                                    motion_id: motionCard.modelData.id
-                                })
-                        }
-                    }
+                clip: root.motionClip
+                presets: Stickers.motion_presets()
+                still: root.motionClip !== null
+                    ? Stickers.still_url(root.motionClip.stickerId) : ""
+                stripFor: function (presetId) {
+                    return root.motionClip === null ? null
+                        : Stickers.motion_strip(root.motionClip.stickerId,
+                                                presetId);
                 }
             }
         }

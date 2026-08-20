@@ -284,5 +284,6 @@
   "motion.set": "Aplicar animación",
   "motion.kind.in": "Entrada",
   "motion.kind.out": "Salida",
+  "text.motion_hint": "Las entradas se reproducen en los primeros instantes del título, las salidas terminan en el último, las continuas duran todo el clip. Pasa sobre una tarjeta para ver moverse estas palabras.",
   "motion.kind.loop": "Continua"
 }

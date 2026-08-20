@@ -284,5 +284,6 @@
   "motion.set": "Applica animazione",
   "motion.kind.in": "Entrata",
   "motion.kind.out": "Uscita",
+  "text.motion_hint": "Le entrate suonano sui primi istanti del titolo, le uscite finiscono sul suo ultimo, le continue girano per tutta la durata. Passa sulle card per vedere muoversi queste parole.",
   "motion.kind.loop": "Continua"
 }

@@ -72,12 +72,29 @@ dentro `_blend_over`. Anteprima ed export identici per costruzione.
 - **Scorciatoia nel toolbox**: col clip sticker selezionato, il
   bottone «onde» nella toolbar della timeline apre il pannello Sticker
   gia' sulla sezione (segnale `panelRequested` → `openSection`).
-- I TITOLI hanno gia' tutto il motore (l'azione accetta clip di testo);
-  la sezione Animazione nel pannello Testo e' il prossimo passo.
+- **Anche i titoli** (2026-08-20): il pannello Testo mostra la sezione
+  «Animazione» sotto l'editor dello stile del titolo selezionato. Le
+  card sono le STESSE degli sticker — componente condiviso
+  `components/MotionPicker.qml` (card «Nessuna» + una per preset, chip
+  del tipo, bordo accent sulla corrente, un undo per scelta); l'host
+  decide solo still e striscia. Per i titoli: `Motion.text_still_url`
+  (raster delle parole in quello stile) e `Motion.text_strip` (le
+  parole mosse dalla ricetta; la chiave di cache include parole, font,
+  colore, contorno, B/I e preset). Il bottone «onde» del toolbox apre
+  il pannello Testo quando la selezione e' un titolo.
+- Servizio `Motion` (`ui/motion_service.py`): `presets` localizzati,
+  strisce testo, `refresh()` al cambio pack. La composizione delle
+  strisce e' in `ive/motion/preview.py` (`compose_strip`): un solo
+  compositore per sticker e titoli, il chiamante fornisce
+  `still(height_px, rotation)`.
 
 Test: `tests/test_motion.py` (catalogo, evaluatore con ancoraggi e
 degradazioni, pixel del grafo per pulse/fade_in/drop_in, modello+undo,
 transport e span d'export, split), `tests/visual/test_motion_ui.py`
 (tocco sul video → sezione nel pannello, hover che anima, card che
 applica con un undo, «Nessuna», bottone del toolbox che apre il
-pannello).
+pannello), `tests/visual/test_text_motion_ui.py` (lo stesso per un
+titolo, con la prova sui pixel che le parole si spostano al primo
+frame e il toolbox che apre il pannello TESTO). Trappola: le card
+stanno sotto la piega del pannello — il test scorre il Flickable
+prima di cliccare.

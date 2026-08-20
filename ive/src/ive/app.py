@@ -96,6 +96,7 @@ class Application:
         # exists, or PySide6 corrupts type resolution for every component
         # loaded afterwards. See register_singletons() for the full symptom.
         from ive.ui.color_service import ColorLibraryService
+        from ive.ui.motion_service import MotionService
         from ive.ui.pack_service import PackService
         from ive.ui.sticker_service import StickerLibraryService
         from ive.ui.thumbnails import ThumbnailService
@@ -106,8 +107,10 @@ class Application:
         self.stickers = StickerLibraryService(self.translations, self.settings)
         self.transitions = TransitionLibraryService(self.translations,
                                                     self.settings)
+        self.motion = MotionService(self.translations)
         self.packs = PackService(self.translations, self.colorfx,
-                                 self.stickers, self.transitions)
+                                 self.stickers, self.transitions,
+                                 motion=self.motion, export=self.export)
         self.context.extras["packs"] = self.packs
         self.thumbs = ThumbnailService()
         self.waves = WaveformService()
@@ -127,6 +130,7 @@ class Application:
             stickers=self.stickers,
             transitions=self.transitions,
             packs=self.packs,
+            motion=self.motion,
         )
         # Same rule as the singletons: register before the engine exists.
         qmlRegisterType(PreviewItem, "IVE", 1, 0, "PreviewItem")

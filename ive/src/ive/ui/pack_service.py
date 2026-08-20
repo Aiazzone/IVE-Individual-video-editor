@@ -35,12 +35,15 @@ class PackService(QObject):
     error = Signal(str)
 
     def __init__(self, translations=None, colorfx=None, stickers=None,
-                 transitions=None, parent: QObject | None = None) -> None:
+                 transitions=None, parent: QObject | None = None, *,
+                 motion=None, export=None) -> None:
         super().__init__(parent)
         self._translations = translations
         self._colorfx = colorfx
         self._stickers = stickers
         self._transitions = transitions
+        self._motion = motion
+        self._export = export
         self._pending: dict[str, Any] = {}
 
     def _language(self) -> str:
@@ -58,7 +61,8 @@ class PackService(QObject):
 
     def _refresh_catalogues(self) -> None:
         """Installed content must appear (or vanish) everywhere at once."""
-        for service in (self._colorfx, self._stickers, self._transitions):
+        for service in (self._colorfx, self._stickers, self._transitions,
+                        self._motion, self._export):
             if service is not None:
                 try:
                     service.refresh()

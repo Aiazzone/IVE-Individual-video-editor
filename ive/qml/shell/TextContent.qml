@@ -333,6 +333,43 @@ Item {
             }
         }
 
+        // ── the selected title's animation ────────────────────────
+        // Same cards as the Stickers panel: every one previews THESE
+        // words, in THIS style, moved by THAT preset.
+        CardGroup {
+            visible: root.view === "" && root.textClip !== null
+            title: Tr.s["motion.section"] || ""
+
+            MotionPicker {
+                Layout.fillWidth: true
+                clip: root.textClip
+                presets: Motion.presets
+                still: root.textClip !== null
+                    ? Motion.text_still_url(root.textClip.text,
+                                            root.textClip.font,
+                                            root.textClip.color,
+                                            root.textClip.outline,
+                                            root.textClip.bold,
+                                            root.textClip.italic) : ""
+                stripFor: function (presetId) {
+                    var c = root.textClip;
+                    return c === null ? null
+                        : Motion.text_strip(c.text, c.font, c.color,
+                                            c.outline, c.bold, c.italic,
+                                            presetId);
+                }
+            }
+
+            Text {
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                text: Tr.s["text.motion_hint"] || ""
+                color: Theme.c.textDisabled
+                font.pixelSize: Theme.m.fontSizeXs
+                lineHeight: 1.35
+            }
+        }
+
         // ── the font list ─────────────────────────────────────────
         CardGroup {
             visible: root.view === "font"
