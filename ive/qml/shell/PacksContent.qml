@@ -223,6 +223,7 @@ Item {
             Layout.fillWidth: true
             value: root.tab
             model: [
+                { value: "official", text: Tr.s["pack.tab.official"] || "" },
                 { value: "installed", text: Tr.s["pack.tab.installed"] || "" },
                 { value: "create", text: Tr.s["pack.tab.create"] || "" }
             ]
@@ -537,6 +538,157 @@ Item {
             text: root.status
             color: Theme.c.textMuted
             font.pixelSize: Theme.m.fontSizeXs
+        }
+
+        // ═══ UFFICIALI ══════════════════════════════════════════════
+        // The catalogue shipped with the app (config/defaults/packs/
+        // catalog.json): what exists, how big, installed or not, and a
+        // button that downloads, verifies and installs in the background.
+        CardGroup {
+            visible: root.tab === "official"
+            title: Tr.s["pack.official"] || ""
+
+            Text {
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                text: Tr.s["pack.official_hint"] || ""
+                color: Theme.c.textDisabled
+                font.pixelSize: Theme.m.fontSizeXs
+                lineHeight: 1.35
+            }
+
+            Repeater {
+                model: Packs.official
+                delegate: Rectangle {
+                    id: offRow
+                    required property var modelData
+                    objectName: "pack_official_" + modelData.id
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 60
+                    radius: Theme.m.radiusLg
+                    color: Qt.alpha(Theme.c.glassOn, 0.05)
+
+                    // The download bar fills the row from the left.
+                    Rectangle {
+                        anchors { left: parent.left; top: parent.top
+                                  bottom: parent.bottom }
+                        width: parent.width * offRow.modelData.progress
+                        visible: offRow.modelData.state === "downloading"
+                        radius: Theme.m.radiusLg
+                        color: Qt.alpha(Theme.c.accent, 0.18)
+                    }
+
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: Theme.m.space3
+                        anchors.rightMargin: Theme.m.space2
+                        spacing: Theme.m.space3
+                        Rectangle {
+                            width: 34; height: 34
+                            radius: Theme.m.radiusLg
+                            color: Qt.alpha(Theme.c.clipMusic, 0.9)
+                            Glyph {
+                                anchors.centerIn: parent
+                                width: 17; height: 17
+                                path: Icons.audio
+                                color: "#FFFFFF"
+                            }
+                        }
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 2
+                            Text {
+                                Layout.fillWidth: true
+                                text: offRow.modelData.name
+                                color: Theme.c.text
+                                font.pixelSize: Theme.m.fontSizeSm + 1
+                                elide: Text.ElideRight
+                            }
+                            Text {
+                                Layout.fillWidth: true
+                                text: offRow.modelData.description + " · "
+                                      + offRow.modelData.sizeMb + " MB · "
+                                      + offRow.modelData.license
+                                color: Theme.c.textDisabled
+                                font.pixelSize: Theme.m.fontSizeXs
+                                elide: Text.ElideRight
+                            }
+                        }
+                        // installed: a check; downloading: the percentage;
+                        // otherwise: the download button.
+                        Glyph {
+                            visible: offRow.modelData.state === "installed"
+                            width: 18; height: 18
+                            path: Icons.check
+                            color: Theme.c.success
+                        }
+                        Text {
+                            visible: offRow.modelData.state === "downloading"
+                                     || offRow.modelData.state === "queued"
+                            text: offRow.modelData.state === "queued"
+                                ? (Tr.s["pack.queued"] || "")
+                                : Math.round(offRow.modelData.progress * 100) + "%"
+                            color: Theme.c.textMuted
+                            font.pixelSize: Theme.m.fontSizeXs
+                            font.family: "monospace"
+                        }
+                        IconButton {
+                            objectName: "pack_download_" + offRow.modelData.id
+                            visible: offRow.modelData.state === "idle"
+                                     || offRow.modelData.state === "error"
+                            size: 28; iconSize: 16
+                            icon: Icons.exportIcon
+                            rotation: 0
+                            label: Tr.s["pack.download"] || ""
+                            onTriggered: Actions.invoke("pack.download",
+                                { pack_ids: [offRow.modelData.id] })
+                        }
+                    }
+                }
+            }
+
+            Rectangle {
+                objectName: "pack_download_all"
+                visible: Packs.official.some(function (p) {
+                    return p.state === "idle" || p.state === "error";
+                })
+                Layout.fillWidth: true
+                Layout.preferredHeight: 40
+                radius: Theme.m.radiusLg
+                color: allHover.hovered ? Theme.c.accentHover : Theme.c.accent
+                Text {
+                    anchors.centerIn: parent
+                    text: Tr.s["pack.download_all"] || ""
+                    color: Theme.c.onAccent
+                    font.pixelSize: Theme.m.fontSizeMd
+                    font.bold: true
+                }
+                HoverHandler { id: allHover; cursorShape: Qt.PointingHandCursor }
+                TapHandler {
+                    onTapped: Actions.invoke("pack.download", {
+                        pack_ids: Packs.official.filter(function (p) {
+                            return p.state === "idle" || p.state === "error";
+                        }).map(function (p) { return p.id; })
+                    })
+                }
+            }
+            Rectangle {
+                visible: Packs.downloading
+                Layout.fillWidth: true
+                Layout.preferredHeight: 34
+                radius: Theme.m.radiusLg
+                color: "transparent"
+                border.width: 1
+                border.color: Theme.c.borderStrong
+                Text {
+                    anchors.centerIn: parent
+                    text: Tr.s["pack.cancel_downloads"] || ""
+                    color: Theme.c.textMuted
+                    font.pixelSize: Theme.m.fontSizeSm
+                }
+                HoverHandler { cursorShape: Qt.PointingHandCursor }
+                TapHandler { onTapped: Packs.cancel_downloads() }
+            }
         }
 
         // ═══ INSTALLATI ═════════════════════════════════════════════

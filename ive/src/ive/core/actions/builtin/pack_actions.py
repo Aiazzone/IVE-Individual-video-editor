@@ -72,3 +72,30 @@ def install(ctx, path: str):
 def remove(ctx, pack_id: str):
     if not ctx.require("packs").remove(pack_id):
         raise RuntimeError(f"No installed pack {pack_id!r}")
+
+
+@action(
+    id="pack.download",
+    title_key="pack.download",
+    desc_key="Download an official content pack from the catalogue "
+             "(a GitHub release asset), verify its hash and install it. "
+             "Runs in the background; pack_ids may list several.",
+    category="packs",
+    params={"pack_ids": Param(list, required=True)},
+)
+def download(ctx, pack_ids: list):
+    started = ctx.require("packs").download_many([str(v) for v in pack_ids or []])
+    if not started and pack_ids:
+        raise RuntimeError("No download started (unknown or already installed)")
+
+
+@action(
+    id="pack.dismiss_offer",
+    title_key="pack.later",
+    desc_key="Close the first-run card offering the official packs; the "
+             "packs stay available under Packs > Official.",
+    category="packs",
+    params={},
+)
+def dismiss_offer(ctx):
+    ctx.require("settings").set("packs.offer_shown", True)

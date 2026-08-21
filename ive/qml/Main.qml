@@ -335,6 +335,12 @@ Window {
             anchors.fill: parent
             z: 50
         }
+        // The one-time offer of the official packs (catalogue shipped
+        // with the app, files on GitHub Releases).
+        OfficialPacksOverlay {
+            anchors.fill: parent
+            z: 51
+        }
 
         FloatingPanel {
             id: panel

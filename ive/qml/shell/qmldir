@@ -19,3 +19,5 @@ TransitionsContent 1.0 TransitionsContent.qml
 PacksContent 1.0 PacksContent.qml
 PackInstallOverlay 1.0 PackInstallOverlay.qml
 IdleBackdrop 1.0 IdleBackdrop.qml
+OfficialPacksOverlay 1.0 OfficialPacksOverlay.qml
+AudioContent 1.0 AudioContent.qml

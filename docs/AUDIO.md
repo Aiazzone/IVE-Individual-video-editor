@@ -154,8 +154,9 @@ l'audio di tutte le tracce.
   ambient, upbeat, lofi, chill, pop, corporate (`--dry-run` elenca
   senza scaricare). Ogni brano porta URL, licenza **CC BY 4.0** e riga di
   attribuzione; `LICENSE.txt` nel pack. Output in `packs_out/` (~50-65 MB
-  l'uno, NON in git: lo script e' la sorgente). Tutti e sette installati
-  nell'user_data dell'utente il 2026-08-20.
+  l'uno, NON in git: lo script e' la sorgente). Pubblicati come asset
+  della release GitHub `music-packs-v1` e offerti dall'app al primo avvio
+  / in Pacchetti → Ufficiali (`CONTENT_PACKS.md` §0).
 
 Test: `tests/test_music.py` (libreria da pack sandbox + cartella utente,
 piazzamento singolo e a copertura con undo che toglie anche il pool,

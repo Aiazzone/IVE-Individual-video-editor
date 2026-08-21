@@ -111,6 +111,9 @@ SETTINGS: dict[str, Setting] = {
         _s("shell.panel_autohide", True, bool),
         _s("shell.panel_hide_delay_ms", 600, int, minimum=0, maximum=3000),
         _s("shell.panel_pinned", False, bool),
+        _s("packs.offer_shown", False, bool,
+           doc="The first-run card offering the official packs was shown "
+               "(accepted or dismissed); it is never shown again."),
         _s("shell.ambient_backdrop", True, bool),
 
         # ── colour effects ─────────────────────────────────────────────

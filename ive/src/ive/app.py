@@ -204,6 +204,7 @@ class Application:
 
         self.watchdog.stop()
         self.proxies.shutdown()
+        self.packs.shutdown()
         self.export.shutdown()
         self.project.close()
         self.playback.shutdown()

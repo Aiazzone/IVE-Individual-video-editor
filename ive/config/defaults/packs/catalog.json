@@ -1,0 +1,111 @@
+{
+  "schema_version": 1,
+  "updated": "2026-08-21",
+  "packs": [
+    {
+      "id": "ive-music-business",
+      "name": {"en": "Business music", "it": "Musica business"},
+      "description": {
+        "en": "9 instrumental, vocal-free tracks for technical and corporate videos.",
+        "it": "9 brani strumentali senza voce per video tecnici e aziendali."
+      },
+      "kind": "music",
+      "version": "1.0",
+      "size": 64354370,
+      "sha256": "d89775dfc85ce5d70f0afb813237b8400d3537a13aca9ea1b4ac3c0c706eecf3",
+      "url": "https://github.com/Aiazzone/IVE-Individual-video-editor/releases/download/music-packs-v1/ive-music-business.ivepack",
+      "license": "CC-BY-4.0",
+      "author": "Kevin MacLeod (incompetech.com)"
+    },
+    {
+      "id": "ive-music-ambient",
+      "name": {"en": "Ambient music", "it": "Musica ambient"},
+      "description": {
+        "en": "8 slow, airy beds for calm scenes and voice-overs.",
+        "it": "8 tappeti lenti e ariosi per scene calme e voce fuori campo."
+      },
+      "kind": "music",
+      "version": "1.0",
+      "size": 58543883,
+      "sha256": "6cf635f75de726cfbfea8e52cd5937751c4e3296888e93d0b2585340bc3a1d1b",
+      "url": "https://github.com/Aiazzone/IVE-Individual-video-editor/releases/download/music-packs-v1/ive-music-ambient.ivepack",
+      "license": "CC-BY-4.0",
+      "author": "Kevin MacLeod (incompetech.com)"
+    },
+    {
+      "id": "ive-music-upbeat",
+      "name": {"en": "Upbeat music", "it": "Musica upbeat"},
+      "description": {
+        "en": "8 bright, driving tracks for energetic cuts.",
+        "it": "8 brani luminosi e incalzanti per montaggi energici."
+      },
+      "kind": "music",
+      "version": "1.0",
+      "size": 57371373,
+      "sha256": "6b5bd2507f1b8633540749c0a99249acb95eeb4fea8a8e914b9ae98ac201baea",
+      "url": "https://github.com/Aiazzone/IVE-Individual-video-editor/releases/download/music-packs-v1/ive-music-upbeat.ivepack",
+      "license": "CC-BY-4.0",
+      "author": "Kevin MacLeod (incompetech.com)"
+    },
+    {
+      "id": "ive-music-lofi",
+      "name": {"en": "Lo-fi music", "it": "Musica lo-fi"},
+      "description": {
+        "en": "8 laid-back grooves at study-session tempo.",
+        "it": "8 groove rilassati a tempo da sessione di studio."
+      },
+      "kind": "music",
+      "version": "1.0",
+      "size": 70443164,
+      "sha256": "d24e3da9026fecfcc2795bf5a8c91737975c1dda79b02f5546d8812ab9f8cea6",
+      "url": "https://github.com/Aiazzone/IVE-Individual-video-editor/releases/download/music-packs-v1/ive-music-lofi.ivepack",
+      "license": "CC-BY-4.0",
+      "author": "Kevin MacLeod (incompetech.com)"
+    },
+    {
+      "id": "ive-music-chill",
+      "name": {"en": "Chill music", "it": "Musica chill"},
+      "description": {
+        "en": "8 easy-going, warm tracks, never in a hurry.",
+        "it": "8 brani distesi e caldi, mai di fretta."
+      },
+      "kind": "music",
+      "version": "1.0",
+      "size": 67625771,
+      "sha256": "0f2c1aced575fadf727bd1509fff64bc40101e595aaa361bf22576e650e9b550",
+      "url": "https://github.com/Aiazzone/IVE-Individual-video-editor/releases/download/music-packs-v1/ive-music-chill.ivepack",
+      "license": "CC-BY-4.0",
+      "author": "Kevin MacLeod (incompetech.com)"
+    },
+    {
+      "id": "ive-music-pop",
+      "name": {"en": "Pop music", "it": "Musica pop"},
+      "description": {
+        "en": "8 catchy instrumental pop tracks for social cuts.",
+        "it": "8 brani pop strumentali orecchiabili per i video social."
+      },
+      "kind": "music",
+      "version": "1.0",
+      "size": 53305810,
+      "sha256": "81d00f71fe2afe0c8b4a81cca8742fbcf921dfd50f931da3ea0f3038e17514fa",
+      "url": "https://github.com/Aiazzone/IVE-Individual-video-editor/releases/download/music-packs-v1/ive-music-pop.ivepack",
+      "license": "CC-BY-4.0",
+      "author": "Kevin MacLeod (incompetech.com)"
+    },
+    {
+      "id": "ive-music-corporate",
+      "name": {"en": "Corporate music", "it": "Musica corporate"},
+      "description": {
+        "en": "8 clean, confident beds for presentations and explainers.",
+        "it": "8 tappeti puliti e sicuri per presentazioni e video esplicativi."
+      },
+      "kind": "music",
+      "version": "1.0",
+      "size": 58238752,
+      "sha256": "fc221269867cff913e192354448445471ad4fb1e9257eb2bf78f963caac4f037",
+      "url": "https://github.com/Aiazzone/IVE-Individual-video-editor/releases/download/music-packs-v1/ive-music-corporate.ivepack",
+      "license": "CC-BY-4.0",
+      "author": "Kevin MacLeod (incompetech.com)"
+    }
+  ]
+}

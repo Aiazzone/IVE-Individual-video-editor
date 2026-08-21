@@ -37,6 +37,25 @@ con queste scelte concrete della v1:
   (`PackInstallOverlay.qml`): nome, autore, contenuti, avviso sui
   duplicati — mostrare, mai far approvare. Il drop di un `.ivepack`
   sulla finestra arriva alla stessa carta.
+- **Pack ufficiali** (2026-08-21): i file pesanti NON stanno nel repo ma
+  su **GitHub Releases** (`music-packs-v1`: 7 pack musicali, ~430 MB).
+  Nel repo c'e' il **catalogo** `ive/config/defaults/packs/catalog.json`
+  (id, nome, descrizione, dimensione, URL, **SHA-256**). `ive/packs/
+  official.py` scarica su file temporaneo, verifica l'hash e solo poi
+  passa da `install_pack` (la stessa porta del drop); hash sbagliato =
+  file cancellato; niente di scaricato viene eseguito. `PackService` ha
+  un worker thread con coda (un download alla volta, progresso, annulla)
+  e la lista `official` con stato idle/queued/downloading/installed/
+  error. UI: tab «Ufficiali» nel pannello Pacchetti (scarica / scarica
+  tutti / annulla) e **carta di primo avvio** `OfficialPacksOverlay.qml`,
+  mostrata UNA volta (`packs.offer_shown`) solo se c'e' qualcosa da
+  installare: spunte per pack con peso, «Scarica» o «Piu' tardi» — mai
+  download in silenzio. Azioni `pack.download`, `pack.dismiss_offer`.
+  Test: `tests/test_official_packs.py` (file:// come asset, hash, cancel,
+  residui, worker), `tests/visual/test_official_packs_ui.py`.
+  Trappola: un componente nuovo in `ive/qml/shell/` va registrato in
+  `shell/qmldir`, altrimenti Main.qml non si crea (la cache QML puo'
+  nascondere l'errore a un test lanciato subito dopo).
 - **Azioni**: `pack.create` (con `color_ids`, `transition_ids`,
   `sticker_ids`, `motion_ids`, `export_preset_ids`,
   `audio_effect_ids`, `track_ids`), `pack.install`,
