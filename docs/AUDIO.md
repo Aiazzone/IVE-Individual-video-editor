@@ -137,11 +137,18 @@ l'audio di tutte le tracce.
   ritorna False invece di lasciare residui; un residuo senza
   `pack.json` viene comunque ripulito al tentativo successivo.
   `Music.refresh()` ferma l'anteprima e rilascia il file.
-- **Pack ufficiale «Business music»**: `build_scripts/make_music_pack.py`
-  scarica 9 brani strumentali di Kevin MacLeod (incompetech.com,
-  **CC BY 4.0**), compila licenza/attribuzione per brano e produce
-  `packs_out/ive-music-business.ivepack` (~61 MB, NON in git: lo script
-  e' la sorgente). Installato nell'user_data dell'utente il 2026-08-20.
+- **Pack ufficiali** (`build_scripts/make_music_pack.py`): incompetech
+  espone il catalogo di Kevin MacLeod come dati (`pieces.json`,
+  `genre.json`, vedi `https://incompetech.com/llms.txt`), quindi ogni
+  pack e' una **regola di categoria** sul catalogo — generi, mood
+  («feel»), finestra di bpm, durata 1–8 min, niente voce (filtro su
+  strumenti/descrizione), 8 brani piu' recenti — piu' la lista a mano
+  di «Business» (il primo pack, tenuto stabile). Categorie: business,
+  ambient, upbeat, lofi, chill, pop, corporate (`--dry-run` elenca
+  senza scaricare). Ogni brano porta URL, licenza **CC BY 4.0** e riga di
+  attribuzione; `LICENSE.txt` nel pack. Output in `packs_out/` (~50-65 MB
+  l'uno, NON in git: lo script e' la sorgente). Tutti e sette installati
+  nell'user_data dell'utente il 2026-08-20.
 
 Test: `tests/test_music.py` (libreria da pack sandbox + cartella utente,
 piazzamento singolo e a copertura con undo che toglie anche il pool,
