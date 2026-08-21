@@ -234,7 +234,8 @@ class _Worker(QObject):
                     use_proxies=False,
                     color_spans=list(options.get("color_spans") or []),
                     sticker_spans=sticker_spans, text_spans=text_spans,
-                    transition_spans=transition_spans)
+                    transition_spans=transition_spans,
+                    music_spans=list(options.get("music_spans") or []))
                 walker = SequenceWalker(graph, want_image=True,
                                         want_audio=True)
                 total = graph.length
@@ -569,6 +570,9 @@ class ExportService(QObject):
             cuts = getattr(self._playback, "sequence_transition_spans", None)
             if callable(cuts):
                 options["transition_spans"] = cuts()
+            music = getattr(self._playback, "sequence_music_spans", None)
+            if callable(music):
+                options["music_spans"] = music()
 
         self._running = True
         self._done = 0

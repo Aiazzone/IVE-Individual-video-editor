@@ -102,8 +102,15 @@ Updated together with the code, so this file always reflects reality.
 
 ## 🔨 In progress / next up
 
-- [ ] Music library: royalty-free tracks by category (business, ambient,
-      upbeat...) as content packs, with preview and drag onto A1
+- [x] Music library and a Music lane: tracks from packs and from
+      user_data/music, by category, with preview; "+" lays a track at
+      the playhead under the cut, repeating until the cut ends; the
+      official "Business music" pack (9 Kevin MacLeod tracks, CC BY 4.0)
+      is built by build_scripts/make_music_pack.py
+
+
+- [ ] Music: ducking (lower the bed under speech), beat markers,
+      more packs (ambient, upbeat, cinematic) from CC0/CC-BY sources
 
 - [ ] docs/ARCHITECTURE.md module tree refresh (engine/, stickers/,
       text/, color/, motion/, packs/ are missing from the plan's tree)

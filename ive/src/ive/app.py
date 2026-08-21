@@ -98,6 +98,7 @@ class Application:
         from ive.ui.color_service import ColorLibraryService
         from ive.ui.audio_service import AudioLibraryService
         from ive.ui.motion_service import MotionService
+        from ive.ui.music_service import MusicService
         from ive.ui.pack_service import PackService
         from ive.ui.sticker_service import StickerLibraryService
         from ive.ui.thumbnails import ThumbnailService
@@ -110,10 +111,12 @@ class Application:
                                                     self.settings)
         self.motion = MotionService(self.translations)
         self.audiofx = AudioLibraryService(self.translations, self.settings)
+        self.music = MusicService(self.translations, self.settings,
+                                  self.playback)
         self.packs = PackService(self.translations, self.colorfx,
                                  self.stickers, self.transitions,
                                  motion=self.motion, export=self.export,
-                                 audiofx=self.audiofx)
+                                 audiofx=self.audiofx, music=self.music)
         self.context.extras["packs"] = self.packs
         self.thumbs = ThumbnailService()
         self.waves = WaveformService()
@@ -135,6 +138,7 @@ class Application:
             packs=self.packs,
             motion=self.motion,
             audiofx=self.audiofx,
+            music=self.music,
         )
         # Same rule as the singletons: register before the engine exists.
         qmlRegisterType(PreviewItem, "IVE", 1, 0, "PreviewItem")

@@ -63,7 +63,7 @@ Item {
         selected is already on screen: a title's words, a sticker's
         catalogue and animation, a colour look, the media bin. */
     readonly property var panelForKind: ({
-        video: "project", audio: "audio", color: "color",
+        video: "project", audio: "audio", music: "audio", color: "color",
         sticker: "stickers", text: "text", transition: "transitions"
     })
     function openPanelFor(kind) {
@@ -122,6 +122,18 @@ Item {
                                       color: Theme.c.clipSticker,
                                       name: c.name, film: false,
                                       id: c.id, wave: false };
+                         }) });
+        var mu = clips.filter(function (c) { return c.track === 4; });
+        if (mu.length > 0)
+            lanes.push({ name: "Music", kind: "music", audio: true,
+                         height: Theme.m.trackHeightAudio,
+                         clips: mu.map(function (c) {
+                             return { from: c.start, to: c.end,
+                                      color: Theme.c.clipMusic,
+                                      name: c.name, film: false,
+                                      id: c.id, wave: true,
+                                      path: c.path, sourceIn: c.sourceIn,
+                                      mediaDuration: c.mediaDuration };
                          }) });
         var tx = clips.filter(function (c) { return c.track === 3; });
         if (tx.length > 0)
@@ -344,7 +356,7 @@ Item {
     readonly property var contextActions: [
         { icon: Icons.split,
           label: Tr.s["timeline.split"] || "",
-          kinds: ["video", "audio", "color", "sticker", "text"],
+          kinds: ["video", "audio", "music", "color", "sticker", "text"],
           can: function (clip) {
               return root.position > clip.start + 0.05
                   && root.position < clip.end - 0.05;
@@ -355,7 +367,7 @@ Item {
           } },
         { icon: Icons.volumeOff,
           label: Tr.s["timeline.mute_clip"] || "",
-          kinds: ["audio"],
+          kinds: ["audio", "music"],
           // `active` lights the button (accent) while the state is on -
           // without it a toggle gives no clue about which way it stands.
           active: function (clip) { return clip.muted === true; },
@@ -385,7 +397,7 @@ Item {
           } },
         { icon: Icons.trash,
           label: Tr.s["timeline.delete"] || "",
-          kinds: ["video", "color", "sticker", "text", "transition"],
+          kinds: ["video", "music", "color", "sticker", "text", "transition"],
           run: function () { root.deleteSelected(); } },
         { icon: Icons.trash,
           label: Tr.s["timeline.remove_audio"] || "",
@@ -451,7 +463,8 @@ Item {
             // it so the drag still reads instantly.
             AppSlider {
                 id: clipVolume
-                visible: root.selectedKind === "audio"
+                visible: (root.selectedKind === "audio"
+                          || root.selectedKind === "music")
                          && root.selectedClipData !== null
                 Layout.preferredWidth: 120
                 from: 0

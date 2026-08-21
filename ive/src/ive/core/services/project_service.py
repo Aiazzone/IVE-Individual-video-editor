@@ -418,6 +418,55 @@ class ProjectService(QObject):
         return self._edit("timeline.mute_clip",
                           lambda: self._project.set_clip_muted(clip_id, muted))
 
+    @Slot(str, float, bool, result=bool)
+    def place_music(self, path: str, at: float, cover: bool = False) -> bool:
+        """Lay a music file on the Music lane at ``at`` seconds.
+
+        The file joins the pool if it is not there yet (one probe, outside
+        the recorded edit, like import). With ``cover`` the track repeats
+        back to back until the A/V cut ends - a loop without a seam the
+        user has to draw. One undo step for the whole placement.
+        """
+        if self._project is None:
+            return False
+        path = Path(_strip_url(str(path)))
+        if not path.is_file():
+            log.warning("Music file missing: %s", path)
+            return False
+        item = next((m for m in self._project.media
+                     if Path(m.path) == path), None)
+        new_item = None
+        if item is None:
+            new_item = self._probe_to_item(path)
+            if new_item is None:
+                return False
+            item = new_item
+        length = float(item.duration or 0.0)
+        if length <= 0.1:
+            log.warning("Music file has no duration: %s", path)
+            return False
+        at = max(0.0, float(at))
+        cut_end = max((c.end for c in self._project.timeline if c.track == 0),
+                      default=0.0)
+        pieces: list[tuple[float, float]] = []
+        if cover and cut_end > at + 0.1:
+            cursor = at
+            while cursor < cut_end - 0.05:
+                pieces.append((cursor, min(length, cut_end - cursor)))
+                cursor += length
+        else:
+            pieces.append((at, length))
+
+        def mutate():
+            if new_item is not None:
+                self._project.add_media(new_item)
+            for start, duration in pieces:
+                self._project.add_music(item.id, start, duration)
+            return True
+
+        return self._edit("timeline.place_music", mutate,
+                          media=new_item is not None)
+
     @Slot(str, str, result=bool)
     def set_clip_audio_effect(self, clip_id: str, effect_id: str) -> bool:
         """Apply an audio effect recipe to one clip's sound ("" = none)."""

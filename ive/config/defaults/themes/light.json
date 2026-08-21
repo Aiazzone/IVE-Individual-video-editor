@@ -29,6 +29,8 @@
 
     "clipVideo": "#2D6BD4",
     "clipAudio": "#177C50",
+
+    "clipMusic": "#A4620F",
     "clipText": "#7C3AED",
     "clipImage": "#C2660A",
     "clipAdjustment": "#6B7280",

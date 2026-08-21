@@ -36,7 +36,8 @@ class PackService(QObject):
 
     def __init__(self, translations=None, colorfx=None, stickers=None,
                  transitions=None, parent: QObject | None = None, *,
-                 motion=None, export=None, audiofx=None) -> None:
+                 motion=None, export=None, audiofx=None,
+                 music=None) -> None:
         super().__init__(parent)
         self._translations = translations
         self._colorfx = colorfx
@@ -45,6 +46,7 @@ class PackService(QObject):
         self._motion = motion
         self._export = export
         self._audiofx = audiofx
+        self._music = music
         self._pending: dict[str, Any] = {}
 
     def _language(self) -> str:
@@ -63,7 +65,8 @@ class PackService(QObject):
     def _refresh_catalogues(self) -> None:
         """Installed content must appear (or vanish) everywhere at once."""
         for service in (self._colorfx, self._stickers, self._transitions,
-                        self._motion, self._export, self._audiofx):
+                        self._motion, self._export, self._audiofx,
+                        self._music):
             if service is not None and hasattr(service, "refresh"):
                 try:
                     service.refresh()
@@ -90,6 +93,7 @@ class PackService(QObject):
                 "motion": counts.get("motion", 0),
                 "exportPresets": counts.get("export_presets", 0),
                 "audioEffects": counts.get("audio_effects", 0),
+                "music": counts.get("music", 0),
             })
         return out
 
@@ -167,7 +171,8 @@ class PackService(QObject):
                                 sticker_ids=ids("stickers"),
                                 motion_ids=ids("motion"),
                                 export_preset_ids=ids("export_presets"),
-                                audio_effect_ids=ids("audio_effects"))
+                                audio_effect_ids=ids("audio_effects"),
+                                track_ids=ids("music"))
         except (ValueError, OSError) as exc:
             log.exception("Pack export failed")
             self.error.emit(str(exc))

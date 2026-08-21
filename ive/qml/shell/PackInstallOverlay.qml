@@ -123,7 +123,10 @@ Item {
                           icon: Icons.exportIcon, tint: Theme.c.textMuted },
                         { label: Tr.s["pack.cat.audio_effects"] || "",
                           count: root.pack.counts.audio_effects || 0,
-                          icon: Icons.audio, tint: Theme.c.clipAudio }
+                          icon: Icons.audio, tint: Theme.c.clipAudio },
+                        { label: Tr.s["pack.cat.music"] || "",
+                          count: root.pack.counts.music || 0,
+                          icon: Icons.audio, tint: Theme.c.clipMusic }
                     ]
                     delegate: Rectangle {
                         id: contentRow

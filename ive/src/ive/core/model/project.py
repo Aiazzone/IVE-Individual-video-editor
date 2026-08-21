@@ -352,6 +352,19 @@ class Project:
         others = [c for c in self.timeline if c.track != track]
         self.timeline = others + ordered
 
+    #: The Music lane: audio-only clips laid FREELY under the cut (they
+    #: overlap the A/V track by design), never reflowed.
+    MUSIC_TRACK = 4
+
+    def add_music(self, media_id: str, at: float,
+                  duration: float) -> "TimelineClip":
+        """A music clip exactly at ``at``: free placement, no reorder."""
+        clip = TimelineClip(media_id=media_id, start=max(0.0, float(at)),
+                            duration=max(0.1, float(duration)),
+                            track=self.MUSIC_TRACK)
+        self.timeline.append(clip)
+        return clip
+
     def add_clip(self, media_id: str, duration: float, at: float | None = None,
                  track: int = 0) -> "TimelineClip":
         """Place a clip: at the end, or where ``at`` (the drop point) says."""

@@ -15,6 +15,15 @@ Item {
 
     implicitHeight: column.implicitHeight + Theme.m.space3 * 2
 
+    /*! "clip" = the selected clip's sound and effects; "music" = the
+        library. Selecting a clip with sound flips to "clip". */
+    property string tab: "clip"
+    /*! Music library: the open category ("" = all), and the repeat switch. */
+    property string musicCategory: ""
+    property bool coverCut: true
+
+    onAudioClipChanged: if (audioClip !== null) tab = "clip"
+
     /*! The selected clip WITH sound, or null - live from the project. */
     readonly property var audioClip: {
         var id = Shell.v.selectedClipId || "";
@@ -66,8 +75,19 @@ Item {
                   margins: Theme.m.space3 }
         spacing: Theme.m.space3
 
+        Segmented {
+            Layout.fillWidth: true
+            value: root.tab
+            model: [
+                { value: "clip", text: Tr.s["audio.tab.clip"] || "" },
+                { value: "music", text: Tr.s["audio.tab.music"] || "" }
+            ]
+            onPicked: function (v) { root.tab = v; }
+        }
+
         // ── the selected clip's sound ─────────────────────────────
         CardGroup {
+            visible: root.tab === "clip"
             title: Tr.s["audio.clip_group"] || ""
 
             Text {
@@ -206,6 +226,7 @@ Item {
 
         // ── the effects ───────────────────────────────────────────
         CardGroup {
+            visible: root.tab === "clip"
             title: Tr.s["audio.effects_group"] || ""
 
             // "As recorded": no recipe, and the way back to it.
@@ -327,6 +348,185 @@ Item {
                 Layout.fillWidth: true
                 wrapMode: Text.WordWrap
                 text: Tr.s["audio.hint"] || ""
+                color: Theme.c.textDisabled
+                font.pixelSize: Theme.m.fontSizeXs
+                lineHeight: 1.35
+            }
+        }
+        // ── the music library ─────────────────────────────────────
+        // Tracks from installed packs and user_data/music, by category.
+        // Preview plays the file on its own (the transport pauses);
+        // "Add at playhead" lays it on the Music lane, repeating until
+        // the cut ends when the switch is on.
+        CardGroup {
+            visible: root.tab === "music"
+            title: Tr.s["music.group"] || ""
+
+            Text {
+                visible: Music.categories.length === 0
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                text: Tr.s["music.empty"] || ""
+                color: Theme.c.textDisabled
+                font.pixelSize: Theme.m.fontSizeXs
+                lineHeight: 1.35
+            }
+
+            Flow {
+                visible: Music.categories.length > 0
+                Layout.fillWidth: true
+                spacing: Theme.m.space1
+
+                Repeater {
+                    model: [{ id: "", label: Tr.s["music.all"] || "",
+                              count: -1 }]
+                           .concat(Music.categories.map(function (c) {
+                               return { id: c.id, count: c.count,
+                                        label: c.mine
+                                            ? (Tr.s["music.mine"] || "")
+                                            : c.id.charAt(0).toUpperCase()
+                                              + c.id.slice(1) };
+                           }))
+                    delegate: Rectangle {
+                        id: chip
+                        required property var modelData
+                        objectName: "music_cat_" + (modelData.id || "all")
+                        readonly property bool current:
+                            root.musicCategory === modelData.id
+                        width: chipRow.implicitWidth + Theme.m.space3 * 2
+                        height: 26
+                        radius: 999
+                        color: current ? Qt.alpha(Theme.c.accent, 0.2)
+                             : Qt.alpha(Theme.c.glassOn, 0.06)
+                        border.width: 1
+                        border.color: current ? Theme.c.accent
+                                              : Qt.alpha(Theme.c.glassOn, 0.12)
+                        Row {
+                            id: chipRow
+                            anchors.centerIn: parent
+                            spacing: 6
+                            Text {
+                                text: chip.modelData.label
+                                color: chip.current ? Theme.c.text
+                                                    : Theme.c.textMuted
+                                font.pixelSize: Theme.m.fontSizeXs
+                                font.bold: chip.current
+                            }
+                            Text {
+                                visible: chip.modelData.count >= 0
+                                text: chip.modelData.count
+                                color: Theme.c.textDisabled
+                                font.pixelSize: Theme.m.fontSizeXs
+                            }
+                        }
+                        HoverHandler { cursorShape: Qt.PointingHandCursor }
+                        TapHandler {
+                            onTapped: root.musicCategory = chip.modelData.id
+                        }
+                    }
+                }
+            }
+
+            SwitchRow {
+                visible: Music.categories.length > 0
+                Layout.fillWidth: true
+                label: Tr.s["music.cover"] || ""
+                checked: root.coverCut
+                onToggled: function (v) { root.coverCut = v; }
+            }
+
+            Repeater {
+                model: Music.tracks(root.musicCategory)
+                delegate: Rectangle {
+                    id: row
+                    required property var modelData
+                    objectName: "music_track_" + modelData.id
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 52
+                    radius: Theme.m.radiusMd
+                    readonly property bool previewing:
+                        Music.previewing === modelData.id
+                    color: previewing ? Qt.alpha(Theme.c.accent, 0.14)
+                         : (rowHover.hovered ? Theme.c.bgHover
+                            : Qt.alpha(Theme.c.glassOn, 0.05))
+
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: Theme.m.space2
+                        anchors.rightMargin: Theme.m.space2
+                        spacing: Theme.m.space2
+
+                        IconButton {
+                            objectName: "music_play_" + row.modelData.id
+                            size: 30; iconSize: 16
+                            icon: row.previewing ? Icons.pause : Icons.play
+                            label: row.previewing
+                                ? (Tr.s["music.stop"] || "")
+                                : (Tr.s["music.preview"] || "")
+                            checked: row.previewing
+                            onTriggered: Music.preview(row.modelData.id)
+                        }
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 1
+                            Text {
+                                Layout.fillWidth: true
+                                text: row.modelData.title
+                                color: Theme.c.text
+                                font.pixelSize: Theme.m.fontSizeSm + 1
+                                elide: Text.ElideRight
+                            }
+                            Text {
+                                Layout.fillWidth: true
+                                text: [row.modelData.artist,
+                                       row.modelData.duration > 0
+                                           ? Math.floor(row.modelData.duration / 60)
+                                             + ":" + ("0" + Math.floor(
+                                                 row.modelData.duration % 60)).slice(-2)
+                                           : "",
+                                       row.modelData.bpm > 0
+                                           ? row.modelData.bpm + " bpm" : "",
+                                       row.modelData.vocals ? ""
+                                           : (Tr.s["music.no_vocals"] || ""),
+                                       row.modelData.license]
+                                      .filter(function (v) { return v !== ""; })
+                                      .join(" · ")
+                                color: Theme.c.textDisabled
+                                font.pixelSize: Theme.m.fontSizeXs
+                                elide: Text.ElideRight
+                            }
+                        }
+                        StarButton {
+                            objectName: "music_star_" + row.modelData.id
+                            starred: Music.favorites.indexOf(row.modelData.id) >= 0
+                            onToggled: Actions.invoke("music.toggle_favorite",
+                                                      { track_id: row.modelData.id })
+                        }
+                        IconButton {
+                            objectName: "music_add_" + row.modelData.id
+                            size: 30; iconSize: 16
+                            icon: Icons.plus
+                            label: Tr.s["music.add_at_playhead"] || ""
+                            enabled: Project.isOpen
+                            onTriggered: {
+                                Music.stop();
+                                Actions.invoke("timeline.place_music", {
+                                    track_id: row.modelData.id,
+                                    at: Playback.hasMedia
+                                        ? Playback.positionSeconds : 0,
+                                    cover: root.coverCut
+                                });
+                            }
+                        }
+                    }
+                    HoverHandler { id: rowHover }
+                }
+            }
+
+            Text {
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                text: Tr.s["music.licence_hint"] || ""
                 color: Theme.c.textDisabled
                 font.pixelSize: Theme.m.fontSizeXs
                 lineHeight: 1.35

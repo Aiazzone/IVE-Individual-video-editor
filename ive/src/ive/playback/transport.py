@@ -255,6 +255,7 @@ class PlaybackService(QObject):
         self._sticker_spans = []
         self._text_spans = []
         self._transition_spans = []
+        self._music_spans = []
         self._apply_segments([segment], sequence=False,
                              name=Path(str(path)).name)
         return True
@@ -277,6 +278,7 @@ class PlaybackService(QObject):
         spans: list[dict] = []
         sticker_spans: list[dict] = []
         text_spans: list[dict] = []
+        music_spans: list[dict] = []
         #: (start, end, transition id) of every A/V clip, for the cuts.
         video_meta: list[dict] = []
         for entry in clips or []:
@@ -359,6 +361,26 @@ class PlaybackService(QObject):
                 continue
             path = str(entry.get("path") or "")
             if not path or not Path(path).is_file():
+                continue
+            if int(entry.get("track") or 0) == 4:
+                # A Music-lane clip: not a segment, a sound laid UNDER the
+                # cut. Effect recipe resolved here, like the others.
+                music_spans.append({
+                    "id": str(entry.get("id") or ""),
+                    "path": path,
+                    "start": float(entry.get("start") or 0.0),
+                    "duration": float(entry.get("duration") or 0.0),
+                    "sourceIn": float(entry.get("sourceIn") or 0.0),
+                    "volume": 0.0 if (entry.get("audioEnabled") is False
+                                      or entry.get("muted") is True)
+                              else float(entry.get("volume", 1.0)
+                                         if entry.get("volume") is not None
+                                         else 1.0),
+                    "audioOps": audio_ops_for(
+                        str(entry.get("audioEffectId") or "")),
+                    "fadeIn": float(entry.get("fadeIn") or 0.0),
+                    "fadeOut": float(entry.get("fadeOut") or 0.0),
+                })
                 continue
             info = self._reader.describe(path)
             # Audio-only clips (music under the cut) belong in the sequence:
@@ -461,8 +483,13 @@ class PlaybackService(QObject):
         self._sticker_spans = sticker_spans
         self._text_spans = text_spans
         self._transition_spans = transition_spans
+        self._music_spans = music_spans
         self._apply_segments(segments, sequence=True, name="")
         return True
+
+    def sequence_music_spans(self) -> list[dict]:
+        """The Music-lane clips, recipes resolved, for the export."""
+        return [dict(span) for span in self._music_spans]
 
     def sequence_color_spans(self) -> list[dict]:
         """The Color-lane stretches, resolved to recipes, for the export."""
@@ -697,7 +724,8 @@ class PlaybackService(QObject):
             transition_spans = attach_blenders(transition_spans)
         self._graph = self._builder.build(clips, self._color_spans,
                                           sticker_spans, text_spans,
-                                          transition_spans)
+                                          transition_spans,
+                                          music_spans=self._music_spans)
         self._graph_serial += 1
         self._graph_key = f"graph-{self._graph_serial}"
         log.info("Preview graph rebuilt at %dx%d: %d frames",
@@ -746,6 +774,7 @@ class PlaybackService(QObject):
         self._sticker_spans = []
         self._text_spans = []
         self._transition_spans = []
+        self._music_spans = []
         self._duration = 0.0
         self._position = 0.0
         self._name = ""

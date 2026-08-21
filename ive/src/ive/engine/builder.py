@@ -129,7 +129,8 @@ class GraphBuilder:
               color_spans: list[dict] | None = None,
               sticker_spans: list[dict] | None = None,
               text_spans: list[dict] | None = None,
-              transition_spans: list[dict] | None = None) -> Tractor:
+              transition_spans: list[dict] | None = None,
+              music_spans: list[dict] | None = None) -> Tractor:
         """Build a tractor from timeline clips.
 
         Each clip is ``{path, start, duration}`` in **seconds**, as the project
@@ -290,6 +291,70 @@ class GraphBuilder:
                 incoming[0].filters.append(AudioRamp(start_f, end_f,
                                                      rising=True))
 
+        # The Music lane: audio-only playlists UNDER the cut, mixed by the
+        # tractor with everything else. Clips are laid freely, so two
+        # that overlap go to alternate playlists (M1, M2, ...); a clip is
+        # clamped to the sequence length - music never stretches the cut.
+        music_rolls: list[Playlist] = []
+        music_ends: list[int] = []
+        for span in sorted(music_spans or [],
+                           key=lambda m: float(m.get("start") or 0.0)):
+            path = str(span.get("path") or "")
+            if not path or not Path(path).is_file():
+                continue
+            m_start = self.timebase.seconds_to_frames(
+                float(span.get("start") or 0.0))
+            m_length = self.timebase.seconds_to_frames(
+                float(span.get("duration") or 0.0))
+            m_length = min(m_length, max(0, total - m_start))
+            if m_length <= 0:
+                continue
+            slot = next((i for i, end in enumerate(music_ends)
+                         if end <= m_start), None)
+            if slot is None:
+                music_rolls.append(Playlist(self.timebase, self.audio_format,
+                                            name=f"M{len(music_rolls) + 1}"))
+                music_ends.append(0)
+                slot = len(music_rolls) - 1
+            roll = music_rolls[slot]
+            producer = self.producer_for(path, f"m{slot}")
+            if producer is None:
+                continue
+            used_keys.add(f"m{slot}|{path}")
+            entry = Entry(
+                producer=producer,
+                source_in=self.timebase.seconds_to_frames(
+                    float(span.get("sourceIn") or 0.0)),
+                length=m_length,
+                clip_id=str(span.get("id") or ""),
+            )
+            if m_start > music_ends[slot]:
+                roll.append_blank(m_start - music_ends[slot])
+            m_volume = float(span.get("volume", 1.0)
+                             if span.get("volume") is not None else 1.0)
+            if abs(m_volume - 1.0) > 1e-6:
+                entry.filters.append(Gain(m_volume))
+            m_ops = span.get("audioOps")
+            if m_ops:
+                entry.filters.append(AudioEffect(list(m_ops)))
+            m_in = self.timebase.seconds_to_frames(
+                float(span.get("fadeIn") or 0.0))
+            if m_in > 0:
+                entry.filters.append(AudioRamp(
+                    m_start, m_start + min(m_in, m_length), rising=True))
+            m_out = self.timebase.seconds_to_frames(
+                float(span.get("fadeOut") or 0.0))
+            if m_out > 0:
+                entry.filters.append(AudioRamp(
+                    m_start + max(0, m_length - m_out), m_start + m_length,
+                    rising=False))
+            roll.append(entry)
+            music_ends[slot] = m_start + m_length
+        for roll in music_rolls:
+            if roll.length:
+                tractor.add_track(Track(roll, video=False, audio=True,
+                                        name=roll.name))
+
         from ive.engine.transitions import TimedBlend
 
         if roll_a.length:
@@ -347,9 +412,10 @@ def build_from_project(clips: list[dict], *, fps: float = 25.0,
                        color_spans: list[dict] | None = None,
                        sticker_spans: list[dict] | None = None,
                        text_spans: list[dict] | None = None,
-                       transition_spans: list[dict] | None = None) -> Tractor:
+                       transition_spans: list[dict] | None = None,
+                       music_spans: list[dict] | None = None) -> Tractor:
     """One-shot build, for tests and scripts."""
     builder = GraphBuilder(Timebase(Fraction(fps).limit_denominator(1001)),
                            AudioFormat(), width, height, proxies, use_proxies)
     return builder.build(clips, color_spans, sticker_spans, text_spans,
-                         transition_spans)
+                         transition_spans, music_spans=music_spans)

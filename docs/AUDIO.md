@@ -92,13 +92,51 @@ le dissolvenze), `tests/visual/test_audio_panel.py` (tap sulla corsia
 A1 → pannello, card che applica con un undo, stella, slider che
 committa la dissolvenza, «Come registrato»).
 
-## 5. Musiche (prossimo passo, deciso in discussione)
+## 5. Musiche — libreria e corsia Music (implementato il 2026-08-20)
 
-L'utente vuole una libreria di brani come CapCut, divisa per categoria,
-con musiche **senza voce** per video tecnici / "business".
+**Corsia Music = track 4 del modello** (`Project.MUSIC_TRACK`): clip
+solo-audio posati LIBERAMENTE sotto il montaggio (si sovrappongono alla
+V1 per costruzione, mai riflow). Nel transport NON sono segmenti ma
+`music_spans`; il builder li mette su playlist `M1, M2...` (video=False,
+audio=True — una playlist in piu' per ogni sovrapposizione), con Gain,
+`AudioEffect`, `AudioRamp` per entry, e **clampa la durata alla
+sequenza**: la musica non allunga mai il montaggio. Il tractor somma
+l'audio di tutte le tracce.
 
-Come si fa, rispettando `CLAUDE.md` §4.9 (rigore su cio' che spediamo
-NOI, nessun controllo su cio' che l'utente importa):
+- **Libreria** (`ive/music/library.py`): i pack portano
+  `music/tracks.json` + `music/files/`; `user_data/music/` e' la cartella
+  personale (ogni file audio = un brano, categoria `mine`, sidecar
+  `.json` opzionale). Campi del brano: titolo per lingua, artista,
+  categoria, tag, bpm, `vocals`, durata, licenza SPDX + URL + riga di
+  attribuzione (informativi, mai bloccanti).
+- **Servizio `Music`** (`ui/music_service.py`): categorie, brani,
+  preferiti (`music.favorites`), **anteprima** con QMediaPlayer
+  indipendente dal transport (lo mette in pausa; piazzare ferma
+  l'anteprima).
+- **UI**: tab «Musica» nel pannello Audio — chip per categoria, switch
+  «Ripeti fino alla fine del montaggio», righe con play/stella/+.
+  `+` = `timeline.place_music` al cursore: il file entra nel pool se
+  manca (una sola probe) e con `cover` si ripete back-to-back fino alla
+  fine della V1 — un solo passo di undo per tutto. Tap su un clip della
+  corsia Music apre il pannello Audio (tab Clip: volume, dissolvenze,
+  effetti valgono anche qui).
+- **Pack**: categoria «Musiche» (file copiati dentro), contata ovunque.
+- **Pack ufficiale «Business music»**: `build_scripts/make_music_pack.py`
+  scarica 9 brani strumentali di Kevin MacLeod (incompetech.com,
+  **CC BY 4.0**), compila licenza/attribuzione per brano e produce
+  `packs_out/ive-music-business.ivepack` (~61 MB, NON in git: lo script
+  e' la sorgente). Installato nell'user_data dell'utente il 2026-08-20.
+
+Test: `tests/test_music.py` (libreria da pack sandbox + cartella utente,
+piazzamento singolo e a copertura con undo che toglie anche il pool,
+transport → span, grafo che mixa la musica solo sul suo tratto senza
+allungare la sequenza), `tests/visual/test_music_panel.py` (tab, chip,
+anteprima, + con copertura → corsia Music con due pezzi).
+
+### 5.1 Le regole decise per le musiche (valgono per i prossimi pack)
+
+Rispettando `CLAUDE.md` §4.9 (rigore su cio' che spediamo NOI, nessun
+controllo su cio' che l'utente importa):
 
 1. **Formato = content pack** (`CONTENT_PACKS.md` §4.1): `audio/*.ogg` +
    `metadata/<brano>.json` con titolo, autore, **licenza SPDX**, URL

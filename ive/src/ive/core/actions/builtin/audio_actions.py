@@ -62,3 +62,51 @@ def toggle_favorite(ctx, effect_id: str):
         favorites.append(effect_id)
     settings.set("audio.favorites", favorites)
     log.info("Audio favourites now: %s", favorites)
+
+
+@action(
+    id="timeline.place_music",
+    title_key="music.place",
+    desc_key="Lay a track from the music library (or any audio file by "
+             "path) on the Music lane at a point in time; with cover=true "
+             "it repeats until the cut ends.",
+    category="timeline",
+    params={
+        "track_id": Param(str, required=False,
+                          doc="An id from the music library..."),
+        "path": Param(str, required=False, doc="...or an audio file."),
+        "at": Param(float, required=False, doc="Timeline seconds; the UI "
+                                               "passes the playhead."),
+        "cover": Param(bool, required=False),
+    },
+)
+def place_music(ctx, track_id: str = "", path: str = "", at: float = 0.0,
+                cover: bool = False):
+    if track_id:
+        from ive.music.library import track_by_id
+
+        track = track_by_id(track_id)
+        if track is None:
+            raise RuntimeError(f"Unknown track {track_id!r}")
+        path = track["path"]
+    if not path:
+        raise RuntimeError("place_music needs a track_id or a path")
+    if not ctx.require("project").place_music(path, at, cover):
+        raise RuntimeError(f"Could not place {path}")
+
+
+@action(
+    id="music.toggle_favorite",
+    title_key="music.favorite",
+    desc_key="Star a music track, or unstar it.",
+    category="audio",
+    params={"track_id": Param(str, required=True)},
+)
+def toggle_music_favorite(ctx, track_id: str):
+    settings = ctx.require("settings")
+    favorites = [str(v) for v in (settings.get("music.favorites") or [])]
+    if track_id in favorites:
+        favorites.remove(track_id)
+    else:
+        favorites.append(track_id)
+    settings.set("music.favorites", favorites)
