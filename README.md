@@ -16,35 +16,27 @@ code** and share with other users as plain files.
 > still on the way — see the roadmap below. macOS is not supported for now (untested; the codebase avoids
 > platform-specific paths, so it may come later).
 
-![Stickers and motion presets, dark theme](docs/screenshots/stickers-animation-dark.png)
-*Dark theme. A sticker selected on the video: the Stickers panel becomes
-its animation editor — every card previews this sticker moved by that
-preset, alive on hover. Six lanes on the timeline: video, audio, colour,
-stickers, music, text.*
+![Colour effects](docs/screenshots/color-effects.png)
+*Colour effects: families with live previews on your own footage,
+favourites, a pink clip on the dedicated Color lane, and a music bed
+under the cut.*
 
-![Music library](docs/screenshots/music-library-dark.png)
-*The Audio panel's Music tab: official CC BY packs by category (ambient,
-business, chill, corporate, lo-fi, pop, upbeat), preview, favourites,
-and "+" to lay a bed under the cut that repeats until it ends.*
+![Audio and music](docs/screenshots/audio-and-music.png)
+*The Audio panel on a music clip: volume, fade in / fade out (drawn as
+shades on the waveform), ducking under speech, and audio effects as
+shareable recipes — the "fx" tag on the clip says which one.*
 
-![Titles](docs/screenshots/titles-dark.png)
+![Titles, light theme](docs/screenshots/titles-light.png)
 *Titles typed live onto the video, styled in the panel, moved with
-on-video handles, animated with the same presets as stickers.*
+on-video handles, animated with the same motion presets as stickers.
+Light theme.*
 
-![Transitions](docs/screenshots/transitions-dark.png)
-*Transitions: shareable luma-map recipes, A/B roll in the engine, a
-white pill on the cut whose width is the duration.*
+![Settings](docs/screenshots/settings-appearance.png)
+*Settings: dark or light theme, glass effects with transparency and blur,
+reduced motion — and an Audio tab for how ducking detects speech.*
 
-![Stickers and motion presets, light theme](docs/screenshots/stickers-animation-light.png)
-*The same editor in the light theme — every colour is a token in one
-theme file, switchable at runtime.*
-
-![Colour effects, light theme](docs/screenshots/color-effects-light.png)
-*Colour effects: families, live previews on your own footage, favourites,
-a pink clip on the dedicated Color lane.*
-
-![Export, light theme](docs/screenshots/export-light.png)
-*Export: one icon per platform and its presets behind it — presets are
+![Export](docs/screenshots/export.png)
+*Export: one icon per platform with its presets behind it. Presets are
 JSON files, shareable and installable from packs.*
 
 ## Why another editor?
