@@ -49,13 +49,15 @@ QtObject {
     readonly property string motion:
         circle(12, 12, 3)
         + " M17.7 6.3a8 8 0 0 1 0 11.4 M6.3 6.3a8 8 0 0 0 0 11.4"
-    // A parcel: the content packs.
+    // An open box, lids up: the content packs (user's sketch, 2026-08-20).
     readonly property string pack:
-        "M21 8l-9-5-9 5 9 5 9-5Z M3 8v8l9 5 9-5V8 M12 13v10"
-    // A frame split by the diagonal: the classic mark for a transition.
+        "M3 12l9-5 9 5-9 5-9-5Z M3 12v5l9 5 9-5v-5 M12 17v5"
+        + " M3 12l-1-4 9-5 1 4 M21 12l1-4-9-5-1 4"
+    // A frame whose halves interlock like a zip: one shot giving way to
+    // the next (user's sketch, 2026-08-20).
     readonly property string transition:
-        "M4 3h16a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"
-        + " M20.3 3.7 3.7 20.3"
+        "M4 4h16a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Z"
+        + " M10 4v2.7h4v2.6h-4v2.7h4v2.7h-4v2.6h4V20"
     readonly property string effects:
         "M12 3l-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"
     readonly property string audio:
