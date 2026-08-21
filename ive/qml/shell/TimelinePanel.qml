@@ -9,6 +9,7 @@
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Shapes
+import QtQuick.Effects
 import components
 import IVE
 
@@ -99,7 +100,8 @@ Item {
                            name: c.name, film: false, id: c.id, wave: true,
                            path: c.path, sourceIn: c.sourceIn,
                            mediaDuration: c.mediaDuration,
-                           fadeIn: c.fadeIn, fadeOut: c.fadeOut };
+                           fadeIn: c.fadeIn, fadeOut: c.fadeOut,
+                           effect: c.audioEffectId };
               }) }
         ];
         // The Color and Sticker lanes exist only while something sits on
@@ -135,7 +137,8 @@ Item {
                                       id: c.id, wave: true,
                                       path: c.path, sourceIn: c.sourceIn,
                                       mediaDuration: c.mediaDuration,
-                                      fadeIn: c.fadeIn, fadeOut: c.fadeOut };
+                                      fadeIn: c.fadeIn, fadeOut: c.fadeOut,
+                                      effect: c.audioEffectId };
                          }) });
         var tx = clips.filter(function (c) { return c.track === 3; });
         if (tx.length > 0)
@@ -463,6 +466,12 @@ Item {
             // (every commit rebuilds the graph, so live-updating would
             // rebuild it continuously mid-drag), with the live value beside
             // it so the drag still reads instantly.
+            Text {
+                visible: clipVolume.visible
+                text: Tr.s["audio.volume"] || ""
+                color: Qt.alpha(root.onGlass, 0.72)
+                font.pixelSize: Theme.m.fontSizeXs
+            }
             AppSlider {
                 id: clipVolume
                 visible: (root.selectedKind === "audio"
@@ -494,6 +503,12 @@ Item {
 
             // The selected sound's fades, right where the eye is: the
             // shades on the clip grow and shrink with these.
+            Text {
+                visible: clipVolume.visible
+                text: Tr.s["audio.fade_in"] || ""
+                color: Qt.alpha(root.onGlass, 0.72)
+                font.pixelSize: Theme.m.fontSizeXs
+            }
             AppSlider {
                 id: fadeInLength
                 objectName: "timeline_fade_in_slider"
@@ -524,6 +539,12 @@ Item {
                 color: Qt.alpha(root.onGlass, 0.72)
                 font.pixelSize: Theme.m.fontSizeXs
                 font.family: "monospace"
+            }
+            Text {
+                visible: clipVolume.visible
+                text: Tr.s["audio.fade_out"] || ""
+                color: Qt.alpha(root.onGlass, 0.72)
+                font.pixelSize: Theme.m.fontSizeXs
             }
             AppSlider {
                 id: fadeOutLength
@@ -1005,8 +1026,16 @@ Item {
                                             ? clip.modelData.mediaDuration
                                             : clipSeconds
 
+                                    // The wave wears the clip's own colour, a
+                                    // lighter shade: the strip is rendered white
+                                    // once per file and tinted here, so A1 and
+                                    // Music share one cache.
+                                    readonly property color waveColor:
+                                        Qt.lighter(clip.modelData.color, 1.75)
+
                                     Image {
                                         id: waveImage
+                                        visible: false
                                         asynchronous: true
                                         fillMode: Image.Stretch
                                         smooth: true
@@ -1039,6 +1068,32 @@ Item {
                                         Math.min(width, width
                                             * (clip.modelData.fadeOut || 0)
                                             / clipSeconds)
+                                    // The audio effect on this clip, named on
+                                    // the clip itself: a small tag in the top
+                                    // right corner (it hides when the clip is
+                                    // too narrow to carry words).
+                                    Rectangle {
+                                        objectName: "audio_effect_tag"
+                                        visible: !!clip.modelData.effect
+                                                 && waveBox.width > effectTag.implicitWidth + 40
+                                        anchors.top: parent.top
+                                        anchors.right: parent.right
+                                        anchors.margins: 2
+                                        width: effectTag.implicitWidth + 10
+                                        height: effectTag.implicitHeight + 4
+                                        radius: height / 2
+                                        color: Qt.rgba(0, 0, 0, 0.55)
+                                        z: 2
+                                        Text {
+                                            id: effectTag
+                                            anchors.centerIn: parent
+                                            text: clip.modelData.effect
+                                                ? "fx · " + AudioFx.effect_name(clip.modelData.effect)
+                                                : ""
+                                            color: "#FFFFFF"
+                                            font.pixelSize: Theme.m.fontSizeXs
+                                        }
+                                    }
                                     Shape {
                                         objectName: "fade_in_shade"
                                         visible: waveBox.fadeInPx > 0.5
@@ -1084,6 +1139,16 @@ Item {
                                         }
                                     }
 
+                                    MultiEffect {
+                                        source: waveImage
+                                        x: waveImage.x
+                                        width: waveImage.width
+                                        height: waveImage.height
+                                        visible: waveImage.status === Image.Ready
+                                        colorization: 1.0
+                                        colorizationColor: waveBox.waveColor
+                                    }
+
                                     // Stand-in bars ONLY while the strip is
                                     // being rendered for the first time.
                                     Row {
@@ -1100,7 +1165,7 @@ Item {
                                                         Math.sin(index * 0.7)
                                                         * Math.cos(index * 0.13)))
                                                 anchors.verticalCenter: parent.verticalCenter
-                                                color: Qt.rgba(1, 1, 1, 0.30)
+                                                color: Qt.alpha(waveBox.waveColor, 0.45)
                                                 radius: 1
                                             }
                                         }

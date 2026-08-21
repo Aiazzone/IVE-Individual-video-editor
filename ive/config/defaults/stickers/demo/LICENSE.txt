@@ -1,0 +1,4 @@
+The Lottie JSON files in this folder come from the airbnb/lottie-web
+repository (https://github.com/airbnb/lottie-web, demo/ folder) and are
+distributed under the MIT license of that project. Downloaded 2026-08-11
+as user-installed sticker content for testing.

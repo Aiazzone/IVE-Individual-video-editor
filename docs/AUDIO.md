@@ -90,6 +90,13 @@ quello che ne esce. Anteprima ed export identici per costruzione.
   Trappola test: ogni delegate di clip possiede un waveBox (nascosto
   senza onda) → cercare `fade_in_shade` DENTRO il delegate A1, non in
   tutta la timeline. Test: `tests/visual/test_fade_ui.py`.
+- **Leggibilita' sulla timeline** (2026-08-21, feedback utente): gli
+  slider del toolbox hanno la loro parola davanti (Volume / Dissolvenza
+  in entrata / in uscita); il clip audio porta un'**etichetta «fx ·
+  <nome>»** in alto a destra quando ha un effetto (nascosta se il clip
+  e' troppo stretto); la forma d'onda non e' piu' bianca ma del colore
+  del clip schiarito (`MultiEffect` colorization sulla striscia PNG, che
+  resta bianca in cache: A1 e Music condividono lo stesso file).
 - Azioni: `timeline.set_clip_audio_effect`, `timeline.set_clip_fades`,
   `audio.toggle_favorite`. I comandi del toolbox (volume/mute) restano.
 - Pack: categoria «Effetti audio» nella creazione, contata nella carta

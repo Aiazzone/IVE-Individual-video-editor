@@ -100,5 +100,23 @@
     "id": "anim_pulse_star",
     "name": {"en": "Pulsing star", "it": "Stella pulsante", "es": "Estrella pulsante", "pt": "Estrela pulsante"},
     "section": "demo", "kind": "animated", "file": "animated/pulse_star.json"
+  },
+  {
+    "schema_version": 1,
+    "id": "demo_gatin",
+    "name": {"en": "Walking cat", "it": "Gatto che cammina", "es": "Gato que camina", "pt": "Gato andando"},
+    "section": "demo", "kind": "animated", "file": "demo/gatin.json"
+  },
+  {
+    "schema_version": 1,
+    "id": "demo_happy2016",
+    "name": {"en": "Happy new year", "it": "Buon anno", "es": "Feliz año nuevo", "pt": "Feliz ano novo"},
+    "section": "demo", "kind": "animated", "file": "demo/happy2016.json"
+  },
+  {
+    "schema_version": 1,
+    "id": "demo_navidad",
+    "name": {"en": "Christmas", "it": "Natale", "es": "Navidad", "pt": "Natal"},
+    "section": "demo", "kind": "animated", "file": "demo/navidad.json"
   }
 ]

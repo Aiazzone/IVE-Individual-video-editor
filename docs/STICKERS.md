@@ -170,3 +170,10 @@ famiglie, drag reale sulla timeline, pixel del preview composito),
 `tests/visual/test_sticker_handles_ui.py` (gesti reali: move con
 verifica mid-drag, scala, rotazione, un passo di undo per gesto, pixel
 prima/dopo).
+
+**Sticker demo Lottie di fabbrica (2026-08-21)**: gatin (gatto), happy2016,
+navidad — MIT da airbnb/lottie-web — promossi da `user_data/stickers` a
+`ive/config/defaults/stickers/demo/` (LICENSE.txt accanto, riga in
+`LICENSING.md`), famiglia «Dimostrazioni» insieme a bounce_ball e
+pulse_star. Le copie in user_data sono state rimosse: avrebbero solo
+duplicato gli id.
