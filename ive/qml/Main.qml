@@ -264,7 +264,10 @@ Window {
         ToolRail {
             id: rail
             x: win.railLeft ? win.margin : win.width - width - win.margin
-            y: (win.height - win.timelineHeight - height) / 2
+            // Centred in the room above the timeline, and never taller
+            // than it: on a short window the rail scrolls instead.
+            availableHeight: win.height - win.timelineHeight - win.margin * 2
+            y: win.margin + (availableHeight - height) / 2
             sceneSource: sceneLayer
             section: win.section
             onSectionRequested: function (key) { win.openSection(key); }

@@ -40,7 +40,17 @@ Item {
     ]
 
     width: Theme.m.toolRailWidth
-    implicitHeight: column.implicitHeight + Theme.m.space2 * 2
+    /*! The room the shell can give the rail (window minus timeline and
+        margins). On a short window the rail SHRINKS to it and its icons
+        scroll - wheel or drag, phone-style - instead of sliding under
+        the timeline. Unbounded by default. */
+    property real availableHeight: -1
+    readonly property real naturalHeight: column.implicitHeight
+                                          + Theme.m.space2 * 2
+    implicitHeight: availableHeight > 0
+        ? Math.min(naturalHeight, availableHeight) : naturalHeight
+    /*! True when some icons are out of view. */
+    readonly property bool overflowing: scroll.contentHeight > scroll.height + 1
 
     GlassSurface {
         anchors.fill: parent
@@ -51,10 +61,24 @@ Item {
         scrim: Theme.m.scrimIcons
     }
 
-    ColumnLayout {
-        id: column
+    Flickable {
+        id: scroll
+        objectName: "tool_rail_scroll"
         anchors.fill: parent
         anchors.margins: Theme.m.space2
+        contentWidth: width
+        contentHeight: column.implicitHeight
+        clip: true
+        interactive: root.overflowing
+        flickableDirection: Flickable.VerticalFlick
+        boundsBehavior: Flickable.StopAtBounds
+        // A window that grows back must not leave the icons parked
+        // above the top edge.
+        onHeightChanged: returnToBounds()
+
+    ColumnLayout {
+        id: column
+        width: scroll.width
         spacing: Theme.m.space1
 
         Repeater {
@@ -88,6 +112,32 @@ Item {
                     onTriggered: root.sectionRequested(modelData.key)
                 }
             }
+        }
+    }
+    }
+
+    // Soft hints at the clipped ends, only while there is more to see.
+    Rectangle {
+        anchors { top: parent.top; left: parent.left; right: parent.right
+                  margins: 1 }
+        height: 18
+        radius: Theme.m.toolRailRadius
+        visible: root.overflowing && scroll.contentY > 1
+        gradient: Gradient {
+            GradientStop { position: 0; color: Qt.alpha(Theme.c.bg, 0.9) }
+            GradientStop { position: 1; color: "transparent" }
+        }
+    }
+    Rectangle {
+        anchors { bottom: parent.bottom; left: parent.left; right: parent.right
+                  margins: 1 }
+        height: 18
+        radius: Theme.m.toolRailRadius
+        visible: root.overflowing
+                 && scroll.contentY < scroll.contentHeight - scroll.height - 1
+        gradient: Gradient {
+            GradientStop { position: 0; color: "transparent" }
+            GradientStop { position: 1; color: Qt.alpha(Theme.c.bg, 0.9) }
         }
     }
 }
