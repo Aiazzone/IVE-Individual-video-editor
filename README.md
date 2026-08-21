@@ -10,21 +10,42 @@ operations, and creative tools that anyone can extend **without writing
 code** and share with other users as plain files.
 
 > **Status: early development (alpha).** The editor opens projects, plays
-> and edits multi-clip timelines with audio, applies colour effects and
-> exports video. Many features are still on the way — see the roadmap
-> below. macOS is not supported for now (untested; the codebase avoids
+> and edits multi-clip timelines with audio, applies colour effects,
+> transitions, stickers, titles and motion presets, lays music under the
+> cut with ducking and audio effects, and exports video. Many features are
+> still on the way — see the roadmap below. macOS is not supported for now (untested; the codebase avoids
 > platform-specific paths, so it may come later).
 
-![Colour effects on the timeline](docs/screenshots/color-effects.png)
+![Stickers and motion presets, dark theme](docs/screenshots/stickers-animation-dark.png)
+*Dark theme. A sticker selected on the video: the Stickers panel becomes
+its animation editor — every card previews this sticker moved by that
+preset, alive on hover. Six lanes on the timeline: video, audio, colour,
+stickers, music, text.*
+
+![Music library](docs/screenshots/music-library-dark.png)
+*The Audio panel's Music tab: official CC BY packs by category (ambient,
+business, chill, corporate, lo-fi, pop, upbeat), preview, favourites,
+and "+" to lay a bed under the cut that repeats until it ends.*
+
+![Titles](docs/screenshots/titles-dark.png)
+*Titles typed live onto the video, styled in the panel, moved with
+on-video handles, animated with the same presets as stickers.*
+
+![Transitions](docs/screenshots/transitions-dark.png)
+*Transitions: shareable luma-map recipes, A/B roll in the engine, a
+white pill on the cut whose width is the duration.*
+
+![Stickers and motion presets, light theme](docs/screenshots/stickers-animation-light.png)
+*The same editor in the light theme — every colour is a token in one
+theme file, switchable at runtime.*
+
+![Colour effects, light theme](docs/screenshots/color-effects-light.png)
 *Colour effects: families, live previews on your own footage, favourites,
-and a pink clip on the dedicated Color lane.*
+a pink clip on the dedicated Color lane.*
 
-![Timeline editing](docs/screenshots/timeline-editing.png)
-*The timeline: media pool with real thumbnails, drag to place, trim with
-snapping, split, per-clip volume.*
-
-![Idle waves](docs/screenshots/idle-waves.png)
-*The idle screen: PS4-style waves, computed per pixel on the GPU.*
+![Export, light theme](docs/screenshots/export-light.png)
+*Export: one icon per platform and its presets behind it — presets are
+JSON files, shareable and installable from packs.*
 
 ## Why another editor?
 
