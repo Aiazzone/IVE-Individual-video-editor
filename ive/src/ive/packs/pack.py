@@ -440,10 +440,17 @@ def remove_pack(pack_id: str) -> bool:
     """Delete an installed pack's folder. That IS the uninstall."""
     pack_id = _slug(pack_id)
     target = _packs_root() / pack_id
-    if not (target.is_dir() and (target / "pack.json").is_file()):
+    if not target.is_dir():
         log.warning("No installed pack %r to remove", pack_id)
         return False
+    # A folder without pack.json is residue (a removal interrupted by a
+    # locked file, e.g. a track still open in a player): it blocks a
+    # reinstall with "already_installed", so it goes too.
     shutil.rmtree(target, ignore_errors=True)
+    if target.exists():
+        log.warning("Pack %r not fully removed: a file is still in use "
+                    "(%s)", pack_id, target)
+        return False
     log.info("Pack removed: %s", pack_id)
     return True
 

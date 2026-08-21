@@ -131,6 +131,12 @@ l'audio di tutte le tracce.
   corsia Music apre il pannello Audio (tab Clip: volume, dissolvenze,
   effetti valgono anche qui).
 - **Pack**: categoria «Musiche» (file copiati dentro), contata ovunque.
+  **Limite noto (Windows)**: rimuovere un pack musicale mentre un suo
+  brano e' sulla timeline aperta (decoder del transport) o in anteprima
+  fallisce per file bloccato: `remove_pack` ora lo dice nel log e
+  ritorna False invece di lasciare residui; un residuo senza
+  `pack.json` viene comunque ripulito al tentativo successivo.
+  `Music.refresh()` ferma l'anteprima e rilascia il file.
 - **Pack ufficiale «Business music»**: `build_scripts/make_music_pack.py`
   scarica 9 brani strumentali di Kevin MacLeod (incompetech.com,
   **CC BY 4.0**), compila licenza/attribuzione per brano e produce

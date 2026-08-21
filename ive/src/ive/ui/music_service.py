@@ -170,6 +170,9 @@ class MusicService(QObject):
     def stop(self) -> None:
         if self._player is not None:
             self._player.stop()
+            # Release the file: a pack being removed must not find its
+            # track still open in the preview player.
+            self._player.setSource(QUrl())
         if self._previewing:
             self._previewing = ""
             self.previewChanged.emit()
@@ -177,5 +180,6 @@ class MusicService(QObject):
     @Slot()
     def refresh(self) -> None:
         """Rescan - a pack came or went, or a file landed in the folder."""
+        self.stop()
         reload()
         self.changed.emit()
