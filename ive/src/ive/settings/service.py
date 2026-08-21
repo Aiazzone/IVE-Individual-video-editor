@@ -133,7 +133,22 @@ class SettingsService(QObject):
         if self._unknown:
             log.warning("Ignoring unknown settings keys: %s",
                         ", ".join(sorted(self._unknown)))
+        self._migrate()
         log.info("Loaded %d settings from %s", len(self._values), self._path)
+
+    #: Old defaults that a newer default supersedes: a stored value equal
+    #: to the old default was never a choice, so it follows the new one.
+    _SUPERSEDED_DEFAULTS = {
+        # 232 px hid the sticker and text lanes; 312 shows all five.
+        "shell.timeline_height": (232, 312),
+    }
+
+    def _migrate(self) -> None:
+        for key, (old, new) in self._SUPERSEDED_DEFAULTS.items():
+            if self._values.get(key) == old:
+                self._values[key] = new
+                log.info("Setting %s migrated from old default %s to %s",
+                         key, old, new)
 
     def _quarantine(self, exc: Exception) -> None:
         """Move an unreadable settings file aside and carry on with defaults."""
