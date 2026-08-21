@@ -80,6 +80,16 @@ quello che ne esce. Anteprima ed export identici per costruzione.
   grafo). Sotto: «Come registrato» + card degli effetti per famiglia,
   Preferiti in cima (stella sulla card, `audio.favorites`). Un tocco
   applica = un passo di undo.
+- **Dissolvenze sulla timeline** (2026-08-20, su richiesta utente): con
+  un clip audio o musica selezionato il toolbox della timeline mostra
+  due slider «Dissolvenza in entrata / in uscita» (0 → meta' clip, max
+  10 s, commit al rilascio); il clip disegna un'**ombra scura** sulla
+  forma d'onda che sale alla testa e scende alla coda (`Shape` con
+  curva quadratica ≈ la rampa equal-power del motore), larga quanto la
+  dissolvenza allo zoom corrente — il tempo si legge a occhio.
+  Trappola test: ogni delegate di clip possiede un waveBox (nascosto
+  senza onda) → cercare `fade_in_shade` DENTRO il delegate A1, non in
+  tutta la timeline. Test: `tests/visual/test_fade_ui.py`.
 - Azioni: `timeline.set_clip_audio_effect`, `timeline.set_clip_fades`,
   `audio.toggle_favorite`. I comandi del toolbox (volume/mute) restano.
 - Pack: categoria «Effetti audio» nella creazione, contata nella carta

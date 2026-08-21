@@ -98,7 +98,8 @@ Item {
                   return { from: c.start, to: c.end, color: Theme.c.clipAudio,
                            name: c.name, film: false, id: c.id, wave: true,
                            path: c.path, sourceIn: c.sourceIn,
-                           mediaDuration: c.mediaDuration };
+                           mediaDuration: c.mediaDuration,
+                           fadeIn: c.fadeIn, fadeOut: c.fadeOut };
               }) }
         ];
         // The Color and Sticker lanes exist only while something sits on
@@ -133,7 +134,8 @@ Item {
                                       name: c.name, film: false,
                                       id: c.id, wave: true,
                                       path: c.path, sourceIn: c.sourceIn,
-                                      mediaDuration: c.mediaDuration };
+                                      mediaDuration: c.mediaDuration,
+                                      fadeIn: c.fadeIn, fadeOut: c.fadeOut };
                          }) });
         var tx = clips.filter(function (c) { return c.track === 3; });
         if (tx.length > 0)
@@ -485,6 +487,68 @@ Item {
                 visible: clipVolume.visible
                 Layout.preferredWidth: 34
                 text: Math.round(clipVolume.effectiveValue * 100) + "%"
+                color: Qt.alpha(root.onGlass, 0.72)
+                font.pixelSize: Theme.m.fontSizeXs
+                font.family: "monospace"
+            }
+
+            // The selected sound's fades, right where the eye is: the
+            // shades on the clip grow and shrink with these.
+            AppSlider {
+                id: fadeInLength
+                objectName: "timeline_fade_in_slider"
+                visible: clipVolume.visible
+                Layout.preferredWidth: 110
+                from: 0
+                to: root.selectedClipData !== null
+                    ? Math.max(0.5, Math.min(10, (root.selectedClipData.end
+                                                  - root.selectedClipData.start) / 2))
+                    : 5
+                stepSize: 0.1
+                label: Tr.s["audio.fade_in"] || ""
+                value: root.selectedClipData !== null
+                    ? root.selectedClipData.fadeIn : 0
+                onCommitted: function (v) {
+                    if (root.selectedClipData !== null)
+                        Actions.invoke("timeline.set_clip_fades", {
+                            clip_id: root.selectedClipData.id,
+                            fade_in: Math.round(v * 10) / 10,
+                            fade_out: root.selectedClipData.fadeOut
+                        });
+                }
+            }
+            Text {
+                visible: clipVolume.visible
+                Layout.preferredWidth: 30
+                text: fadeInLength.effectiveValue.toFixed(1) + "s"
+                color: Qt.alpha(root.onGlass, 0.72)
+                font.pixelSize: Theme.m.fontSizeXs
+                font.family: "monospace"
+            }
+            AppSlider {
+                id: fadeOutLength
+                objectName: "timeline_fade_out_slider"
+                visible: clipVolume.visible
+                Layout.preferredWidth: 110
+                from: 0
+                to: fadeInLength.to
+                stepSize: 0.1
+                label: Tr.s["audio.fade_out"] || ""
+                value: root.selectedClipData !== null
+                    ? root.selectedClipData.fadeOut : 0
+                onCommitted: function (v) {
+                    if (root.selectedClipData !== null)
+                        Actions.invoke("timeline.set_clip_fades", {
+                            clip_id: root.selectedClipData.id,
+                            fade_in: root.selectedClipData.fadeIn,
+                            fade_out: Math.round(v * 10) / 10
+                        });
+                }
+            }
+            Text {
+                visible: clipVolume.visible
+                Layout.preferredWidth: 30
+                text: fadeOutLength.effectiveValue.toFixed(1) + "s"
                 color: Qt.alpha(root.onGlass, 0.72)
                 font.pixelSize: Theme.m.fontSizeXs
                 font.family: "monospace"
@@ -959,6 +1023,64 @@ Item {
                                                    && clip.modelData.path
                                                 ? Waves.wave(clip.modelData.path)
                                                 : "";
+                                        }
+                                    }
+
+                                    // The fades, drawn as what they do: a
+                                    // dark shade swallowing the wave, rising
+                                    // out of it at the head and sinking back
+                                    // into it at the tail. Its width IS the
+                                    // fade's length at the current zoom.
+                                    readonly property real fadeInPx:
+                                        Math.min(width, width
+                                            * (clip.modelData.fadeIn || 0)
+                                            / clipSeconds)
+                                    readonly property real fadeOutPx:
+                                        Math.min(width, width
+                                            * (clip.modelData.fadeOut || 0)
+                                            / clipSeconds)
+                                    Shape {
+                                        objectName: "fade_in_shade"
+                                        visible: waveBox.fadeInPx > 0.5
+                                        anchors.fill: parent
+                                        preferredRendererType: Shape.CurveRenderer
+                                        ShapePath {
+                                            strokeWidth: 1.5
+                                            strokeColor: Qt.rgba(0, 0, 0, 0.85)
+                                            fillColor: Qt.rgba(0, 0, 0, 0.55)
+                                            startX: 0; startY: 0
+                                            PathLine { x: waveBox.fadeInPx; y: 0 }
+                                            // A quarter-sine curve: the
+                                            // equal-power ramp the engine plays.
+                                            PathQuad {
+                                                x: 0; y: waveBox.height
+                                                controlX: waveBox.fadeInPx * 0.45
+                                                controlY: waveBox.height * 0.9
+                                            }
+                                            PathLine { x: 0; y: 0 }
+                                        }
+                                    }
+                                    Shape {
+                                        objectName: "fade_out_shade"
+                                        visible: waveBox.fadeOutPx > 0.5
+                                        anchors.fill: parent
+                                        preferredRendererType: Shape.CurveRenderer
+                                        ShapePath {
+                                            strokeWidth: 1.5
+                                            strokeColor: Qt.rgba(0, 0, 0, 0.85)
+                                            fillColor: Qt.rgba(0, 0, 0, 0.55)
+                                            startX: waveBox.width; startY: 0
+                                            PathLine {
+                                                x: waveBox.width - waveBox.fadeOutPx
+                                                y: 0
+                                            }
+                                            PathQuad {
+                                                x: waveBox.width; y: waveBox.height
+                                                controlX: waveBox.width
+                                                          - waveBox.fadeOutPx * 0.45
+                                                controlY: waveBox.height * 0.9
+                                            }
+                                            PathLine { x: waveBox.width; y: 0 }
                                         }
                                     }
 
