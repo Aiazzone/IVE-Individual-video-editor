@@ -343,6 +343,11 @@ Item {
             MotionPicker {
                 Layout.fillWidth: true
                 clip: root.textClip
+                subjectKey: root.textClip !== null
+                    ? [root.textClip.text, root.textClip.font,
+                       root.textClip.color, root.textClip.outline,
+                       root.textClip.bold, root.textClip.italic].join("|")
+                    : ""
                 presets: Motion.presets
                 still: root.textClip !== null
                     ? Motion.text_still_url(root.textClip.text,

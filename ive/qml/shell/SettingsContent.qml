@@ -175,7 +175,7 @@ Item {
                     model: [
                         { value: "180", text: Tr.s["settings.height.low"] || "" },
                         { value: "232", text: Tr.s["settings.height.medium"] || "" },
-                        { value: "300", text: Tr.s["settings.height.high"] || "" }
+                        { value: "312", text: Tr.s["settings.height.high"] || "" }
                     ]
                     onPicked: function (v) {
                         Actions.invoke("shell.set_timeline_height", { height: parseInt(v) });

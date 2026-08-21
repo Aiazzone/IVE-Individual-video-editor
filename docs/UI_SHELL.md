@@ -798,3 +798,9 @@ audio → `audio`, color → `color`, sticker → `stickers`, text → `text`,
 transizione → `transitions`. Solo il TAP lo fa: l'inizio di un drag o
 di un trim seleziona senza cambiare pannello. Test:
 `tests/visual/test_timeline_autopanel.py`.
+
+**Altezza della timeline (2026-08-20)**: il default di
+`shell.timeline_height` e' passato da 232 a 312 px = V1 (64) + A1 (48)
++ Color/Sticker/Text (48 ciascuna) + righello (16) + toolbar (32): con
+cinque corsie tutte in vista senza scorrere. Le opzioni in Impostazioni
+sono 180 / 232 / 312.

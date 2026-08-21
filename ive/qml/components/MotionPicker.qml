@@ -23,6 +23,11 @@ Flow {
     property string still: ""
     /*! function (presetId) → the strip descriptor, or null. */
     property var stripFor: null
+    /*! Identifies the SUBJECT of the strips (the sticker file, the
+        title's words and style): when it changes, every card forgets
+        its strip. Without it a card hovered for one sticker kept that
+        sticker's film after another one was selected. */
+    property string subjectKey: ""
 
     readonly property string motionId: clip !== null && clip.motionId
                                        ? clip.motionId : ""
@@ -97,6 +102,7 @@ Flow {
                     stillFillMode: Image.PreserveAspectFit
                     interval: 60
                     still: root.still
+                    cacheKey: root.subjectKey + "|" + card.modelData.id
                     provider: function () {
                         return root.stripFor !== null
                             ? root.stripFor(card.modelData.id) : null;

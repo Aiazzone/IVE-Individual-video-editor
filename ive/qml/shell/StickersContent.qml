@@ -367,6 +367,8 @@ Item {
             MotionPicker {
                 Layout.fillWidth: true
                 clip: root.motionClip
+                subjectKey: root.motionClip !== null
+                    ? root.motionClip.stickerId : ""
                 presets: Stickers.motion_presets()
                 still: root.motionClip !== null
                     ? Stickers.still_url(root.motionClip.stickerId) : ""

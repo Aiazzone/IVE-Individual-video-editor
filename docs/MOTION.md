@@ -101,3 +101,14 @@ titolo, con la prova sui pixel che le parole si spostano al primo
 frame e il toolbox che apre il pannello TESTO). Trappola: le card
 stanno sotto la piega del pannello — il test scorre il Flickable
 prima di cliccare.
+
+**Trappola pagata (2026-08-20, riportata dall'utente sul suo progetto):**
+`AnimatedPreview` chiedeva la striscia al primo hover e la teneva per
+sempre (`asked`); i delegate del Repeater vengono riusati quando cambia
+lo sticker selezionato, quindi una card gia' passata col mouse
+continuava a mostrare il film dello sticker PRECEDENTE. Fix:
+`AnimatedPreview.cacheKey` — quando cambia, la striscia si dimentica e
+si richiede al prossimo hover (o subito, se il mouse e' gia' sopra);
+`MotionPicker.subjectKey` la alimenta con l'id del file sticker, o con
+parole+stile del titolo. Test: `tests/visual/test_motion_switch.py`
+(apre una COPIA del progetto dell'utente in Downloads/test).

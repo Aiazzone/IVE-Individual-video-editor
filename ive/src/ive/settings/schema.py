@@ -105,7 +105,9 @@ SETTINGS: dict[str, Setting] = {
         _s("shell.readout_corner", "top_left", str,
            choices=("top_left", "top_right", "bottom_left"),
            doc="Where the timecode and volume readout sits."),
-        _s("shell.timeline_height", 232, int, minimum=140, maximum=520),
+        # 312 = video + audio + colour + sticker + text lanes, ruler and
+        # toolbar: every lane on screen without scrolling.
+        _s("shell.timeline_height", 312, int, minimum=140, maximum=520),
         _s("shell.panel_autohide", True, bool),
         _s("shell.panel_hide_delay_ms", 600, int, minimum=0, maximum=3000),
         _s("shell.panel_pinned", False, bool),

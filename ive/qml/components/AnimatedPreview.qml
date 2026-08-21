@@ -20,6 +20,29 @@ Item {
     /*! Milliseconds per frame of the strip. */
     property int interval: 80
     property int stillFillMode: Image.PreserveAspectCrop
+    /*! What the strip depends on. Change it and the strip is forgotten
+        and fetched again on the next hover - a delegate reused for a
+        different subject (another sticker's cards) must not keep
+        showing the previous one's film. */
+    property string cacheKey: ""
+    onCacheKeyChanged: {
+        stripInfo.asked = false;
+        stripInfo.url = "";
+        stripInfo.frames = 0;
+        frame = 0;
+        if (hover.hovered)
+            fetch();
+    }
+    function fetch() {
+        if (stripInfo.asked || !root.provider)
+            return;
+        stripInfo.asked = true;
+        var info = root.provider();
+        if (info && info.frames > 0) {
+            stripInfo.url = info.url;
+            stripInfo.frames = info.frames;
+        }
+    }
 
     readonly property bool playing:
         hover.hovered && stripInfo.frames > 0
@@ -36,14 +59,8 @@ Item {
     HoverHandler {
         id: hover
         onHoveredChanged: {
-            if (hovered && !stripInfo.asked && root.provider) {
-                stripInfo.asked = true;
-                var info = root.provider();
-                if (info && info.frames > 0) {
-                    stripInfo.url = info.url;
-                    stripInfo.frames = info.frames;
-                }
-            }
+            if (hovered)
+                root.fetch();
             root.frame = 0;
         }
     }
