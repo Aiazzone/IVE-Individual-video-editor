@@ -199,6 +199,8 @@ class ProjectService(QObject):
                 "audioEffectId": clip.audio_effect_id,
                 "fadeIn": clip.fade_in,
                 "fadeOut": clip.fade_out,
+                "duck": clip.duck,
+                "duckDb": clip.duck_db,
                 "x": clip.x, "y": clip.y,
                 "scale": clip.scale, "rotation": clip.rotation,
                 "hasVideo": bool(item.width > 0) if item else False,
@@ -481,6 +483,14 @@ class ProjectService(QObject):
         return self._edit("timeline.audio_effect",
                           lambda: self._project.set_clip_audio_effect(
                               clip_id, effect_id))
+
+    @Slot(str, bool, float, result=bool)
+    def set_clip_ducking(self, clip_id: str, enabled: bool,
+                         depth_db: float) -> bool:
+        """Dip this music clip under the cut's speech, by ``depth_db``."""
+        return self._edit("timeline.ducking",
+                          lambda: self._project.set_clip_ducking(
+                              clip_id, enabled, depth_db))
 
     @Slot(str, float, float, result=bool)
     def set_clip_fades(self, clip_id: str, fade_in: float,

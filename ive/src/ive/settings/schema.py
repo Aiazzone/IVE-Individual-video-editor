@@ -120,6 +120,9 @@ SETTINGS: dict[str, Setting] = {
         _s("audio.favorites", [], list,
            doc="Ids of the audio effects starred by the user, in the order "
                "they were starred."),
+        _s("audio.ducking_mode", "simple", str, choices=("simple", "smart"),
+           doc="How ducking detects speech: by sound level, or with a "
+               "voice model (falls back to level while none is installed)."),
         _s("music.favorites", [], list,
            doc="Ids of the music tracks starred by the user, in the order "
                "they were starred."),

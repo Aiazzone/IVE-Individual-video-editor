@@ -297,6 +297,7 @@ class GraphBuilder:
         # clamped to the sequence length - music never stretches the cut.
         music_rolls: list[Playlist] = []
         music_ends: list[int] = []
+        guide = None   # one level detector shared by every ducked bed
         for span in sorted(music_spans or [],
                            key=lambda m: float(m.get("start") or 0.0)):
             path = str(span.get("path") or "")
@@ -337,6 +338,16 @@ class GraphBuilder:
             m_ops = span.get("audioOps")
             if m_ops:
                 entry.filters.append(AudioEffect(list(m_ops)))
+            if span.get("duck") and float(span.get("duckDb") or 0.0) > 0.0:
+                # The guide is the cut itself: both A/V rolls, whose
+                # audio this position's mix will pull anyway.
+                from ive.audio.ducking import Ducker, GuideLevel
+
+                if guide is None:
+                    guide = GuideLevel([roll_a, roll_b],
+                                       str(span.get("duckMode") or "simple"))
+                entry.filters.append(Ducker(guide,
+                                            float(span.get("duckDb"))))
             m_in = self.timebase.seconds_to_frames(
                 float(span.get("fadeIn") or 0.0))
             if m_in > 0:

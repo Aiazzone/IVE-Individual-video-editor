@@ -47,6 +47,7 @@ _SHELL_KEYS = {
     "media.proxy_enabled": "proxyEnabled",
     "playback.volume": "volume",
     "playback.muted": "muted",
+    "audio.ducking_mode": "duckingMode",
 }
 
 

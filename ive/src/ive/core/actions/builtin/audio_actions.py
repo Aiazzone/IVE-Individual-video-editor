@@ -110,3 +110,35 @@ def toggle_music_favorite(ctx, track_id: str):
     else:
         favorites.append(track_id)
     settings.set("music.favorites", favorites)
+
+
+@action(
+    id="timeline.set_clip_ducking",
+    title_key="audio.duck",
+    desc_key="Make a music clip dip under the cut's speech (ducking): on "
+             "or off, and by how many dB. How speech is detected is the "
+             "global audio.ducking_mode preference.",
+    category="timeline",
+    params={
+        "clip_id": Param(str, required=True),
+        "enabled": Param(bool, required=True),
+        "depth_db": Param(float, required=False,
+                          doc="How far the bed dips, 0-30 dB (default 12)."),
+    },
+)
+def set_clip_ducking(ctx, clip_id: str, enabled: bool, depth_db: float = 12.0):
+    if not ctx.require("project").set_clip_ducking(clip_id, enabled, depth_db):
+        raise RuntimeError(f"Unknown clip {clip_id}")
+
+
+@action(
+    id="audio.set_ducking_mode",
+    title_key="settings.ducking_mode",
+    desc_key="How ducking detects speech: 'simple' (sound level) or "
+             "'smart' (voice recognition model, falls back to simple "
+             "while no model is installed).",
+    category="settings",
+    params={"mode": Param(str, required=True, doc="simple | smart")},
+)
+def set_ducking_mode(ctx, mode: str):
+    ctx.require("settings").set("audio.ducking_mode", mode)

@@ -156,6 +156,37 @@ transport → span, grafo che mixa la musica solo sul suo tratto senza
 allungare la sequenza), `tests/visual/test_music_panel.py` (tab, chip,
 anteprima, + con copertura → corsia Music con due pezzi).
 
+## 6. Ducking (implementato il 2026-08-20)
+
+La musica si abbassa da sola mentre il montaggio "parla" e risale dopo.
+Divisione decisa con l'utente: **come** si rileva il parlato e' una
+preferenza globale (`audio.ducking_mode`: `simple` = livello sonoro,
+`smart` = modello VAD — finche' il modello non c'e' ricade su simple con
+UN warning nel log, cosi' un progetto fatto altrove suona ovunque);
+**se** e **quanto** e' del singolo clip musicale (`duck`, `duck_db`,
+azione `timeline.set_clip_ducking`, un undo).
+
+Motore (`ive/audio/ducking.py`): `GuideLevel` ascolta i roll A/V
+(`roll_a`, `roll_b`) alla posizione del frame e risponde in dBFS, con
+cache per posizione (un solo ascolto per frame, qualunque sia il numero
+di brani abbassati); `Ducker` e' un filtro sull'entry del brano:
+inviluppo a un polo, attacco ~2 frame, rilascio ~15 frame (0.6 s a
+25 fps), soglia -42 dBFS, reset al seek; guadagno costante dentro al
+frame. Il transport mette `duck`/`duckDb`/`duckMode` nello span, quindi
+l'export ha la stessa modalita' dell'anteprima per costruzione.
+
+UI: gruppo «Sotto il parlato» nel pannello Audio per i clip della corsia
+Music (interruttore + «Abbassa di» 3-24 dB, con la modalita' corrente
+nel suggerimento); Impostazioni → tab **Audio** → «Rilevamento
+parlato». Non c'e' (ancora) un'ombra sull'onda dove la musica scende:
+richiederebbe un'analisi offline del montaggio; rinviato.
+
+Test: `tests/test_ducking.py` (inviluppo, reset al seek, fallback smart
+con warning, grafo: il brano a 220 Hz scende di ~-12 dB sotto il tono e
+torna pieno nel silenzio — misurato sul bin a 220 Hz, cosi' la guida
+non puo' spacciarsi per il brano; modello+undo; span con modalita'
+globale), `tests/visual/test_ducking_ui.py`.
+
 ### 5.1 Le regole decise per le musiche (valgono per i prossimi pack)
 
 Rispettando `CLAUDE.md` §4.9 (rigore su cio' che spediamo NOI, nessun

@@ -109,8 +109,15 @@ Updated together with the code, so this file always reflects reality.
       is built by build_scripts/make_music_pack.py
 
 
-- [ ] Music: ducking (lower the bed under speech), beat markers,
-      more packs (ambient, upbeat, cinematic) from CC0/CC-BY sources
+- [x] Ducking: a music clip dips under the cut's sound and comes back
+      slowly; detection mode is a global preference (Settings > Audio:
+      simple level, or smart voice model when one ships)
+- [x] Six more music packs by category rule (ambient, upbeat, lo-fi,
+      chill, pop, corporate) over the incompetech catalogue
+
+
+- [ ] Music: beat markers and snap-to-beat; a shade on the bed where
+      ducking lowers it; the smart (VAD) detector
 
 - [ ] docs/ARCHITECTURE.md module tree refresh (engine/, stickers/,
       text/, color/, motion/, packs/ are missing from the plan's tree)

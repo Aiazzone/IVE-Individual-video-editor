@@ -224,6 +224,76 @@ Item {
             }
         }
 
+        // ── ducking: the bed dips under the cut's speech ──────────
+        // Only for Music-lane clips: the choice and the amount are the
+        // clip's; HOW speech is detected is a global preference
+        // (Settings → Audio).
+        CardGroup {
+            visible: root.tab === "clip" && root.audioClip !== null
+                     && root.audioClip.track === 4
+            title: Tr.s["audio.duck_group"] || ""
+
+            SwitchRow {
+                objectName: "audio_duck_switch"
+                Layout.fillWidth: true
+                label: Tr.s["audio.duck"] || ""
+                checked: root.audioClip !== null && root.audioClip.duck
+                onToggled: function (v) {
+                    if (root.audioClip !== null)
+                        Actions.invoke("timeline.set_clip_ducking", {
+                            clip_id: root.audioClip.id, enabled: v,
+                            depth_db: root.audioClip.duckDb
+                        });
+                }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.m.space2
+                enabled: root.audioClip !== null && root.audioClip.duck
+                opacity: enabled ? 1 : 0.5
+                Text {
+                    Layout.preferredWidth: 96
+                    text: Tr.s["audio.duck_depth"] || ""
+                    color: Theme.c.textMuted
+                    font.pixelSize: Theme.m.fontSizeXs
+                    elide: Text.ElideRight
+                }
+                AppSlider {
+                    id: duckSlider
+                    objectName: "audio_duck_slider"
+                    Layout.fillWidth: true
+                    from: 3; to: 24; stepSize: 1
+                    label: Tr.s["audio.duck_depth"] || ""
+                    value: root.audioClip !== null ? root.audioClip.duckDb : 12
+                    onCommitted: function (v) {
+                        if (root.audioClip !== null)
+                            Actions.invoke("timeline.set_clip_ducking", {
+                                clip_id: root.audioClip.id,
+                                enabled: root.audioClip.duck,
+                                depth_db: Math.round(v)
+                            });
+                    }
+                }
+                Text {
+                    Layout.preferredWidth: 44
+                    horizontalAlignment: Text.AlignRight
+                    text: "-" + Math.round(duckSlider.value) + " dB"
+                    color: Theme.c.textMuted
+                    font.pixelSize: Theme.m.fontSizeXs
+                }
+            }
+            Text {
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                text: (Tr.s["audio.duck_hint"] || "")
+                      .replace("{m}", Tr.s["settings.ducking." + Shell.v.duckingMode]
+                                      || Shell.v.duckingMode)
+                color: Theme.c.textDisabled
+                font.pixelSize: Theme.m.fontSizeXs
+                lineHeight: 1.35
+            }
+        }
+
         // ── the effects ───────────────────────────────────────────
         CardGroup {
             visible: root.tab === "clip"

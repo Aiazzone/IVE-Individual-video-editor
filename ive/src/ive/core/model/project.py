@@ -126,6 +126,11 @@ class TimelineClip:
     #: Audio fades at the clip's head and tail, in seconds (0 = none).
     fade_in: float = 0.0
     fade_out: float = 0.0
+    #: Ducking (Music-lane clips): dip this bed by ``duck_db`` while the
+    #: cut is talking. The detector is a global preference, the choice
+    #: and the amount are the clip's.
+    duck: bool = False
+    duck_db: float = 12.0
     #: For clips on the Color track (track 1): the colour effect applied to
     #: the stretch of timeline this clip covers. media_id is "" for these.
     effect_id: str = ""
@@ -213,6 +218,8 @@ class TimelineClip:
             audio_effect_id=_as_str(data.get("audio_effect_id")),
             fade_in=min(30.0, max(0.0, _as_float(data.get("fade_in")))),
             fade_out=min(30.0, max(0.0, _as_float(data.get("fade_out")))),
+            duck=bool(data.get("duck", False)),
+            duck_db=min(30.0, max(0.0, _as_float(data.get("duck_db"), 12.0))),
             x=min(1.0, max(0.0, _as_float(data.get("x"), 0.5))),
             y=min(1.0, max(0.0, _as_float(data.get("y"), 0.5))),
             scale=min(2.0, max(0.02, _as_float(data.get("scale"), 0.3))),
@@ -568,6 +575,7 @@ class Project:
             audio_enabled=clip.audio_enabled,
             muted=clip.muted,
             audio_effect_id=clip.audio_effect_id,
+            duck=clip.duck, duck_db=clip.duck_db,
             # The fade-out belongs to the tail, the fade-in to the head.
             fade_out=clip.fade_out,
             effect_id=clip.effect_id,
@@ -614,6 +622,15 @@ class Project:
         if clip is None:
             return False
         clip.audio_effect_id = str(effect_id)
+        return True
+
+    def set_clip_ducking(self, clip_id: str, enabled: bool,
+                         depth_db: float) -> bool:
+        clip = self.find_clip(clip_id)
+        if clip is None:
+            return False
+        clip.duck = bool(enabled)
+        clip.duck_db = min(30.0, max(0.0, float(depth_db)))
         return True
 
     def set_clip_fades(self, clip_id: str, fade_in: float,

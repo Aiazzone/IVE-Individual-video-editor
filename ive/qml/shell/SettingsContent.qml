@@ -39,9 +39,39 @@ Item {
             model: [
                 { value: "layout",     text: Tr.s["settings.tab.layout"] || "" },
                 { value: "appearance", text: Tr.s["settings.tab.appearance"] || "" },
+                { value: "audio",      text: Tr.s["settings.tab.audio"] || "" },
                 { value: "language",   text: Tr.s["settings.tab.language"] || "" }
             ]
             onPicked: function (v) { root.tab = v; }
+        }
+
+        // ── audio ─────────────────────────────────────────────────
+        CardGroup {
+            visible: root.tab === "audio"
+            title: Tr.s["settings.section.audio"] || ""
+
+            SettingRow {
+                label: Tr.s["settings.ducking_mode"] || ""
+                Segmented {
+                    objectName: "settings_ducking_mode"
+                    value: Shell.v.duckingMode
+                    model: [
+                        { value: "simple", text: Tr.s["settings.ducking.simple"] || "" },
+                        { value: "smart",  text: Tr.s["settings.ducking.smart"] || "" }
+                    ]
+                    onPicked: function (v) {
+                        Actions.invoke("audio.set_ducking_mode", { mode: v });
+                    }
+                }
+            }
+            Text {
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                text: Tr.s["settings.ducking_mode.hint"] || ""
+                color: Theme.c.textDisabled
+                font.pixelSize: Theme.m.fontSizeXs
+                lineHeight: 1.35
+            }
         }
 
         // ── language ──────────────────────────────────────────────

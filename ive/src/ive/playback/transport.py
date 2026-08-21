@@ -380,6 +380,9 @@ class PlaybackService(QObject):
                         str(entry.get("audioEffectId") or "")),
                     "fadeIn": float(entry.get("fadeIn") or 0.0),
                     "fadeOut": float(entry.get("fadeOut") or 0.0),
+                    "duck": bool(entry.get("duck", False)),
+                    "duckDb": float(entry.get("duckDb") or 12.0),
+                    "duckMode": self._ducking_mode(),
                 })
                 continue
             info = self._reader.describe(path)
@@ -486,6 +489,16 @@ class PlaybackService(QObject):
         self._music_spans = music_spans
         self._apply_segments(segments, sequence=True, name="")
         return True
+
+    def _ducking_mode(self) -> str:
+        """The global speech detector preference, read HERE so the
+        export worker gets it inside the spans, like every recipe."""
+        if self._settings is None:
+            return "simple"
+        try:
+            return str(self._settings.get("audio.ducking_mode") or "simple")
+        except Exception:
+            return "simple"
 
     def sequence_music_spans(self) -> list[dict]:
         """The Music-lane clips, recipes resolved, for the export."""
