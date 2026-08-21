@@ -117,6 +117,9 @@ SETTINGS: dict[str, Setting] = {
         _s("color.favorites", [], list,
            doc="Ids of the colour effects starred by the user, in the order "
                "they were starred."),
+        _s("audio.favorites", [], list,
+           doc="Ids of the audio effects starred by the user, in the order "
+               "they were starred."),
 
         # ── stickers and transitions ────────────────────────────────────
         _s("sticker.favorites", [], list,

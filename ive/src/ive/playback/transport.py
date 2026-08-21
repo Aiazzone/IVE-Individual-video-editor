@@ -32,7 +32,7 @@ from __future__ import annotations
 
 import logging
 from bisect import bisect_right
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from fractions import Fraction
 from pathlib import Path
 
@@ -47,6 +47,7 @@ from PySide6.QtCore import (
 )
 from PySide6.QtGui import QImage
 
+from ive.audio.library import ops_for as audio_ops_for
 from ive.engine.builder import GraphBuilder
 from ive.engine.frame import AudioFormat, Timebase
 from ive.media.reader import VideoReader
@@ -71,6 +72,11 @@ class _Segment:
     aspect: float = 16.0 / 9.0
     #: Audio gain of this clip: 0 silent, 1 as recorded, up to 2.
     volume: float = 1.0
+    #: The clip's audio-effect recipe, resolved from the catalogue (pure
+    #: data, so it crosses to the export worker), and its fades.
+    audio_ops: list = field(default_factory=list)
+    fade_in: float = 0.0
+    fade_out: float = 0.0
 
     @property
     def end(self) -> float:
@@ -384,6 +390,11 @@ class PlaybackService(QObject):
                                or entry.get("muted") is True)
                        else float(entry.get("volume", 1.0)
                                   if entry.get("volume") is not None else 1.0),
+                # Resolved HERE, like the colour recipes: the graph and the
+                # export never know the catalogue.
+                audio_ops=audio_ops_for(str(entry.get("audioEffectId") or "")),
+                fade_in=float(entry.get("fadeIn") or 0.0),
+                fade_out=float(entry.get("fadeOut") or 0.0),
             ))
         segments.sort(key=lambda s: s.start)
 
@@ -577,7 +588,9 @@ class PlaybackService(QObject):
         return [
             {"path": segment.path, "start": segment.start,
              "duration": segment.duration, "sourceIn": segment.source_in,
-             "volume": segment.volume, "id": str(index)}
+             "volume": segment.volume, "id": str(index),
+             "audioOps": [dict(op) for op in segment.audio_ops],
+             "fadeIn": segment.fade_in, "fadeOut": segment.fade_out}
             for index, segment in enumerate(self._segments)
         ]
 

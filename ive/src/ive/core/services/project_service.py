@@ -196,6 +196,9 @@ class ProjectService(QObject):
                 "volume": clip.volume,
                 "audioEnabled": clip.audio_enabled,
                 "muted": clip.muted,
+                "audioEffectId": clip.audio_effect_id,
+                "fadeIn": clip.fade_in,
+                "fadeOut": clip.fade_out,
                 "x": clip.x, "y": clip.y,
                 "scale": clip.scale, "rotation": clip.rotation,
                 "hasVideo": bool(item.width > 0) if item else False,
@@ -414,6 +417,29 @@ class ProjectService(QObject):
         """Silence one clip; its volume survives for the unmute."""
         return self._edit("timeline.mute_clip",
                           lambda: self._project.set_clip_muted(clip_id, muted))
+
+    @Slot(str, str, result=bool)
+    def set_clip_audio_effect(self, clip_id: str, effect_id: str) -> bool:
+        """Apply an audio effect recipe to one clip's sound ("" = none)."""
+        if self._project is None:
+            return False
+        if effect_id:
+            from ive.audio.library import effect_by_id
+
+            if effect_by_id(effect_id) is None:
+                log.warning("Unknown audio effect %r", effect_id)
+                return False
+        return self._edit("timeline.audio_effect",
+                          lambda: self._project.set_clip_audio_effect(
+                              clip_id, effect_id))
+
+    @Slot(str, float, float, result=bool)
+    def set_clip_fades(self, clip_id: str, fade_in: float,
+                       fade_out: float) -> bool:
+        """Audio fade in / fade out of one clip, in seconds."""
+        return self._edit("timeline.fades",
+                          lambda: self._project.set_clip_fades(
+                              clip_id, fade_in, fade_out))
 
     @Slot(str, bool, result=bool)
     def set_clip_audio(self, clip_id: str, enabled: bool) -> bool:

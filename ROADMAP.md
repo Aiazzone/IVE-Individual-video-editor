@@ -93,7 +93,17 @@ Updated together with the code, so this file always reflects reality.
       packs as well - presets for a platform without an icon gather
       under "Other" in the Export panel
 
+- [x] Audio panel and audio effects: tap a clip's audio (or video)
+      lane and shape its sound - volume, fade in/out, mute - then apply
+      an effect recipe (EQ, compressor, loudness normalisation, telephone,
+      megaphone...) as shareable JSON ops that play identically in
+      preview and export; favourites, pack category, user recipes in
+      user_data/audio_effects
+
 ## 🔨 In progress / next up
+
+- [ ] Music library: royalty-free tracks by category (business, ambient,
+      upbeat...) as content packs, with preview and drag onto A1
 
 - [ ] docs/ARCHITECTURE.md module tree refresh (engine/, stickers/,
       text/, color/, motion/, packs/ are missing from the plan's tree)

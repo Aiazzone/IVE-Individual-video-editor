@@ -120,6 +120,12 @@ class TimelineClip:
     #: Muted is a STATE, not a volume of zero: unmuting must bring back the
     #: loudness the user had set, which volume=0 would have destroyed.
     muted: bool = False
+    #: Audio effect applied to this clip's sound: the id of an ops recipe
+    #: from the audio catalogue, "" = as recorded.
+    audio_effect_id: str = ""
+    #: Audio fades at the clip's head and tail, in seconds (0 = none).
+    fade_in: float = 0.0
+    fade_out: float = 0.0
     #: For clips on the Color track (track 1): the colour effect applied to
     #: the stretch of timeline this clip covers. media_id is "" for these.
     effect_id: str = ""
@@ -204,6 +210,9 @@ class TimelineClip:
             volume=min(2.0, max(0.0, _as_float(data.get("volume"), 1.0))),
             audio_enabled=bool(data.get("audio_enabled", True)),
             muted=bool(data.get("muted", False)),
+            audio_effect_id=_as_str(data.get("audio_effect_id")),
+            fade_in=min(30.0, max(0.0, _as_float(data.get("fade_in")))),
+            fade_out=min(30.0, max(0.0, _as_float(data.get("fade_out")))),
             x=min(1.0, max(0.0, _as_float(data.get("x"), 0.5))),
             y=min(1.0, max(0.0, _as_float(data.get("y"), 0.5))),
             scale=min(2.0, max(0.02, _as_float(data.get("scale"), 0.3))),
@@ -545,6 +554,9 @@ class Project:
             volume=clip.volume,
             audio_enabled=clip.audio_enabled,
             muted=clip.muted,
+            audio_effect_id=clip.audio_effect_id,
+            # The fade-out belongs to the tail, the fade-in to the head.
+            fade_out=clip.fade_out,
             effect_id=clip.effect_id,
             # Overlay clips keep what they are and where they sit: a split
             # title must show the same words at the same place on both sides.
@@ -559,6 +571,7 @@ class Project:
             transition_duration=clip.transition_duration,
         )
         clip.duration = offset
+        clip.fade_out = 0.0
         clip.transition_id = ""
         self.timeline.append(second)
         if clip.track == 0:
@@ -581,6 +594,24 @@ class Project:
         if clip is None:
             return False
         clip.audio_enabled = bool(enabled)
+        return True
+
+    def set_clip_audio_effect(self, clip_id: str, effect_id: str) -> bool:
+        clip = self.find_clip(clip_id)
+        if clip is None:
+            return False
+        clip.audio_effect_id = str(effect_id)
+        return True
+
+    def set_clip_fades(self, clip_id: str, fade_in: float,
+                       fade_out: float) -> bool:
+        """Head and tail audio fades, clamped so they never cross."""
+        clip = self.find_clip(clip_id)
+        if clip is None:
+            return False
+        half = max(0.0, clip.duration / 2.0)
+        clip.fade_in = min(half, max(0.0, float(fade_in)))
+        clip.fade_out = min(half, max(0.0, float(fade_out)))
         return True
 
     def trim_clip(self, clip_id: str, source_in: float, duration: float) -> bool:

@@ -181,7 +181,7 @@ l'altro.
       `CONTENT_PACKS.md` §4.2), con preview nella libreria
 - [ ] Transizioni: dissolve, wipe, slide, zoom, + supporto luma matte
 - [ ] Titoli e testo, con font bundled e stili
-- [ ] Effetti audio: gain, EQ, compressore, normalizzazione loudness
+- [x] Effetti audio: gain, EQ, compressore, normalizzazione loudness (2026-08-20, `docs/AUDIO.md`)
 - [ ] Keyframe su qualunque parametro numerico + editor curve
 - [ ] Pannello Inspector generato **dallo schema** dei parametri, non a mano
 

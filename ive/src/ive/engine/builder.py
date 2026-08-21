@@ -16,7 +16,7 @@ import logging
 from fractions import Fraction
 from pathlib import Path
 
-from ive.engine.filters import AudioRamp, Gain
+from ive.engine.filters import AudioEffect, AudioRamp, Gain
 from ive.engine.frame import AudioFormat, Timebase
 from ive.engine.playlist import Entry, Playlist
 from ive.engine.producer import ClipProducer, ColourProducer, Producer
@@ -216,6 +216,22 @@ class GraphBuilder:
             # share the producer but each keeps its own loudness.
             if abs(volume - 1.0) > 1e-6:
                 entry.filters.append(Gain(volume))
+            # The clip's audio recipe, then its own fades - the recipe
+            # shapes the sound, the fades scale what comes out of it.
+            audio_ops = clip.get("audioOps")
+            if audio_ops:
+                entry.filters.append(AudioEffect(list(audio_ops)))
+            fade_in = self.timebase.seconds_to_frames(
+                float(clip.get("fadeIn") or 0.0))
+            if fade_in > 0:
+                entry.filters.append(AudioRamp(
+                    start, start + min(fade_in, length), rising=True))
+            fade_out = self.timebase.seconds_to_frames(
+                float(clip.get("fadeOut") or 0.0))
+            if fade_out > 0:
+                entry.filters.append(AudioRamp(
+                    start + max(0, length - fade_out), start + length,
+                    rising=False))
             current.append(entry)
             cursors[id(current)] = start + length
             placed.append((entry, current, start, start + length))

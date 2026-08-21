@@ -1,0 +1,166 @@
+[
+  {
+    "schema_version": 1,
+    "id": "voice_clear",
+    "name": {"en": "Clear voice", "it": "Voce chiara", "es": "Voz clara", "pt": "Voz clara"},
+    "section": "voice",
+    "ops": [
+      {"op": "highpass", "hz": 90},
+      {"op": "peak", "hz": 3000, "q": 1.0, "db": 3},
+      {"op": "compressor", "threshold_db": -20, "ratio": 3, "attack_ms": 8, "release_ms": 120, "makeup_db": 3},
+      {"op": "limiter", "ceiling_db": -1}
+    ]
+  },
+  {
+    "schema_version": 1,
+    "id": "voice_warm",
+    "name": {"en": "Warm voice", "it": "Voce calda", "es": "Voz cálida", "pt": "Voz quente"},
+    "section": "voice",
+    "ops": [
+      {"op": "highpass", "hz": 70},
+      {"op": "low_shelf", "hz": 180, "db": 2.5},
+      {"op": "high_shelf", "hz": 6000, "db": -2},
+      {"op": "compressor", "threshold_db": -18, "ratio": 2.5, "makeup_db": 2}
+    ]
+  },
+  {
+    "schema_version": 1,
+    "id": "voice_radio",
+    "name": {"en": "Radio", "it": "Radio", "es": "Radio", "pt": "Rádio"},
+    "section": "voice",
+    "ops": [
+      {"op": "highpass", "hz": 120},
+      {"op": "low_shelf", "hz": 250, "db": 3},
+      {"op": "peak", "hz": 2500, "q": 1.2, "db": 4},
+      {"op": "compressor", "threshold_db": -24, "ratio": 5, "attack_ms": 5, "release_ms": 90, "makeup_db": 6},
+      {"op": "limiter", "ceiling_db": -0.5}
+    ]
+  },
+  {
+    "schema_version": 1,
+    "id": "telephone",
+    "name": {"en": "Telephone", "it": "Telefono", "es": "Teléfono", "pt": "Telefone"},
+    "section": "fx",
+    "ops": [
+      {"op": "highpass", "hz": 300, "q": 1.0},
+      {"op": "lowpass", "hz": 3400, "q": 1.0},
+      {"op": "peak", "hz": 1800, "q": 0.8, "db": 4},
+      {"op": "compressor", "threshold_db": -20, "ratio": 4, "makeup_db": 4}
+    ]
+  },
+  {
+    "schema_version": 1,
+    "id": "megaphone",
+    "name": {"en": "Megaphone", "it": "Megafono", "es": "Megáfono", "pt": "Megafone"},
+    "section": "fx",
+    "ops": [
+      {"op": "highpass", "hz": 500, "q": 1.2},
+      {"op": "lowpass", "hz": 4000, "q": 1.2},
+      {"op": "peak", "hz": 1200, "q": 2.0, "db": 8},
+      {"op": "compressor", "threshold_db": -28, "ratio": 8, "attack_ms": 2, "release_ms": 60, "makeup_db": 8},
+      {"op": "limiter", "ceiling_db": -1}
+    ]
+  },
+  {
+    "schema_version": 1,
+    "id": "music_background",
+    "name": {"en": "Background music", "it": "Musica di sottofondo", "es": "Música de fondo", "pt": "Música de fundo"},
+    "section": "music",
+    "ops": [
+      {"op": "gain", "db": -10},
+      {"op": "peak", "hz": 2500, "q": 0.9, "db": -4},
+      {"op": "high_shelf", "hz": 8000, "db": -2}
+    ]
+  },
+  {
+    "schema_version": 1,
+    "id": "music_full_bass",
+    "name": {"en": "Full bass", "it": "Bassi pieni", "es": "Graves llenos", "pt": "Graves cheios"},
+    "section": "music",
+    "ops": [
+      {"op": "low_shelf", "hz": 120, "db": 5},
+      {"op": "peak", "hz": 60, "q": 1.0, "db": 2},
+      {"op": "limiter", "ceiling_db": -0.5}
+    ]
+  },
+  {
+    "schema_version": 1,
+    "id": "music_bright",
+    "name": {"en": "Bright", "it": "Brillante", "es": "Brillante", "pt": "Brilhante"},
+    "section": "music",
+    "ops": [
+      {"op": "high_shelf", "hz": 5000, "db": 4},
+      {"op": "peak", "hz": 12000, "q": 0.7, "db": 2},
+      {"op": "low_shelf", "hz": 150, "db": -1.5}
+    ]
+  },
+  {
+    "schema_version": 1,
+    "id": "music_even",
+    "name": {"en": "Even level", "it": "Livello uniforme", "es": "Nivel uniforme", "pt": "Nível uniforme"},
+    "section": "music",
+    "ops": [
+      {"op": "compressor", "threshold_db": -22, "ratio": 2.5, "attack_ms": 20, "release_ms": 250, "makeup_db": 3},
+      {"op": "limiter", "ceiling_db": -1}
+    ]
+  },
+  {
+    "schema_version": 1,
+    "id": "normalize_16",
+    "name": {"en": "Normalise (-16 dB)", "it": "Normalizza (-16 dB)", "es": "Normalizar (-16 dB)", "pt": "Normalizar (-16 dB)"},
+    "section": "clean",
+    "ops": [
+      {"op": "loudness", "target_db": -16, "max_gain_db": 12},
+      {"op": "limiter", "ceiling_db": -1}
+    ]
+  },
+  {
+    "schema_version": 1,
+    "id": "normalize_20",
+    "name": {"en": "Normalise (-20 dB)", "it": "Normalizza (-20 dB)", "es": "Normalizar (-20 dB)", "pt": "Normalizar (-20 dB)"},
+    "section": "clean",
+    "ops": [
+      {"op": "loudness", "target_db": -20, "max_gain_db": 12},
+      {"op": "limiter", "ceiling_db": -1}
+    ]
+  },
+  {
+    "schema_version": 1,
+    "id": "rumble_cut",
+    "name": {"en": "Cut rumble", "it": "Taglia i rimbombi", "es": "Cortar retumbos", "pt": "Cortar ronco"},
+    "section": "clean",
+    "ops": [
+      {"op": "highpass", "hz": 100}
+    ]
+  },
+  {
+    "schema_version": 1,
+    "id": "hiss_cut",
+    "name": {"en": "Cut hiss", "it": "Taglia il fruscio", "es": "Cortar siseo", "pt": "Cortar chiado"},
+    "section": "clean",
+    "ops": [
+      {"op": "lowpass", "hz": 9000},
+      {"op": "high_shelf", "hz": 6000, "db": -3}
+    ]
+  },
+  {
+    "schema_version": 1,
+    "id": "de_harsh",
+    "name": {"en": "Soften harshness", "it": "Addolcisci", "es": "Suavizar", "pt": "Suavizar"},
+    "section": "clean",
+    "ops": [
+      {"op": "peak", "hz": 3500, "q": 1.5, "db": -4},
+      {"op": "peak", "hz": 7000, "q": 2.0, "db": -3}
+    ]
+  },
+  {
+    "schema_version": 1,
+    "id": "louder",
+    "name": {"en": "Louder", "it": "Più forte", "es": "Más fuerte", "pt": "Mais alto"},
+    "section": "clean",
+    "ops": [
+      {"op": "gain", "db": 6},
+      {"op": "limiter", "ceiling_db": -0.5}
+    ]
+  }
+]

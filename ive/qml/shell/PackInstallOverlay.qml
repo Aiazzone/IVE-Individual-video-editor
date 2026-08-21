@@ -120,7 +120,10 @@ Item {
                           icon: Icons.motion, tint: Theme.c.accent },
                         { label: Tr.s["pack.cat.export_presets"] || "",
                           count: root.pack.counts.export_presets || 0,
-                          icon: Icons.exportIcon, tint: Theme.c.textMuted }
+                          icon: Icons.exportIcon, tint: Theme.c.textMuted },
+                        { label: Tr.s["pack.cat.audio_effects"] || "",
+                          count: root.pack.counts.audio_effects || 0,
+                          icon: Icons.audio, tint: Theme.c.clipAudio }
                     ]
                     delegate: Rectangle {
                         id: contentRow

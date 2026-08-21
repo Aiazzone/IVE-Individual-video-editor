@@ -239,6 +239,42 @@ class AudioRamp(Filter):
         return self._wrap(frame, audio_fn=ramped)
 
 
+class AudioEffect(Filter):
+    """Runs an audio-effect recipe (a list of ops, docs/AUDIO.md) over a
+    clip's sound.
+
+    The chain keeps filter and dynamics STATE between consecutive frames
+    and resets itself when the positions stop being consecutive (a seek,
+    the read-ahead jumping), so a biquad never clicks at a frame boundary
+    and a compressor never pumps from a cold start mid-clip. One chain
+    per filter instance = per playlist ENTRY, like Gain.
+    """
+
+    def __init__(self, ops: list[dict]) -> None:
+        self.ops = [dict(op) for op in (ops or []) if isinstance(op, dict)]
+        self._chain = None
+        self._rate = 0
+
+    def process(self, frame: Frame) -> Frame:
+        if not self.ops:
+            return frame
+        position = frame.position
+        rate = frame.audio_format.sample_rate
+
+        def shaped():
+            from ive.audio.dsp import AudioChain
+
+            audio = frame.audio()
+            if audio is None:
+                return None
+            if self._chain is None or self._rate != rate:
+                self._chain = AudioChain(self.ops, rate)
+                self._rate = rate
+            return self._chain.process(audio, position)
+
+        return self._wrap(frame, audio_fn=shaped)
+
+
 class Grayscale(Filter):
     """Rec.601 luma, kept as three channels so nothing downstream changes."""
 

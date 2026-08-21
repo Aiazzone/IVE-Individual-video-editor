@@ -28,13 +28,14 @@ Item {
     /*! Selected ids per category. Reassigned (never mutated) so every
         binding re-evaluates. */
     property var picked: ({ colors: [], transitions: [], stickers: [],
-                            motion: [], export_presets: [] })
+                            motion: [], export_presets: [],
+                            audio_effects: [] })
     property string status: ""
 
     readonly property int pickedCount:
         picked.colors.length + picked.transitions.length
         + picked.stickers.length + picked.motion.length
-        + picked.export_presets.length
+        + picked.export_presets.length + picked.audio_effects.length
 
     function isPicked(category, id) {
         return picked[category].indexOf(id) >= 0;
@@ -44,7 +45,8 @@ Item {
                      transitions: picked.transitions.slice(),
                      stickers: picked.stickers.slice(),
                      motion: picked.motion.slice(),
-                     export_presets: picked.export_presets.slice() };
+                     export_presets: picked.export_presets.slice(),
+                     audio_effects: picked.audio_effects.slice() };
         var at = next[category].indexOf(id);
         if (at >= 0)
             next[category].splice(at, 1);
@@ -67,7 +69,8 @@ Item {
             transitions: union(picked.transitions, Transitions.favorites),
             stickers: union(picked.stickers, Stickers.favorites),
             motion: picked.motion,
-            export_presets: picked.export_presets
+            export_presets: picked.export_presets,
+            audio_effects: union(picked.audio_effects, AudioFx.favorites)
         };
     }
 
@@ -131,6 +134,16 @@ Item {
         return out;
     }
 
+    readonly property var audioItems: {
+        var out = [];
+        var all = AudioFx.effects;
+        for (var i = 0; i < all.length; i++)
+            out.push({ id: all[i].id, name: all[i].name,
+                       section: Tr.s["audio.section." + all[i].section]
+                                || all[i].section });
+        return out;
+    }
+
     readonly property var categories: [
         { key: "colors", label: Tr.s["pack.cat.colors"] || "",
           items: colorItems },
@@ -141,7 +154,9 @@ Item {
         { key: "motion", label: Tr.s["pack.cat.motion"] || "",
           items: motionItems },
         { key: "export_presets", label: Tr.s["pack.cat.export_presets"] || "",
-          items: exportItems }
+          items: exportItems },
+        { key: "audio_effects", label: Tr.s["pack.cat.audio_effects"] || "",
+          items: audioItems }
     ]
 
     Connections {
@@ -171,6 +186,7 @@ Item {
             sticker_ids: root.picked.stickers,
             motion_ids: root.picked.motion,
             export_preset_ids: root.picked.export_presets,
+            audio_effect_ids: root.picked.audio_effects,
             path: String(selectedFile)
         })
     }
@@ -576,6 +592,7 @@ Item {
                                             .replace("{s}", packRow.modelData.stickers)
                                             .replace("{m}", packRow.modelData.motion)
                                             .replace("{e}", packRow.modelData.exportPresets)
+                                            .replace("{a}", packRow.modelData.audioEffects)
                                 color: Theme.c.textDisabled
                                 font.pixelSize: Theme.m.fontSizeXs
                                 elide: Text.ElideRight
