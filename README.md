@@ -16,26 +16,26 @@ code** and share with other users as plain files.
 > still on the way — see the roadmap below. macOS is not supported for now (untested; the codebase avoids
 > platform-specific paths, so it may come later).
 
-![Colour effects](docs/screenshots/color-effects.png)
+![Colour effects](docs/screenshots/color-effects.jpg)
 *Colour effects: families with live previews on your own footage,
 favourites, a pink clip on the dedicated Color lane, and a music bed
 under the cut.*
 
-![Audio and music](docs/screenshots/audio-and-music.png)
+![Audio and music](docs/screenshots/audio-and-music.jpg)
 *The Audio panel on a music clip: volume, fade in / fade out (drawn as
 shades on the waveform), ducking under speech, and audio effects as
 shareable recipes — the "fx" tag on the clip says which one.*
 
-![Titles, light theme](docs/screenshots/titles-light.png)
+![Titles, light theme](docs/screenshots/titles-light.jpg)
 *Titles typed live onto the video, styled in the panel, moved with
 on-video handles, animated with the same motion presets as stickers.
 Light theme.*
 
-![Settings](docs/screenshots/settings-appearance.png)
+![Settings](docs/screenshots/settings-appearance.jpg)
 *Settings: dark or light theme, glass effects with transparency and blur,
 reduced motion — and an Audio tab for how ducking detects speech.*
 
-![Export](docs/screenshots/export.png)
+![Export](docs/screenshots/export.jpg)
 *Export: one icon per platform with its presets behind it. Presets are
 JSON files, shareable and installable from packs.*
 
