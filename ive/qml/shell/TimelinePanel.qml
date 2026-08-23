@@ -138,7 +138,8 @@ Item {
                                       path: c.path, sourceIn: c.sourceIn,
                                       mediaDuration: c.mediaDuration,
                                       fadeIn: c.fadeIn, fadeOut: c.fadeOut,
-                                      effect: c.audioEffectId };
+                                      effect: c.audioEffectId,
+                                      duck: c.duck };
                          }) });
         var tx = clips.filter(function (c) { return c.track === 3; });
         if (tx.length > 0)
@@ -1147,6 +1148,27 @@ Item {
                                         visible: waveImage.status === Image.Ready
                                         colorization: 1.0
                                         colorizationColor: waveBox.waveColor
+                                    }
+
+                                    // WHERE the ducking presses the bed
+                                    // down: a dark strip whose opacity
+                                    // follows the engine's own envelope
+                                    // (DuckShade runs it offline). Music
+                                    // lane only, and only when ducked.
+                                    Image {
+                                        objectName: "duck_shade"
+                                        visible: status === Image.Ready
+                                        anchors.fill: parent
+                                        fillMode: Image.Stretch
+                                        smooth: true
+                                        asynchronous: true
+                                        z: 1
+                                        source: {
+                                            DuckShade.rev;   // re-ask on arrival
+                                            return clip.modelData.duck === true
+                                                ? DuckShade.shade(clip.modelData.id)
+                                                : "";
+                                        }
                                     }
 
                                     // Stand-in bars ONLY while the strip is

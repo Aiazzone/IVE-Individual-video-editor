@@ -91,6 +91,7 @@ della prima release pubblica.
 | **Sticker demo Lottie** (`config/defaults/stickers/demo/`: gatin, happy2016, navidad) | MIT (airbnb/lottie-web, cartella demo) | Tre animazioni di fabbrica nella famiglia «Dimostrazioni». LICENSE.txt accanto ai file. Promossi da user_data il 2026-08-21. |
 | **Pillow** | MIT-CMU (HPND) | |
 | **ONNX Runtime** | MIT | Provider CPU/CUDA/DirectML. |
+| **Silero VAD** (pesi, `models/vad/silero_vad.onnx`) | MIT (snakers4/silero-vad) | Rilevamento voce per il ducking «Intelligente». ~2 MB, CPU. In `models/`, mai nel repo; se manca l'app ricade sul rilevatore a livello. Aggiunto 2026-08-23. |
 | **OpenVINO** | Apache-2.0 | |
 | **PyInstaller** | GPL-2.0 con **bootloader exception** | L'exception permette di distribuire app con qualunque licenza. |
 | **pytest / pytest-qt** | MIT | Solo sviluppo. |

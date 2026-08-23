@@ -147,6 +147,7 @@ class ProjectService(QObject):
         if self._project is None:
             return []
         from ive.color.library import effect_by_id
+        from ive.music.library import track_by_path
         from ive.stickers.library import sticker_by_id
 
         base = self._project.base
@@ -169,6 +170,14 @@ class ProjectService(QObject):
                 name = clip.text.split("\n")[0][:24]
             else:
                 name = item.name if item else clip.media_id
+                if clip.track == Project.MUSIC_TRACK and item is not None:
+                    # The piece's TITLE, not its file name, when the
+                    # library knows the file.
+                    track = track_by_path(item.resolve(base))
+                    if track is not None:
+                        titles = track["titles"]
+                        name = (titles.get("en")
+                                or next(iter(titles.values()), name))
             out.append({
                 "id": clip.id,
                 "mediaId": clip.media_id,

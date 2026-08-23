@@ -42,8 +42,8 @@ from ive.utils.paths import get_data_path
 
 log = logging.getLogger(__name__)
 
-__all__ = ["list_tracks", "track_by_id", "categories", "reload",
-           "AUDIO_SUFFIXES", "USER_CATEGORY"]
+__all__ = ["list_tracks", "track_by_id", "track_by_path", "categories",
+           "reload", "AUDIO_SUFFIXES", "USER_CATEGORY"]
 
 AUDIO_SUFFIXES = {".mp3", ".ogg", ".opus", ".wav", ".flac", ".m4a", ".aac"}
 USER_CATEGORY = "mine"
@@ -172,6 +172,17 @@ def reload() -> None:
 
 def track_by_id(track_id: str) -> dict[str, Any] | None:
     return next((t for t in list_tracks() if t["id"] == track_id), None)
+
+
+def track_by_path(path) -> dict[str, Any] | None:
+    """The track whose file is ``path``, if the library knows it - how a
+    timeline clip finds the TITLE of the piece it plays."""
+    try:
+        wanted = Path(path).resolve()
+    except OSError:
+        return None
+    return next((t for t in list_tracks() if Path(t["path"]) == wanted),
+                None)
 
 
 def categories() -> list[str]:

@@ -175,10 +175,22 @@ play, + con copertura → corsia Music con due pezzi).
 La musica si abbassa da sola mentre il montaggio "parla" e risale dopo.
 Divisione decisa con l'utente: **come** si rileva il parlato e' una
 preferenza globale (`audio.ducking_mode`: `simple` = livello sonoro,
-`smart` = modello VAD — finche' il modello non c'e' ricade su simple con
-UN warning nel log, cosi' un progetto fatto altrove suona ovunque);
-**se** e **quanto** e' del singolo clip musicale (`duck`, `duck_db`,
-azione `timeline.set_clip_ducking`, un undo).
+`smart` = modello VAD — se il modello o onnxruntime mancano ricade su
+simple con UN warning nel log, cosi' un progetto fatto altrove suona
+ovunque); **se** e **quanto** e' del singolo clip musicale (`duck`,
+`duck_db`, azione `timeline.set_clip_ducking`, un undo).
+
+**Smart = Silero VAD** (implementato il 2026-08-23, `ive/audio/vad.py`):
+ONNX ~2 MB in `models/vad/silero_vad.onnx` (MIT, vedi LICENSING.md),
+provider CPU. 16 kHz mono a blocchi di 512 campioni **preceduti da 64
+campioni di contesto** (il modello v5 vuole 576 in ingresso: senza
+contesto ogni probabilita' crolla a zero — errore gia' pagato), stato
+LSTM portato tra i blocchi, reset al seek. `GuideLevel` in smart passa
+l'audio della guida al detector: un frame forte ma con probabilita' voce
+< 0.5 vale **silenzio** — un clacson non abbassa piu' il brano. Misure
+del test: parlato TTS reale prob. 1.00, tono 440 Hz 0.00, rumore 0.04;
+sul grafo, smart abbassa sotto la voce (x0.25) e lascia il brano
+identico sotto il tono forte.
 
 Motore (`ive/audio/ducking.py`): `GuideLevel` ascolta i roll A/V
 (`roll_a`, `roll_b`) alla posizione del frame e risponde in dBFS, con
@@ -192,14 +204,27 @@ l'export ha la stessa modalita' dell'anteprima per costruzione.
 UI: gruppo «Sotto il parlato» nel pannello Audio per i clip della corsia
 Music (interruttore + «Abbassa di» 3-24 dB, con la modalita' corrente
 nel suggerimento); Impostazioni → tab **Audio** → «Rilevamento
-parlato». Non c'e' (ancora) un'ombra sull'onda dove la musica scende:
-richiederebbe un'analisi offline del montaggio; rinviato.
+parlato». **L'ombra sull'onda** (2026-08-23, `ive/ui/duck_shades.py`):
+un servizio in stile WaveformService fa girare offline lo STESSO
+inviluppo del Ducker — guida approssimata dai picchi gia' in cache
+delle waveform dei clip V1 (i picchi sopravvalutano un filo l'RMS:
+per un'ombra va bene e non decodifica nulla) — e produce una strip PNG
+la cui alpha e' la riduzione; QML (`duck_shade` in TimelinePanel) la
+stende sul clip. Cache in `user_data/cache/duckshades`, chiave = tutto
+cio' da cui dipende l'inviluppo (un edit cambia la chiave), spazzata
+dei file piu' vecchi di una settimana all'avvio. L'ombra usa sempre il
+rilevatore a livello, anche in modalita' smart: e' un'indicazione di
+DOVE, non un rendering.
 
 Test: `tests/test_ducking.py` (inviluppo, reset al seek, fallback smart
 con warning, grafo: il brano a 220 Hz scende di ~-12 dB sotto il tono e
 torna pieno nel silenzio — misurato sul bin a 220 Hz, cosi' la guida
-non puo' spacciarsi per il brano; modello+undo; span con modalita'
-globale), `tests/visual/test_ducking_ui.py`.
+non puo' spacciarsi per il brano; VAD: tono/rumore non sono voce, il
+parlato TTS si'; smart sul grafo abbassa sotto la voce e non sotto il
+tono; ombra: scura dove si parla, trasparente dopo il rilascio, cache;
+modello+undo; span con modalita' globale),
+`tests/visual/test_ducking_ui.py` (interruttore, ombra sul clip,
+impostazione globale).
 
 ### 5.1 Le regole decise per le musiche (valgono per i prossimi pack)
 

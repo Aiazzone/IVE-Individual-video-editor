@@ -120,6 +120,9 @@ class Application:
         self.context.extras["packs"] = self.packs
         self.thumbs = ThumbnailService()
         self.waves = WaveformService()
+        from ive.ui.duck_shades import DuckShadeService
+
+        self.duckshades = DuckShadeService(self.project)
         register_singletons(
             theme=self.theme,
             translations=self.translations,
@@ -139,6 +142,7 @@ class Application:
             motion=self.motion,
             audiofx=self.audiofx,
             music=self.music,
+            duckshade=self.duckshades,
         )
         # Same rule as the singletons: register before the engine exists.
         qmlRegisterType(PreviewItem, "IVE", 1, 0, "PreviewItem")
@@ -204,6 +208,7 @@ class Application:
 
         self.watchdog.stop()
         self.proxies.shutdown()
+        self.duckshades.shutdown()
         self.music.shutdown()
         self.packs.shutdown()
         self.export.shutdown()

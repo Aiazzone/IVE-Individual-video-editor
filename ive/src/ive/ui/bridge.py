@@ -189,7 +189,7 @@ def register_singletons(*, theme, translations, shell, actions,
                         colorfx=None, thumbs=None, history=None,
                         waves=None, stickers=None, transitions=None,
                         packs=None, motion=None, audiofx=None,
-                        music=None) -> None:
+                        music=None, duckshade=None) -> None:
     """Expose the four singletons to QML under the ``IVE`` import namespace.
 
     .. warning::
@@ -253,4 +253,7 @@ def register_singletons(*, theme, translations, shell, actions,
     if music is not None:
         qmlRegisterSingletonInstance(type(music), "IVE", 1, 0,
                                      "Music", music)
+    if duckshade is not None:
+        qmlRegisterSingletonInstance(type(duckshade), "IVE", 1, 0,
+                                     "DuckShade", duckshade)
     log.debug("QML singletons registered under the IVE namespace")

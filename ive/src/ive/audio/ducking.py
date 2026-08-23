@@ -5,11 +5,12 @@ Two parts, kept apart on purpose:
 * ``GuideLevel`` listens to the GUIDE - the A/V playlists' audio at a
   track position - and answers "how loud is the cut here?" in dBFS, one
   number per frame, cached so every ducked bed at that frame asks once.
-  It is the "simple" detector of docs/AUDIO.md: energy, not speech. The
-  "smart" mode (a voice-activity model telling words from a car horn)
-  plugs in HERE when its model ships; until then asking for it logs once
-  and uses the energy detector, so a project made on a machine with the
-  model still plays everywhere.
+  "simple" is energy alone; "smart" runs the same audio through the
+  Silero voice model (ive/audio/vad.py) and reports SILENCE for loud
+  frames that are not speech - a car horn no longer dips the bed. A
+  machine without the model (or onnxruntime) logs once and uses the
+  energy detector, so a project made with "smart" still plays
+  everywhere.
 * ``Ducker`` is the filter on a music entry: a one-pole envelope with a
   fast attack (the bed must get out of the way on the first word) and a
   slow release (it must not pump between words), applied as a gain to
@@ -39,14 +40,22 @@ _warned_smart = False
 class GuideLevel:
     """The cut's loudness per track frame, from its playlists' audio."""
 
+    #: Below this Silero probability a frame is "not speech" in smart mode.
+    SPEECH_THRESHOLD = 0.5
+
     def __init__(self, producers: list, mode: str = "simple") -> None:
         global _warned_smart
         self.producers = list(producers)
         self.mode = mode if mode in MODES else "simple"
-        if self.mode == "smart" and not _warned_smart:
-            _warned_smart = True
-            log.warning("Ducking 'smart' mode asked for but no voice model "
-                        "is installed; using the level detector")
+        self._detector = None
+        if self.mode == "smart":
+            from ive.audio.vad import SpeechDetector
+
+            self._detector = SpeechDetector.load()
+            if self._detector is None and not _warned_smart:
+                _warned_smart = True
+                log.warning("Ducking 'smart' mode asked for but no voice "
+                            "model is installed; using the level detector")
         self._cache: dict[int, float] = {}
 
     def level_db(self, position: int) -> float:
@@ -56,6 +65,7 @@ class GuideLevel:
             return cached
         total = 0.0
         count = 0
+        speech = None
         for producer in self.producers:
             try:
                 frame = producer.frame_at(position)
@@ -69,8 +79,16 @@ class GuideLevel:
                 continue
             total += float(np.sum(audio.astype(np.float64) ** 2))
             count += audio.size
+            if self._detector is not None:
+                rate = frame.audio_format.sample_rate
+                probability = self._detector.speech_probability(audio, rate)
+                speech = (probability if speech is None
+                          else max(speech, probability))
         level = (20.0 * math.log10(math.sqrt(total / count))
                  if count and total > 0.0 else -120.0)
+        if speech is not None and speech < self.SPEECH_THRESHOLD:
+            # Loud but not a voice: the bed has no reason to move.
+            level = -120.0
         if len(self._cache) > 256:
             self._cache.clear()
         self._cache[position] = level
