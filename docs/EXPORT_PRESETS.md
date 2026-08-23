@@ -215,13 +215,21 @@ reale 64:27 (2560x1080, 5120x2160), non il 2.33 letterale dell'etichetta.
 
 ---
 
-## 3. Preset personalizzati e condivisione
+## 3. Preset personalizzati e condivisione (implementato il 2026-08-23)
 
 Requisito esplicito: i preset devono passare facilmente da un utente
-all'altro.
+all'altro. Stato: **fatto** — dal tab Custom si salva («Salva preset»,
+azione `export.save_preset`), i preset utente compaiono nel tab Social
+sotto «Other» con i bottoni elimina/condividi, e l'import legge un
+`.json` singolo (`export.import_preset`). Logica in
+`ive/export/presets.py` (`save_user_preset` / `delete_user_preset` /
+`share_preset_file` / `import_preset_file`); test in
+`tests/test_export_presets_user.py` e
+`tests/visual/test_export_queue_ui.py`.
 
 - Un preset creato dall'utente si salva in
-  `user_data/settings/export_presets/<id>.json`.
+  `user_data/export_presets/<id>.json` (un file per preset: cosi'
+  l'eliminazione e' chirurgica e il file e' gia' pronto da condividere).
 - **"Esporta preset"** produce un `.json` singolo, leggibile e modificabile
   con un editor di testo.
 - **Importare** = trascinare il `.json` nella finestra, oppure metterlo nella
@@ -242,6 +250,16 @@ editor commerciali.
 
 ## 4. Comportamento all'export
 
+Stato 2026-08-23: **preflight, stima e coda implementati**
+(`ExportService.preflight`, coda di job in `ive/export/service.py`,
+card nel pannello Export). Il preflight avvisa su upscaling, formato
+diverso dal canvas, durata oltre il limite del preset, e **blocca solo**
+quando manca un encoder per il codec; mostra stima di dimensione
+(aritmetica dei bitrate), durata ed encoder reale (hw se disponibile:
+la probe apre un contesto vero alle impostazioni dell'export). I punti
+alpha/HDR restano per quando il motore avra' quei percorsi. Test:
+`tests/test_export_preflight.py`, `tests/test_export_queue.py`.
+
 1. L'utente sceglie un preset (o parte da uno e modifica alcuni campi).
 2. L'app **valida** contro il progetto e avvisa se qualcosa non torna:
    - rapporto del canvas diverso da `recommended_aspect`
@@ -258,10 +276,15 @@ editor commerciali.
 6. Un export fallito **non lascia un file parziale** spacciato per buono:
    si scrive su file temporaneo e si rinomina solo al termine.
 
-**Coda di export.** Piu' export in fila (es. lo stesso montaggio per YouTube,
-Reels e LinkedIn) con preset diversi, eseguiti in sequenza. E' il caso d'uso
-piu' frequente per chi pubblica su piu' piattaforme, e va previsto dal
-principio, non aggiunto dopo.
+**Coda di export** (implementata). Ogni «Esporta» **congela** la timeline
+in un job (clip e span catturati al momento dell'accodamento, non
+all'avvio del render) e lo mette in fila; un solo worker li rende in
+ordine. Mentre un job gira il bottone diventa «Aggiungi alla coda»: tre
+piattaforme = tre tap. La card della coda mostra stato e progresso per
+riga, X ferma il job in corso o toglie quello in attesa
+(`export.cancel` / `Export.remove_job`), «Annulla tutto» =
+`export.cancel_all`. Due job non condividono mai la destinazione: i
+nomi promessi alla coda contano come occupati (`queued_paths`).
 
 ---
 

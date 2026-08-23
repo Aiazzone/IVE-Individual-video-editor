@@ -135,18 +135,26 @@ Vedi `docs/EXPORT_PRESETS.md` e `docs/MEDIA_FORMATS.md`.
 
 - [ ] Canvas preset (16:9, 9:16, 1:1, 4:5, 4:3, 21:9) + cambio rapporto con
       strategie fit/fill/blur, annullabile
-- [ ] `export/presets.py` — preset dichiarativi JSON, codec **logici**
-- [ ] `export/encoder.py` via PyAV
-- [ ] `export/hwaccel.py` — rilevamento encoder hardware con test reale e
-      fallback software
-- [ ] `export/pipeline.py` — render → encode, progresso, cancellazione,
-      scrittura su file temporaneo
-- [ ] `JobService` + **coda di export** + status bar
-- [ ] Dialog di export con validazione preventiva (alpha non supportata,
-      aspect diverso, upscaling, HDR→SDR) e stima di dimensione
-- [ ] Import/export di preset personalizzati come `.json` singolo
-- [ ] Preset di sistema per YouTube / Shorts / Reels / Stories / TikTok /
-      LinkedIn / Facebook / X / WhatsApp / archivio / ProRes
+- [x] `export/presets.py` — preset dichiarativi JSON, codec **logici**
+      (2026-08, factory + user + pack)
+- [x] Encoder via PyAV, dentro `export/service.py` (muxer per contenitore,
+      audio dal grafo)
+- [x] Rilevamento encoder hardware con **test reale** (apre un contesto
+      alle impostazioni dell'export: h264_qsv/nvenc/amf prima, software
+      come fallback) — in `export/service.py`, non in un hwaccel.py separato
+- [x] Pipeline render → encode: progresso, cancellazione, scrittura su
+      `.part` e rename solo al successo
+- [x] **Coda di export** (2026-08-23): ogni Esporta congela la timeline in
+      un job, un worker li rende in ordine, card con stato/progresso per
+      riga, cancel del singolo o di tutto
+- [x] **Preflight** nel pannello (2026-08-23): avvisi su upscaling, aspect
+      diverso dal canvas, durata oltre il limite del preset; blocco SOLO
+      per encoder mancante; stima dimensione/durata + encoder reale.
+      Alpha e HDR→SDR arriveranno con quei percorsi nel motore
+- [x] Import/export di preset personalizzati come `.json` singolo
+      (2026-08-23: salva dal tab Custom, condividi/elimina/importa)
+- [x] Preset di sistema YouTube / Shorts / Reels / Stories / TikTok /
+      LinkedIn / Facebook / WhatsApp (X, archivio e ProRes: quando serviranno)
 
 **Fatto quando:** il file esportato corrisponde al preview frame per frame,
 lo stesso montaggio si esporta in coda per tre piattaforme diverse, e un
@@ -233,6 +241,9 @@ core, e un plugin rotto non fa cadere l'app.
 Nell'ordine, per rapporto valore/rischio:
 
 - [ ] Infrastruttura: `AITask`, model registry, downloader, runtime, backend
+      (primo modello ONNX gia' in campo il 2026-08-23: Silero VAD in
+      `models/vad/` per il ducking «Intelligente», CPU, fallback pulito
+      se manca — `ive/audio/vad.py`)
 - [ ] **Sottotitoli automatici** — il valore piu' alto, il rischio piu' basso
 - [ ] **Traduzione** dei sottotitoli
 - [ ] **Rimozione sfondo** — attenzione alle licenze

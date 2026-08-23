@@ -68,15 +68,7 @@ def start_export(ctx, options: dict, folder: str = "", filename: str = ""):
         preset = preset_by_id(preset_id)
         if preset is None:
             raise RuntimeError(f"Unknown preset {preset_id!r}")
-        settings = {
-            "container": preset.container,
-            "video_codec": preset.video_codec,
-            "audio_codec": preset.audio_codec,
-            "width": preset.width,
-            "height": preset.height,
-            "video_bitrate_kbps": preset.video_bitrate_kbps,
-            "audio_bitrate_kbps": preset.audio_bitrate_kbps,
-        }
+        settings = preset.to_options()
         stem_suffix = preset.id
     else:
         stem_suffix = "custom"
@@ -91,9 +83,12 @@ def start_export(ctx, options: dict, folder: str = "", filename: str = ""):
     target = base / f"{stem}.{container}"
 
     # Never silently overwrite: an export that eats the previous one is a
-    # data-loss bug, not a convenience.
+    # data-loss bug, not a convenience. A destination promised to a job
+    # still in the queue counts as taken even though the file is not on
+    # disk yet - two queued exports of the same preset must not collide.
+    taken = export.queued_paths() if hasattr(export, "queued_paths") else set()
     counter = 1
-    while target.exists():
+    while target.exists() or str(target) in taken:
         target = base / f"{stem}_{counter}.{container}"
         counter += 1
 
@@ -104,8 +99,77 @@ def start_export(ctx, options: dict, folder: str = "", filename: str = ""):
 @action(
     id="export.cancel",
     title_key="export.cancel",
-    desc_key="Stop the running export. The partial file is removed.",
+    desc_key="Stop the running export. The partial file is removed; "
+             "any queued exports still run.",
     category="export",
 )
 def cancel_export(ctx):
     ctx.require("export").cancel()
+
+
+@action(
+    id="export.cancel_all",
+    title_key="export.cancel",
+    desc_key="Stop the running export AND drop every waiting one.",
+    category="export",
+)
+def cancel_all_exports(ctx):
+    ctx.require("export").cancel_all()
+
+
+@action(
+    id="export.save_preset",
+    title_key="export.preset.save",
+    desc_key="Save export settings as a named user preset "
+             "(a single reusable .json).",
+    category="export",
+    params={
+        "name": Param(str, required=True, doc="Display name of the preset."),
+        "options": Param(dict, required=True,
+                         doc="container/video_codec/audio_codec/width/height/"
+                             "video_bitrate_kbps."),
+    },
+)
+def save_export_preset(ctx, name: str, options: dict):
+    if not ctx.require("export").save_preset(name, dict(options or {})):
+        raise RuntimeError("The preset could not be saved")
+
+
+@action(
+    id="export.delete_preset",
+    title_key="export.preset.delete",
+    desc_key="Delete one of the user's own export presets.",
+    category="export",
+    params={"preset_id": Param(str, required=True)},
+)
+def delete_export_preset(ctx, preset_id: str):
+    if not ctx.require("export").delete_preset(preset_id):
+        raise RuntimeError(f"Preset {preset_id!r} is not deletable")
+
+
+@action(
+    id="export.share_preset",
+    title_key="export.preset.share",
+    desc_key="Write one export preset as a single .json file in a folder, "
+             "ready to hand to someone else.",
+    category="export",
+    params={"preset_id": Param(str, required=True),
+            "folder": Param(str, required=True)},
+)
+def share_export_preset(ctx, preset_id: str, folder: str):
+    if not ctx.require("export").share_preset(preset_id, folder):
+        raise RuntimeError(f"Unknown preset {preset_id!r}")
+
+
+@action(
+    id="export.import_preset",
+    title_key="export.preset.import",
+    desc_key="Import export presets from a .json file into the user's "
+             "catalogue. Existing ids are skipped, never overwritten.",
+    category="export",
+    params={"path": Param(str, required=True)},
+)
+def import_export_preset(ctx, path: str):
+    report = ctx.require("export").import_preset(path)
+    if not report.get("ok"):
+        raise RuntimeError(report.get("error") or "nothing_imported")

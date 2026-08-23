@@ -77,6 +77,21 @@ Item {
         };
     }
 
+    // What THIS export would produce, refreshed as the knobs move.
+    // Warnings inform; only a missing encoder blocks the button.
+    readonly property var flight: {
+        if (!Playback.hasMedia)
+            return null;
+        Playback.durationSeconds;   // re-judge when the cut changes...
+        Export.presets;             // ...or the preset list reloads
+        return Export.preflight(currentOptions());
+    }
+
+    function warningText(w) {
+        var base = Tr.s["export.warn." + w.id] || w.id;
+        return w.detail ? base + "  ·  " + w.detail : base;
+    }
+
     FolderDialog {
         id: destDialog
         title: Tr.s["export.destination"] || "Destination"
@@ -86,6 +101,25 @@ Item {
             options: root.currentOptions(),
             folder: Project.localPath(String(selectedFolder)),
             filename: filenameField.text.trim()
+        })
+    }
+
+    FileDialog {
+        id: importDialog
+        title: Tr.s["export.preset.import"] || ""
+        nameFilters: ["JSON (*.json)"]
+        onAccepted: Actions.invoke("export.import_preset", {
+            path: Project.localPath(String(selectedFile))
+        })
+    }
+
+    property string shareTargetId: ""
+    FolderDialog {
+        id: shareDialog
+        title: Tr.s["export.preset.share"] || ""
+        onAccepted: Actions.invoke("export.share_preset", {
+            preset_id: root.shareTargetId,
+            folder: Project.localPath(String(selectedFolder))
         })
     }
 
@@ -235,6 +269,28 @@ Item {
                                 font.pixelSize: Theme.m.fontSizeXs
                             }
                         }
+                        // A preset the USER saved can leave as a .json or
+                        // leave for good; factory and pack presets cannot.
+                        IconButton {
+                            objectName: "preset_share_" + parent.parent.modelData.id
+                            visible: parent.parent.modelData.source === "user"
+                            size: 26; iconSize: 14
+                            icon: Icons.exportIcon
+                            label: Tr.s["export.preset.share"] || ""
+                            onTriggered: {
+                                root.shareTargetId = parent.parent.modelData.id;
+                                shareDialog.open();
+                            }
+                        }
+                        IconButton {
+                            objectName: "preset_delete_" + parent.parent.modelData.id
+                            visible: parent.parent.modelData.source === "user"
+                            size: 26; iconSize: 14
+                            icon: Icons.trash
+                            label: Tr.s["export.preset.delete"] || ""
+                            onTriggered: Actions.invoke("export.delete_preset",
+                                { preset_id: parent.parent.modelData.id })
+                        }
                         Glyph {
                             visible: parent.parent.selected
                             width: 15; height: 15
@@ -244,6 +300,25 @@ Item {
                     }
                     HoverHandler { id: presetHover; cursorShape: Qt.PointingHandCursor }
                     TapHandler { onTapped: root.presetId = modelData.id }
+                }
+            }
+
+            // A colleague's preset arrives as one .json: bring it in here.
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.m.space2
+                IconButton {
+                    objectName: "preset_import"
+                    size: 26; iconSize: 14
+                    icon: Icons.folderOpen
+                    label: Tr.s["export.preset.import"] || ""
+                    onTriggered: importDialog.open()
+                }
+                Text {
+                    Layout.fillWidth: true
+                    text: Tr.s["export.preset.import"] || ""
+                    color: Theme.c.textDisabled
+                    font.pixelSize: Theme.m.fontSizeXs
                 }
             }
         }
@@ -371,6 +446,79 @@ Item {
                 value: root.bitrate
                 onCommitted: function (v) { root.bitrate = Math.round(v); }
             }
+
+            // These knobs, frozen under a name: the preset appears in the
+            // social tab under "Other" and travels as one .json.
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.topMargin: Theme.m.space2
+                spacing: Theme.m.space2
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 30
+                    radius: Theme.m.radiusMd
+                    color: Qt.alpha(Theme.c.glassOn, 0.07)
+                    border.width: 1
+                    border.color: presetNameField.activeFocus ? Theme.c.accent
+                                                              : Theme.c.border
+                    TextInput {
+                        id: presetNameField
+                        objectName: "preset_name_field"
+                        anchors.fill: parent
+                        anchors.leftMargin: Theme.m.space2
+                        anchors.rightMargin: Theme.m.space2
+                        verticalAlignment: TextInput.AlignVCenter
+                        color: Theme.c.text
+                        font.pixelSize: Theme.m.fontSizeSm
+                        selectByMouse: true
+                        selectionColor: Theme.c.accent
+                        clip: true
+                    }
+                    Text {
+                        anchors.fill: presetNameField
+                        verticalAlignment: Text.AlignVCenter
+                        visible: presetNameField.text === ""
+                                 && !presetNameField.activeFocus
+                        text: Tr.s["export.preset.name_hint"] || ""
+                        color: Theme.c.textDisabled
+                        font.pixelSize: Theme.m.fontSizeSm
+                        elide: Text.ElideRight
+                    }
+                }
+                Rectangle {
+                    objectName: "preset_save"
+                    readonly property bool ready:
+                        presetNameField.text.trim() !== ""
+                    Layout.preferredHeight: 30
+                    Layout.preferredWidth: saveLabel.implicitWidth
+                                           + Theme.m.space3 * 2
+                    radius: Theme.m.radiusMd
+                    color: ready ? (saveHover.hovered ? Theme.c.accentHover
+                                                      : Theme.c.accent)
+                                 : Qt.alpha(Theme.c.glassOn, 0.08)
+                    Text {
+                        id: saveLabel
+                        anchors.centerIn: parent
+                        text: Tr.s["export.preset.save"] || ""
+                        color: parent.ready ? Theme.c.onAccent
+                                            : Theme.c.textDisabled
+                        font.pixelSize: Theme.m.fontSizeXs
+                    }
+                    HoverHandler { id: saveHover
+                                   cursorShape: Qt.PointingHandCursor }
+                    TapHandler {
+                        onTapped: {
+                            if (!parent.ready)
+                                return;
+                            Actions.invoke("export.save_preset", {
+                                name: presetNameField.text.trim(),
+                                options: root.currentOptions()
+                            });
+                            presetNameField.text = "";
+                        }
+                    }
+                }
+            }
         }
 
         // ── file name ─────────────────────────────────────────────
@@ -414,63 +562,206 @@ Item {
             }
         }
 
-        // ── the honest bit ────────────────────────────────────────
+        // ── preflight: what this export would produce ─────────────
+        // The estimate is always there; warnings appear when the
+        // arithmetic says so. Only a missing encoder disables the
+        // button - everything else informs and steps aside.
         CardGroup {
-            visible: Playback.hasMedia
+            visible: Playback.hasMedia && root.flight !== null
+            objectName: "export_preflight"
+
+            Text {
+                objectName: "export_estimate"
+                Layout.fillWidth: true
+                text: {
+                    if (!root.flight)
+                        return "";
+                    var s = Math.round(root.flight.durationSeconds);
+                    var clock = Math.floor(s / 60) + ":"
+                                + ("0" + (s % 60)).slice(-2);
+                    return (Tr.s["export.estimate"] || "~%1 MB · %2")
+                        .replace("%1", root.flight.sizeMb)
+                        .replace("%2", clock)
+                        + (root.flight.encoder
+                           ? "  ·  " + root.flight.encoder : "");
+                }
+                color: Theme.c.textMuted
+                font.pixelSize: Theme.m.fontSizeXs
+            }
+            Repeater {
+                model: root.flight ? root.flight.warnings : []
+                delegate: RowLayout {
+                    required property var modelData
+                    Layout.fillWidth: true
+                    spacing: Theme.m.space1
+                    Glyph {
+                        Layout.preferredWidth: 13
+                        Layout.preferredHeight: 13
+                        path: Icons.alert
+                        color: modelData.id === "no_encoder"
+                            ? Theme.c.danger : Theme.c.warning
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        wrapMode: Text.WordWrap
+                        text: root.warningText(modelData)
+                        color: modelData.id === "no_encoder"
+                            ? Theme.c.danger : Theme.c.warning
+                        font.pixelSize: Theme.m.fontSizeXs
+                        lineHeight: 1.3
+                    }
+                }
+            }
             Text {
                 Layout.fillWidth: true
                 wrapMode: Text.WordWrap
                 text: Tr.s["export.limits"] || ""
-                color: Theme.c.warning
+                color: Theme.c.textDisabled
                 font.pixelSize: Theme.m.fontSizeXs
                 lineHeight: 1.35
             }
         }
 
-        // ── run ───────────────────────────────────────────────────
+        // ── run / queue another ───────────────────────────────────
+        // The button always QUEUES: while a job renders, tapping it
+        // lines up the current settings as the next job - three
+        // platforms in three taps. Stopping lives on the queue rows.
         Rectangle {
             visible: Playback.hasMedia
+            objectName: "export_run"
+            readonly property bool blocked: root.flight !== null
+                                            && root.flight.ok === false
             Layout.fillWidth: true
             Layout.preferredHeight: Theme.m.controlHeight
             radius: Theme.m.radiusMd
-            color: Export.running ? Theme.c.bgElevated
+            color: blocked ? Qt.alpha(Theme.c.glassOn, 0.08)
                  : exportHover.hovered ? Theme.c.accentHover : Theme.c.accent
-            border.width: Export.running ? 1 : 0
-            border.color: Theme.c.border
-
-            // Progress fills the button itself: no separate bar to look at.
-            Rectangle {
-                anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
-                width: parent.width * Export.progress
-                radius: Theme.m.radiusMd
-                color: Theme.c.accent
-                opacity: 0.35
-                visible: Export.running
-            }
 
             Text {
                 anchors.centerIn: parent
-                text: Export.running
-                    ? Math.round(Export.progress * 100) + "%"
+                text: parent.blocked ? (Tr.s["export.blocked"] || "")
+                    : Export.running ? (Tr.s["export.enqueue"] || "")
                     : (Tr.s["export.start"] || "")
-                color: Export.running ? Theme.c.text : Theme.c.onAccent
+                color: parent.blocked ? Theme.c.textDisabled : Theme.c.onAccent
                 font.pixelSize: Theme.m.fontSizeSm + 1
-                font.bold: !Export.running
+                font.bold: !parent.blocked
             }
             HoverHandler { id: exportHover; cursorShape: Qt.PointingHandCursor }
             TapHandler {
-                onTapped: Export.running ? Actions.invoke("export.cancel")
-                                         : destDialog.open()
+                onTapped: {
+                    if (!parent.blocked)
+                        destDialog.open();
+                }
             }
         }
 
-        Text {
-            visible: Export.running
-            Layout.fillWidth: true
-            horizontalAlignment: Text.AlignHCenter
-            text: Tr.s["export.cancel_hint"] || ""
-            color: Theme.c.textDisabled
-            font.pixelSize: Theme.m.fontSizeXs
+        // ── the queue ─────────────────────────────────────────────
+        CardGroup {
+            visible: Export.queue.length > 0
+            objectName: "export_queue"
+            title: Tr.s["export.queue"] || ""
+
+            Repeater {
+                model: Export.queue
+                delegate: Rectangle {
+                    id: jobRow
+                    required property var modelData
+                    objectName: "export_job_" + modelData.id
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 34
+                    radius: Theme.m.radiusMd
+                    color: modelData.state === "running"
+                        ? Qt.alpha(Theme.c.accent, 0.10)
+                        : Qt.alpha(Theme.c.glassOn, 0.05)
+
+                    // Progress paints the row itself, like the old button.
+                    Rectangle {
+                        anchors { left: parent.left; top: parent.top
+                                  bottom: parent.bottom }
+                        width: parent.width
+                               * (jobRow.modelData.state === "running"
+                                  ? Export.progress : 0)
+                        radius: Theme.m.radiusMd
+                        color: Theme.c.accent
+                        opacity: 0.3
+                    }
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: Theme.m.space2
+                        anchors.rightMargin: 4
+                        spacing: Theme.m.space2
+                        Text {
+                            Layout.fillWidth: true
+                            text: jobRow.modelData.name
+                            color: jobRow.modelData.state === "error"
+                                ? Theme.c.danger : Theme.c.text
+                            font.pixelSize: Theme.m.fontSizeXs
+                            elide: Text.ElideMiddle
+                        }
+                        Text {
+                            text: jobRow.modelData.state === "running"
+                                ? Math.round(Export.progress * 100) + "%"
+                                : (Tr.s["export.queue."
+                                        + jobRow.modelData.state] || "")
+                            color: jobRow.modelData.state === "done"
+                                ? Theme.c.success
+                                : jobRow.modelData.state === "error"
+                                  ? Theme.c.danger : Theme.c.textMuted
+                            font.pixelSize: Theme.m.fontSizeXs
+                        }
+                        Glyph {
+                            visible: jobRow.modelData.state === "done"
+                            Layout.preferredWidth: 13
+                            Layout.preferredHeight: 13
+                            path: Icons.check
+                            color: Theme.c.success
+                        }
+                        IconButton {
+                            objectName: "export_job_stop_" + jobRow.modelData.id
+                            visible: jobRow.modelData.state === "running"
+                                     || jobRow.modelData.state === "waiting"
+                            size: 24; iconSize: 12
+                            icon: Icons.close
+                            label: Tr.s["export.cancel"] || ""
+                            onTriggered: jobRow.modelData.state === "running"
+                                ? Actions.invoke("export.cancel")
+                                : Export.remove_job(jobRow.modelData.id)
+                        }
+                    }
+                }
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.m.space2
+                Item { Layout.fillWidth: true }
+                Text {
+                    objectName: "export_queue_clear"
+                    visible: Export.queue.some(function (j) {
+                        return j.state !== "waiting" && j.state !== "running";
+                    })
+                    text: Tr.s["export.queue.clear"] || ""
+                    color: Theme.c.textMuted
+                    font.pixelSize: Theme.m.fontSizeXs
+                    font.underline: clearHover.hovered
+                    HoverHandler { id: clearHover
+                                   cursorShape: Qt.PointingHandCursor }
+                    TapHandler { onTapped: Export.clear_finished() }
+                }
+                Text {
+                    objectName: "export_queue_cancel_all"
+                    visible: Export.pendingCount > 1
+                    text: Tr.s["export.queue.cancel_all"] || ""
+                    color: Theme.c.danger
+                    font.pixelSize: Theme.m.fontSizeXs
+                    font.underline: cancelAllHover.hovered
+                    HoverHandler { id: cancelAllHover
+                                   cursorShape: Qt.PointingHandCursor }
+                    TapHandler {
+                        onTapped: Actions.invoke("export.cancel_all")
+                    }
+                }
+            }
         }
     }
 }

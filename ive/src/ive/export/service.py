@@ -406,11 +406,19 @@ class _Worker(QObject):
 
 
 class ExportService(QObject):
-    """Drives the export worker and reports progress to QML."""
+    """Drives the export worker and reports progress to QML.
+
+    Exports form a QUEUE: every ``start`` freezes the timeline as it is
+    at that moment (clips and spans are captured then, not when the job
+    eventually runs) and appends a job; one worker renders them in
+    order. That is what lets the same cut go out for three platforms in
+    one gesture - queue three presets and walk away.
+    """
 
     stateChanged = Signal()
     presetsChanged = Signal()
     progressChanged = Signal()
+    queueChanged = Signal()
     completed = Signal(str)
     failed = Signal(str)
 
@@ -426,6 +434,9 @@ class ExportService(QObject):
         self._done = 0
         self._total = 0
         self._output = ""
+        self._jobs: list[dict[str, Any]] = []
+        self._job_serial = 0
+        self._current: dict[str, Any] | None = None
 
         self._thread = QThread()
         self._thread.setObjectName("export")
@@ -491,6 +502,41 @@ class ExportService(QObject):
         reload()
         self.presetsChanged.emit()
 
+    # ── the user's own presets ────────────────────────────────────────
+
+    @Slot(str, "QVariantMap", result=str)
+    def save_preset(self, name: str, options) -> str:
+        from ive.export.presets import save_user_preset
+
+        preset_id = save_user_preset(name, dict(options or {}))
+        if preset_id:
+            self.presetsChanged.emit()
+        return preset_id or ""
+
+    @Slot(str, result=bool)
+    def delete_preset(self, preset_id: str) -> bool:
+        from ive.export.presets import delete_user_preset
+
+        removed = delete_user_preset(str(preset_id))
+        if removed:
+            self.presetsChanged.emit()
+        return removed
+
+    @Slot(str, str, result=str)
+    def share_preset(self, preset_id: str, folder: str) -> str:
+        from ive.export.presets import share_preset_file
+
+        return share_preset_file(str(preset_id), folder)
+
+    @Slot(str, result="QVariantMap")
+    def import_preset(self, path: str) -> dict[str, Any]:
+        from ive.export.presets import import_preset_file
+
+        report = import_preset_file(path)
+        if report.get("added"):
+            self.presetsChanged.emit()
+        return report
+
     @Property("QVariantList", constant=True)
     def containers(self) -> list[dict[str, Any]]:
         """Containers with the codecs each accepts.
@@ -534,12 +580,149 @@ class ExportService(QObject):
             return segments[0].path
         raise RuntimeError("No media is loaded")
 
+    # ── preflight ─────────────────────────────────────────────────────
+
+    _probe_cache: dict[str, tuple[int, int]] = {}
+
+    def _source_size(self) -> tuple[int, int] | None:
+        """Pixel size of the sequence's first clip, cached per path."""
+        segments = getattr(self._playback, "_segments", None) or []
+        if not segments:
+            return None
+        path = segments[0].path
+        if path not in self._probe_cache:
+            try:
+                from ive.media.probe import probe
+
+                info = probe(path)
+                video = info.primary_video
+                self._probe_cache[path] = (tuple(video.display_size)
+                                           if video else (0, 0))
+            except Exception:
+                log.debug("Preflight could not probe %s", path, exc_info=True)
+                self._probe_cache[path] = (0, 0)
+        size = self._probe_cache[path]
+        return size if size != (0, 0) else None
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def preflight(self, options) -> dict[str, Any]:
+        """What this export would produce, before a frame is rendered.
+
+        Judges the settings against the loaded sequence: is there an
+        encoder for the codec, would the picture be upscaled, does the
+        frame shape match the canvas, does the cut exceed the preset's
+        platform limit - plus the expected duration and file size from
+        the bitrates. Warnings inform, only a missing encoder blocks
+        (``ok`` false): the rule of LICENSING.md §0 - the app never
+        judges content, it judges arithmetic.
+        """
+        from ive.export.presets import preset_by_id
+
+        settings = dict(options or {})
+        preset = None
+        preset_id = str(settings.pop("preset_id", "") or "")
+        if preset_id:
+            preset = preset_by_id(preset_id)
+            if preset is not None:
+                settings = preset.to_options()
+        warnings: list[dict[str, str]] = []
+        duration = float(getattr(self._playback, "durationSeconds", 0.0) or 0.0)
+        width = max(2, int(settings.get("width") or 1920))
+        height = max(2, int(settings.get("height") or 1080))
+        vbr = int(settings.get("video_bitrate_kbps") or 12000)
+        abr = int(settings.get("audio_bitrate_kbps") or 192)
+
+        logical = str(settings.get("video_codec") or "h264")
+        encoder = available_encoder(logical)
+        if encoder is None:
+            warnings.append({"id": "no_encoder", "detail": logical})
+
+        source = self._source_size()
+        if source is not None and width * height > source[0] * source[1] * 1.05:
+            warnings.append({"id": "upscale",
+                             "detail": f"{source[0]}x{source[1]} → "
+                                       f"{width}x{height}"})
+
+        canvas = None
+        aspect_fn = getattr(self._playback, "canvas_aspect", None)
+        if callable(aspect_fn):
+            try:
+                canvas = float(aspect_fn())
+            except Exception:
+                canvas = None
+        if canvas and abs(width / height - canvas) > 0.02:
+            warnings.append({"id": "aspect",
+                             "detail": f"{canvas:.2f} → "
+                                       f"{width / height:.2f}"})
+
+        if preset is not None and preset.max_duration_sec \
+                and duration > preset.max_duration_sec:
+            warnings.append({"id": "too_long",
+                             "detail": f"{int(duration)}s > "
+                                       f"{preset.max_duration_sec}s"})
+
+        # kbps -> bytes: kbit/8 per second, /1024 twice for MiB.
+        size_mb = (vbr + abr) * duration / 8.0 / 1024.0
+        return {
+            "ok": encoder is not None,
+            "warnings": warnings,
+            "encoder": encoder or "",
+            "sizeMb": round(size_mb, 1),
+            "durationSeconds": round(duration, 1),
+            "width": width, "height": height,
+        }
+
+    # ── the queue ─────────────────────────────────────────────────────
+
+    @Property("QVariantList", notify=queueChanged)
+    def queue(self) -> list[dict[str, Any]]:
+        """Every job, oldest first: id, file name, state (waiting /
+        running / done / error / cancelled), progress, error."""
+        out = []
+        for job in self._jobs:
+            out.append({
+                "id": job["id"],
+                "name": Path(job["destination"]).name,
+                "state": job["state"],
+                "progress": (self.progress if job is self._current
+                             else (1.0 if job["state"] == "done" else 0.0)),
+                "error": job.get("error", ""),
+            })
+        return out
+
+    @Property(int, notify=queueChanged)
+    def pendingCount(self) -> int:
+        return sum(1 for j in self._jobs
+                   if j["state"] in ("waiting", "running"))
+
+    @Slot(str)
+    def remove_job(self, job_id: str) -> None:
+        """Take a job off the list - a WAITING one is not rendered; a
+        finished one just leaves the list. The running job is cancelled
+        through ``cancel``, never removed blind."""
+        job = next((j for j in self._jobs if j["id"] == job_id), None)
+        if job is None or job is self._current:
+            return
+        self._jobs.remove(job)
+        self.queueChanged.emit()
+
+    def queued_paths(self) -> set[str]:
+        """Destinations already promised to a waiting or running job -
+        naming a new job must dodge these too, not only files on disk."""
+        return {j["destination"] for j in self._jobs
+                if j["state"] in ("waiting", "running")}
+
+    @Slot()
+    def clear_finished(self) -> None:
+        self._jobs = [j for j in self._jobs
+                      if j["state"] in ("waiting", "running")]
+        self.queueChanged.emit()
+
     # ── control ───────────────────────────────────────────────────────
 
     def start(self, source: str, destination: str, options: dict) -> bool:
-        if self._running:
-            log.warning("An export is already running")
-            return False
+        """Freeze the timeline into a job and queue it; the worker takes
+        jobs in order. Returns False only for a missing source."""
         if not Path(source).is_file():
             self.failed.emit("no_source")
             return False
@@ -574,19 +757,49 @@ class ExportService(QObject):
             if callable(music):
                 options["music_spans"] = music()
 
+        self._job_serial += 1
+        self._jobs.append({
+            "id": f"job-{self._job_serial}",
+            "source": source, "destination": destination,
+            "options": options, "state": "waiting", "error": "",
+        })
+        log.info("Export queued (%d in line): %s",
+                 self.pendingCount, Path(destination).name)
+        self.queueChanged.emit()
+        self._dispatch()
+        return True
+
+    def _dispatch(self) -> None:
+        if self._running:
+            return
+        job = next((j for j in self._jobs if j["state"] == "waiting"), None)
+        if job is None:
+            return
+        job["state"] = "running"
+        self._current = job
         self._running = True
         self._done = 0
         self._total = 0
-        self._output = destination
+        self._output = job["destination"]
         self.stateChanged.emit()
         self.progressChanged.emit()
-        self._start.emit(source, destination, options)
-        return True
+        self.queueChanged.emit()
+        self._start.emit(job["source"], job["destination"], job["options"])
 
     @Slot()
     def cancel(self) -> None:
+        """Stop the RUNNING job; the rest of the queue stays and runs."""
         if self._running:
             self._cancel.emit()
+
+    @Slot()
+    def cancel_all(self) -> None:
+        """Stop the running job and drop every waiting one."""
+        for job in self._jobs:
+            if job["state"] == "waiting":
+                job["state"] = "cancelled"
+        self.queueChanged.emit()
+        self.cancel()
 
     # ── reactions ─────────────────────────────────────────────────────
 
@@ -594,15 +807,24 @@ class ExportService(QObject):
         self._done, self._total = done, total
         self.progressChanged.emit()
 
-    def _on_finished(self, path: str) -> None:
+    def _settle(self, state: str, error: str = "") -> None:
+        if self._current is not None:
+            self._current["state"] = state
+            self._current["error"] = error
+            self._current = None
         self._running = False
-        self._output = path
         self.stateChanged.emit()
+        self.queueChanged.emit()
+        self._dispatch()
+
+    def _on_finished(self, path: str) -> None:
+        self._output = path
+        self._settle("done")
         self.completed.emit(path)
 
     def _on_failed(self, message: str) -> None:
-        self._running = False
-        self.stateChanged.emit()
+        self._settle("cancelled" if message == "cancelled" else "error",
+                     message)
         self.failed.emit(message)
 
     def shutdown(self) -> None:

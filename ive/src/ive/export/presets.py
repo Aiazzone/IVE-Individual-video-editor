@@ -43,7 +43,9 @@ log = logging.getLogger(__name__)
 
 __all__ = ["ExportPreset", "PLATFORMS", "OTHER_PLATFORM", "CONTAINERS",
            "VIDEO_CODECS", "AUDIO_CODECS", "QUALITY_LEVELS", "list_presets",
-           "preset_by_id", "reload", "as_maps", "platforms_in_use"]
+           "preset_by_id", "reload", "as_maps", "platforms_in_use",
+           "save_user_preset", "delete_user_preset", "share_preset_file",
+           "import_preset_file"]
 
 
 @dataclass(frozen=True)
@@ -73,6 +75,20 @@ class ExportPreset:
         data["resolution"] = f"{self.width}x{self.height}"
         data["names"] = dict(self.names)
         return data
+
+    def to_options(self) -> dict[str, Any]:
+        """The flat settings map an export job runs with - one source of
+        truth for the action that starts the job and the preflight that
+        judges it."""
+        return {
+            "container": self.container,
+            "video_codec": self.video_codec,
+            "audio_codec": self.audio_codec,
+            "width": self.width,
+            "height": self.height,
+            "video_bitrate_kbps": self.video_bitrate_kbps,
+            "audio_bitrate_kbps": self.audio_bitrate_kbps,
+        }
 
     def to_recipe(self) -> dict[str, Any]:
         """The JSON document form - what a pack carries."""
@@ -263,6 +279,138 @@ def platforms_in_use() -> list[dict[str, Any]]:
     if any(p.platform == OTHER_PLATFORM["id"] for p in list_presets()):
         out.append(dict(OTHER_PLATFORM))
     return out
+
+
+# ── the user's own presets ────────────────────────────────────────────
+# One preset = one ``<id>.json`` in ``user_data/export_presets/`` - a
+# file anyone can mail, drop in the same folder on another machine, or
+# put in a pack. Saving, deleting and importing all go through the same
+# _coerce gate a pack goes through: an unusable document never lands.
+
+
+def _slug(name: str) -> str:
+    keep = [c.lower() if c.isalnum() else "_" for c in str(name).strip()]
+    slug = "".join(keep).strip("_") or "preset"
+    while "__" in slug:
+        slug = slug.replace("__", "_")
+    return slug
+
+
+def save_user_preset(name: str, options: dict[str, Any]) -> str | None:
+    """Freeze the custom tab's settings as a named user preset.
+
+    Returns the new preset id, or ``None`` when the document would not
+    coerce (unknown codec/container - the same gate imports pass).
+    """
+    base = _slug(name)
+    existing = {p.id for p in list_presets()}
+    preset_id = f"user_{base}"
+    counter = 2
+    while preset_id in existing:
+        preset_id = f"user_{base}_{counter}"
+        counter += 1
+    entry = {
+        "schema_version": 1, "id": preset_id,
+        "name": {"en": str(name).strip() or preset_id},
+        "platform": "other",
+        "container": str(options.get("container") or "mp4"),
+        "video": {"codec": str(options.get("video_codec") or "h264"),
+                  "width": int(options.get("width") or 1920),
+                  "height": int(options.get("height") or 1080),
+                  "fps": "source",
+                  "bitrate_kbps": int(options.get("video_bitrate_kbps")
+                                      or 12000)},
+        "audio": {"codec": str(options.get("audio_codec") or "aac"),
+                  "bitrate_kbps": int(options.get("audio_bitrate_kbps")
+                                      or 192)},
+    }
+    if _coerce(entry, "save", "user") is None:
+        return None
+    folder = get_data_path("export_presets")
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / f"{preset_id}.json").write_text(
+        json.dumps(entry, indent=2, ensure_ascii=False), encoding="utf-8")
+    reload()
+    log.info("Export preset saved: %s (%r)", preset_id, name)
+    return preset_id
+
+
+def delete_user_preset(preset_id: str) -> bool:
+    """Remove one of the USER's presets - never factory, never a pack's.
+
+    Only a one-preset ``<id>.json`` file is deletable; a hand-made file
+    holding several presets is the user's own arrangement and is left
+    alone (the log says why).
+    """
+    preset = preset_by_id(preset_id)
+    if preset is None or preset.source != "user":
+        return False
+    target = get_data_path("export_presets") / f"{preset_id}.json"
+    if not target.is_file():
+        log.warning("Preset %r lives in a shared file; not deleting it",
+                    preset_id)
+        return False
+    target.unlink()
+    reload()
+    log.info("Export preset deleted: %s", preset_id)
+    return True
+
+
+def share_preset_file(preset_id: str, folder: str | Path) -> str:
+    """Write one preset as a single ``.json`` in ``folder``; returns the
+    file's path, or "" for an unknown preset."""
+    preset = preset_by_id(preset_id)
+    if preset is None:
+        return ""
+    target = Path(folder) / f"{preset_id}.json"
+    counter = 1
+    while target.exists():
+        target = Path(folder) / f"{preset_id}_{counter}.json"
+        counter += 1
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(json.dumps(preset.to_recipe(), indent=2,
+                                 ensure_ascii=False), encoding="utf-8")
+    log.info("Export preset shared: %s -> %s", preset_id, target)
+    return str(target)
+
+
+def import_preset_file(path: str | Path) -> dict[str, Any]:
+    """Bring a shared ``.json`` into the user's presets.
+
+    Every valid entry lands as its own file; ids already in the
+    catalogue are skipped, never overwritten (same rule as packs).
+    """
+    path = Path(path)
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8-sig"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return {"ok": False, "added": 0, "skipped": 0, "error": str(exc)}
+    entries = raw if isinstance(raw, list) else [raw]
+    existing = {p.id for p in list_presets()}
+    folder = get_data_path("export_presets")
+    folder.mkdir(parents=True, exist_ok=True)
+    added = skipped = 0
+    for entry in entries:
+        preset = _coerce(entry, path.name, "user")
+        if preset is None:
+            skipped += 1
+            continue
+        if preset.id in existing:
+            log.info("Import skips preset %r: the id is already taken",
+                     preset.id)
+            skipped += 1
+            continue
+        (folder / f"{preset.id}.json").write_text(
+            json.dumps(entry, indent=2, ensure_ascii=False),
+            encoding="utf-8")
+        existing.add(preset.id)
+        added += 1
+    if added:
+        reload()
+    log.info("Export preset import from %s: %d added, %d skipped",
+             path.name, added, skipped)
+    return {"ok": added > 0, "added": added, "skipped": skipped,
+            "error": "" if added or skipped else "empty"}
 
 
 def __getattr__(name: str):
