@@ -362,5 +362,10 @@
   "export.preset.name_hint": "Nome del preset…",
   "export.preset.delete": "Elimina preset",
   "export.preset.share": "Condividi come .json",
-  "export.preset.import": "Importa un preset (.json)"
+  "export.preset.import": "Importa un preset (.json)",
+  "settings.canvas_fit": "Clip sul canvas",
+  "settings.canvas_fit.hint": "Cosa succede a un clip con un formato diverso dal canvas. Adatta aggiunge le bande e non taglia mai; Riempi taglia cio' che sborda; Sfoca riempie le bande con una copia sfocata dell'immagine. Anteprima ed export condividono la scelta.",
+  "settings.canvas_fit.fit": "Adatta",
+  "settings.canvas_fit.fill": "Riempi",
+  "settings.canvas_fit.blur": "Sfoca"
 }

@@ -54,6 +54,8 @@ class GraphBuilder:
         self.height = height
         self.proxies = proxies
         self.use_proxies = use_proxies
+        #: fit / fill / blur: how a picture meets the canvas (Tractor).
+        self.canvas_fit = "fit"
 
     @property
     def timebase(self) -> Timebase:
@@ -144,6 +146,7 @@ class GraphBuilder:
         """
         tractor = Tractor(self.timebase, self.audio_format,
                           self.width, self.height, name="sequence")
+        tractor.set_fit_mode(self.canvas_fit)
 
         usable = []
         for clip in clips or []:
@@ -424,9 +427,11 @@ def build_from_project(clips: list[dict], *, fps: float = 25.0,
                        sticker_spans: list[dict] | None = None,
                        text_spans: list[dict] | None = None,
                        transition_spans: list[dict] | None = None,
-                       music_spans: list[dict] | None = None) -> Tractor:
+                       music_spans: list[dict] | None = None,
+                       canvas_fit: str = "fit") -> Tractor:
     """One-shot build, for tests and scripts."""
     builder = GraphBuilder(Timebase(Fraction(fps).limit_denominator(1001)),
                            AudioFormat(), width, height, proxies, use_proxies)
+    builder.canvas_fit = canvas_fit
     return builder.build(clips, color_spans, sticker_spans, text_spans,
                          transition_spans, music_spans=music_spans)

@@ -235,7 +235,8 @@ class _Worker(QObject):
                     color_spans=list(options.get("color_spans") or []),
                     sticker_spans=sticker_spans, text_spans=text_spans,
                     transition_spans=transition_spans,
-                    music_spans=list(options.get("music_spans") or []))
+                    music_spans=list(options.get("music_spans") or []),
+                    canvas_fit=str(options.get("canvas_fit") or "fit"))
                 walker = SequenceWalker(graph, want_image=True,
                                         want_audio=True)
                 total = graph.length
@@ -739,6 +740,11 @@ class ExportService(QObject):
         if clips:
             options = dict(options)
             options["clips"] = clips
+            fit = getattr(self._playback, "canvas_fit", None)
+            if callable(fit):
+                # The export composites with the SAME fit strategy the
+                # preview shows - fit/fill/blur is a project choice.
+                options["canvas_fit"] = fit()
             spans = getattr(self._playback, "sequence_color_spans", None)
             if callable(spans):
                 # The Color lane grades the export exactly as it grades the

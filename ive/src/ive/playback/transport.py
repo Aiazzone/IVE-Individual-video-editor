@@ -108,6 +108,11 @@ class PlaybackService(QObject):
         self._reader = VideoReader(self)
         self._reader.frameReady.connect(self._on_frame)
         self._reader.failed.connect(self._on_failed)
+        if settings is not None:
+            try:
+                settings.changed.connect(self._on_canvas_setting)
+            except Exception:
+                log.debug("Settings without a changed signal", exc_info=True)
 
         self._segments: list[_Segment] = []
         self._starts: list[float] = []          # for bisect
@@ -653,6 +658,18 @@ class PlaybackService(QObject):
                 pass
         return name
 
+    def canvas_fit(self) -> str:
+        """fit / fill / blur: how a clip meets the canvas (a project
+        setting, like the canvas itself)."""
+        if self._settings is not None:
+            try:
+                mode = str(self._settings.get("project.canvas_fit"))
+                if mode in ("fit", "fill", "blur"):
+                    return mode
+            except Exception:
+                pass
+        return "fit"
+
     def canvas_aspect(self) -> float:
         """The aspect the SEQUENCE composites at.
 
@@ -709,6 +726,7 @@ class PlaybackService(QObject):
             self._preview_size = (width, height)
         else:
             self._builder.timebase = timebase
+        self._builder.canvas_fit = self.canvas_fit()
 
         clips = [
             {"path": segment.path, "start": segment.start,
@@ -743,6 +761,18 @@ class PlaybackService(QObject):
         self._graph_key = f"graph-{self._graph_serial}"
         log.info("Preview graph rebuilt at %dx%d: %d frames",
                  width, height, self._graph.length)
+
+    def _on_canvas_setting(self, key: str, _value) -> None:
+        """The canvas (ratio or fit strategy) changed under an open
+        sequence: recomposite now, not at the next edit."""
+        if key not in ("project.canvas", "project.canvas_fit") \
+                or not self._segments:
+            return
+        self.pause()
+        self._rebuild_graph()
+        if self._graph is not None:
+            self.seek_seconds(self._position)
+            self.mediaChanged.emit()   # the view's aspect may have moved
 
     def _produce(self, index: int):
         """Pull one frame out of the graph. Runs on the read-ahead thread.

@@ -49,6 +49,21 @@ Caso frequentissimo: montato in 16:9, serve anche la versione verticale.
 Va gestito bene, perche' e' uno dei momenti in cui un editor sembra
 intelligente o stupido.
 
+**Stato (2026-08-23): Fit / Fill / Sfocato implementati come scelta
+GLOBALE di progetto** (`project.canvas_fit`, Impostazioni → Layout →
+«Clip sul canvas»; motore in `Tractor._fit`, `engine/tractor.py`).
+Anteprima ed export condividono la scelta per costruzione (il transport
+la passa al builder e `ExportService.start` la congela nel job). Il
+cambio ricompone la sequenza aperta all'istante ed e' reversibile
+ripremendo il controllo: e' un'impostazione, non una mutazione del
+modello, quindi niente undo stack. Il blur e' due resize cv2
+(riduzione dura + stiramento) con leggero scurimento: costa una
+frazione di una gaussiana a misura canvas. Le varianti PER CLIP
+(«Fill + riquadro», «Nessuna», riposizionamento) restano da fare e
+richiederanno il modello (trasformazioni per clip). Test:
+`tests/test_project_canvas.py` (pixel: fit=bande nere, fill=copre
+tutto, blur=bande grigie), `tests/visual/test_canvas_fit_ui.py`.
+
 Al cambio di canvas, per ogni clip si applica una strategia scelta
 dall'utente:
 

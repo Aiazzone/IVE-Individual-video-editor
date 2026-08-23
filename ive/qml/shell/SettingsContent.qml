@@ -156,6 +156,26 @@ Item {
                 }
             }
 
+            // How a clip shaped differently meets that canvas: bars,
+            // crop, or bars filled with a blur of the picture itself.
+            SettingRow {
+                label: Tr.s["settings.canvas_fit"] || ""
+                hint: Tr.s["settings.canvas_fit.hint"] || ""
+                Segmented {
+                    objectName: "settings_canvas_fit"
+                    value: Shell.v.projectCanvasFit
+                    model: [
+                        { value: "fit",  text: Tr.s["settings.canvas_fit.fit"] || "" },
+                        { value: "fill", text: Tr.s["settings.canvas_fit.fill"] || "" },
+                        { value: "blur", text: Tr.s["settings.canvas_fit.blur"] || "" }
+                    ]
+                    onPicked: function (v) {
+                        Actions.invoke("settings.set",
+                                       { key: "project.canvas_fit", value: v });
+                    }
+                }
+            }
+
             SettingRow {
                 label: Tr.s["settings.rail_side"] || ""
                 hint: Tr.s["settings.rail_side.hint"] || ""

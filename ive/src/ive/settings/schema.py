@@ -175,6 +175,13 @@ SETTINGS: dict[str, Setting] = {
                "happens to be first. 'auto' takes the first clip's ratio, "
                "which is convenient but means the canvas changes under you "
                "when you reorder the timeline."),
+        _s("project.canvas_fit", "fit", str,
+           choices=("fit", "fill", "blur"),
+           doc="How a clip shaped differently from the canvas meets it. "
+               "'fit' letterboxes and never crops or stretches; 'fill' "
+               "crops the overflow to cover the canvas; 'blur' letterboxes "
+               "the sharp picture over a blurred fill of itself instead of "
+               "black bars. Preview and export share the choice."),
         _s("media.preview_height", 720, int, minimum=360, maximum=2160,
            doc="Height the PREVIEW composites at. Proxies alone achieve "
                "nothing if every frame is then scaled back up to the sequence "

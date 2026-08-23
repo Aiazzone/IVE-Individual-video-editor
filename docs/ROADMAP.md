@@ -133,8 +133,12 @@ riapertura. Il primo momento in cui l'app e' "usabile".
 
 Vedi `docs/EXPORT_PRESETS.md` e `docs/MEDIA_FORMATS.md`.
 
-- [ ] Canvas preset (16:9, 9:16, 1:1, 4:5, 4:3, 21:9) + cambio rapporto con
-      strategie fit/fill/blur, annullabile
+- [x] Canvas di progetto (auto/16:9/9:16/4:3/1:1/21:9, gia' dal 2026-08) +
+      **strategie fit/fill/blur** (2026-08-23): scelta globale in
+      Impostazioni → Layout, ricompone la sequenza aperta all'istante,
+      anteprima ed export identici. Restano le varianti per clip
+      (riquadro riposizionabile) per quando il modello avra' le
+      trasformazioni per clip
 - [x] `export/presets.py` — preset dichiarativi JSON, codec **logici**
       (2026-08, factory + user + pack)
 - [x] Encoder via PyAV, dentro `export/service.py` (muxer per contenitore,

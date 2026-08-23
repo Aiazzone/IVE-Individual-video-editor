@@ -45,6 +45,7 @@ _SHELL_KEYS = {
     "appearance.reduce_transparency": "reduceTransparency",
     "appearance.reduce_motion": "reduceMotion",
     "project.canvas": "projectCanvas",
+    "project.canvas_fit": "projectCanvasFit",
     "media.proxy_enabled": "proxyEnabled",
     "playback.volume": "volume",
     "playback.muted": "muted",

@@ -52,8 +52,13 @@ class Tractor(Producer):
         self.height = height
         self.name = name
         self.tracks: list[Track] = []
+        #: How a picture with a different ratio meets the canvas:
+        #: "fit" letterboxes (never crops, never stretches), "fill"
+        #: crops the overflow, "blur" letterboxes over a blurred fill
+        #: of the same picture instead of black bars.
+        self.fit_mode = "fit"
         #: Index maps for letterboxing, keyed by source size.
-        self._fit_cache: dict[tuple[int, int], tuple] = {}
+        self._fit_cache: dict[tuple[int, int], dict] = {}
         #: Filters over the finished composite - grades, watermarks.
         self.filters: list = []
         self.length = 0
@@ -64,6 +69,10 @@ class Tractor(Producer):
         """Change the canvas size; the scaling plans no longer apply."""
         self.width, self.height = int(width), int(height)
         self._fit_cache.clear()
+
+    def set_fit_mode(self, mode: str) -> None:
+        """Choose fit / fill / blur; an unknown name stays at "fit"."""
+        self.fit_mode = mode if mode in ("fit", "fill", "blur") else "fit"
 
     def add_track(self, track: Track) -> Track:
         """Add a track. The first added is the bottom of the stack."""
@@ -146,22 +155,31 @@ class Tractor(Producer):
     # ── helpers ───────────────────────────────────────────────────────
 
     def _fit(self, image: np.ndarray) -> np.ndarray:
-        """Letterbox a track's picture into the sequence frame.
+        """Bring a track's picture onto the sequence frame.
 
-        Never crops and never stretches: an editor that quietly reframes the
-        footage is lying about what will be exported.
+        "fit" letterboxes and never crops or stretches - the honest
+        default. "fill" crops the overflow (the user chose it, so the
+        reframe is not silent). "blur" letterboxes the sharp picture
+        over a blurred fill of ITSELF, the way vertical phone clips are
+        published on 16:9 - no black bars, nothing invented.
 
-        The index maps are cached per source size. Rebuilding them each frame
-        was measured at 250 ms for a 4K canvas - enough on its own to make a
-        proxy slower than the original it was meant to replace.
+        The index maps are cached per source size (and rebuilt when the
+        mode changes). Rebuilding them each frame was measured at 250 ms
+        for a 4K canvas - enough on its own to make a proxy slower than
+        the original it was meant to replace.
         """
         height, width = image.shape[:2]
         if (width, height) == (self.width, self.height):
             return image
 
         key = (width, height)
-        plan = self._fit_cache.get(key)
-        if plan is None:
+        plans = self._fit_cache.get(key)
+        if plans is None:
+            plans = {}
+            self._fit_cache[key] = plans
+        mode = self.fit_mode
+        need_fill = mode in ("fill", "blur")
+        if "fit" not in plans:
             scale = min(self.width / width, self.height / height)
             new_w = max(1, int(round(width * scale)))
             new_h = max(1, int(round(height * scale)))
@@ -169,11 +187,29 @@ class Tractor(Producer):
             xs = (np.arange(new_w) * width // new_w).clip(0, width - 1)
             top = (self.height - new_h) // 2
             left = (self.width - new_w) // 2
-            plan = (ys, xs, top, left, new_h, new_w)
-            self._fit_cache[key] = plan
+            plans["fit"] = (ys, xs, top, left, new_h, new_w)
+        if need_fill and "fill" not in plans:
+            # Output pixel -> source pixel, crop centred: the whole
+            # canvas is covered, the overflow never leaves the source.
+            scale = max(self.width / width, self.height / height)
+            span_w = max(1, int(round(width * scale)))
+            span_h = max(1, int(round(height * scale)))
+            xs = (((np.arange(self.width) + (span_w - self.width) // 2)
+                   * width) // span_w).clip(0, width - 1)
+            ys = (((np.arange(self.height) + (span_h - self.height) // 2)
+                   * height) // span_h).clip(0, height - 1)
+            plans["fill"] = (ys, xs)
 
-        ys, xs, top, left, new_h, new_w = plan
-        canvas = np.zeros((self.height, self.width, 3), dtype=np.uint8)
+        if mode == "fill":
+            ys, xs = plans["fill"]
+            return np.ascontiguousarray(image[ys][:, xs])
+
+        ys, xs, top, left, new_h, new_w = plans["fit"]
+        if mode == "blur":
+            fill_ys, fill_xs = plans["fill"]
+            canvas = self._blurred(image[fill_ys][:, fill_xs])
+        else:
+            canvas = np.zeros((self.height, self.width, 3), dtype=np.uint8)
         if (height, width) == (new_h, new_w):
             # Already the right size, because the producer asked its decoder
             # for it and FFmpeg did the scaling. Only the letterbox placement
@@ -183,6 +219,23 @@ class Tractor(Producer):
             return canvas
         canvas[top:top + new_h, left:left + new_w] = image[ys][:, xs]
         return canvas
+
+    def _blurred(self, filled: np.ndarray) -> np.ndarray:
+        """A heavy, cheap blur: shrink hard, then stretch back.
+
+        Two linear resizes cost a fraction of a Gaussian at canvas size
+        and the result is indistinguishable behind the sharp foreground.
+        A little darkening keeps the letterboxed picture readable on a
+        bright background.
+        """
+        import cv2
+
+        small = cv2.resize(filled, (max(2, self.width // 24),
+                                    max(2, self.height // 24)),
+                           interpolation=cv2.INTER_AREA)
+        background = cv2.resize(small, (self.width, self.height),
+                                interpolation=cv2.INTER_LINEAR)
+        return (background.astype(np.uint16) * 3 // 4).astype(np.uint8)
 
     def close(self) -> None:
         for track in self.tracks:
