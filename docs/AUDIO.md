@@ -129,7 +129,12 @@ l'audio di tutte le tracce.
 - **Servizio `Music`** (`ui/music_service.py`): categorie, brani,
   preferiti (`music.favorites`), **anteprima** con QMediaPlayer
   indipendente dal transport (lo mette in pausa; piazzare ferma
-  l'anteprima).
+  l'anteprima). Due modi di partire: il **play** la fissa (si ferma
+  solo col bottone o piazzando), l'**hover** — il puntatore fermo 450 ms
+  su una riga (`hover_preview`/`hover_stop`) — si ferma uscendo dalla
+  riga e cede alla riga successiva; un'anteprima fissata non viene mai
+  interrotta ne' rubata dall'hover. `shutdown()` distrugge il player
+  (su Windows il backend WMF rilascia il file solo alla distruzione).
 - **UI**: tab «Musica» nel pannello Audio — chip per categoria, switch
   «Ripeti fino alla fine del montaggio», righe con play/stella/+.
   `+` = `timeline.place_music` al cursore: il file entra nel pool se
@@ -161,8 +166,9 @@ l'audio di tutte le tracce.
 Test: `tests/test_music.py` (libreria da pack sandbox + cartella utente,
 piazzamento singolo e a copertura con undo che toglie anche il pool,
 transport → span, grafo che mixa la musica solo sul suo tratto senza
-allungare la sequenza), `tests/visual/test_music_panel.py` (tab, chip,
-anteprima, + con copertura → corsia Music con due pezzi).
+allungare la sequenza, semantica dell'anteprima hover),
+`tests/visual/test_music_panel.py` (tab, chip, anteprima hover e col
+play, + con copertura → corsia Music con due pezzi).
 
 ## 6. Ducking (implementato il 2026-08-20)
 

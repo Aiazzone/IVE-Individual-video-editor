@@ -589,7 +589,28 @@ Item {
                             }
                         }
                     }
-                    HoverHandler { id: rowHover }
+                    // Resting the pointer on a row previews the track;
+                    // leaving stops it. A preview started with the play
+                    // button is pinned and ignores the pointer.
+                    Timer {
+                        id: hoverPreviewTimer
+                        interval: 450
+                        onTriggered: {
+                            if (rowHover.hovered)
+                                Music.hover_preview(row.modelData.id);
+                        }
+                    }
+                    HoverHandler {
+                        id: rowHover
+                        onHoveredChanged: {
+                            if (hovered) {
+                                hoverPreviewTimer.restart();
+                            } else {
+                                hoverPreviewTimer.stop();
+                                Music.hover_stop(row.modelData.id);
+                            }
+                        }
+                    }
                 }
             }
 

@@ -1098,6 +1098,9 @@ class PlaybackService(QObject):
         self.error.emit(message)
 
     def shutdown(self) -> None:
-        self.pause()
+        # close() first: it parks the reader and closes the graph's
+        # decoders - without it every open file (the cut, music beds)
+        # stays locked on Windows until the process dies.
+        self.close()
         self._audio.stop()
         self._reader.shutdown()

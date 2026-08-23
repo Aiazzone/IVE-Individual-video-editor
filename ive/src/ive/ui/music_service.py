@@ -39,6 +39,7 @@ class MusicService(QObject):
         self._player = None
         self._output = None
         self._previewing = ""
+        self._hover_started = False
         if translations is not None:
             translations.languageChanged.connect(self.changed)
         if settings is not None:
@@ -142,6 +143,7 @@ class MusicService(QObject):
 
         if status == QMediaPlayer.MediaStatus.EndOfMedia and self._previewing:
             self._previewing = ""
+            self._hover_started = False
             self.previewChanged.emit()
 
     @Slot(str, result=bool)
@@ -153,6 +155,34 @@ class MusicService(QObject):
         if self._previewing == track["id"]:
             self.stop()
             return True
+        self._hover_started = False
+        return self._start(track)
+
+    @Slot(str, result=bool)
+    def hover_preview(self, track_id: str) -> bool:
+        """Start a preview because the pointer rests on a row.
+
+        A preview the user STARTED with the play button is never
+        interrupted; a hover preview yields to the next hovered row and
+        is stopped by ``hover_stop`` when the pointer leaves.
+        """
+        track = track_by_id(str(track_id))
+        if track is None or not self._ensure_player():
+            return False
+        if self._previewing == track["id"]:
+            return True
+        if self._previewing and not self._hover_started:
+            return False
+        self._hover_started = True
+        return self._start(track)
+
+    @Slot(str)
+    def hover_stop(self, track_id: str) -> None:
+        """The pointer left a row: stop only ITS hover-started preview."""
+        if self._hover_started and self._previewing == str(track_id):
+            self.stop()
+
+    def _start(self, track: dict[str, Any]) -> bool:
         if self._playback is not None:
             try:
                 if getattr(self._playback, "isPlaying", False):
@@ -173,9 +203,28 @@ class MusicService(QObject):
             # Release the file: a pack being removed must not find its
             # track still open in the preview player.
             self._player.setSource(QUrl())
+        self._hover_started = False
         if self._previewing:
             self._previewing = ""
             self.previewChanged.emit()
+
+    def shutdown(self) -> None:
+        """Tear the preview player down and let go of its file.
+
+        ``stop()`` clears the source, but the Windows media backend only
+        releases the file when the player object is destroyed - a pack
+        removal right after a preview needs this.
+        """
+        self.stop()
+        for attr in ("_player", "_output"):
+            obj = getattr(self, attr)
+            if obj is not None:
+                # Destroy NOW: unparent so dropping the Python reference
+                # deletes the C++ object (deleteLater would leave it - the
+                # service parent keeps it alive until the app dies).
+                obj.setParent(None)
+                setattr(self, attr, None)
+                del obj
 
     @Slot()
     def refresh(self) -> None:
