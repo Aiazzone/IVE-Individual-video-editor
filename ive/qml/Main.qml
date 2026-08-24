@@ -447,6 +447,14 @@ Window {
         }
     }
 
+    // ── command palette ───────────────────────────────────────────
+    // Ctrl+K: every no-argument action, searchable. The registry made
+    // visible - nothing to maintain here when actions come and go.
+    CommandPalette {
+        id: palette
+        anchors.fill: parent
+    }
+
     // ── keyboard ──────────────────────────────────────────────────
     Item {
         anchors.fill: parent
@@ -475,18 +483,39 @@ Window {
             onActivated: timeline.deleteSelected()
         }
 
-        // A focused text field keeps Ctrl+Z for its own typing undo: the
-        // editor consumes the shortcut-override, so these never fire there.
+        // Redo answers to both conventions; the registry declares only
+        // Ctrl+Y, so the shifted pair is added here.
         Shortcut {
-            sequences: ["Ctrl+Z"]
-            context: Qt.ApplicationShortcut
-            onActivated: Actions.invoke("edit.undo")
-        }
-        Shortcut {
-            // Both conventions: Windows habit and the shifted pair.
-            sequences: ["Ctrl+Y", "Ctrl+Shift+Z"]
+            sequences: ["Ctrl+Shift+Z"]
             context: Qt.ApplicationShortcut
             onActivated: Actions.invoke("edit.redo")
+        }
+
+        // ── the registry drives the keyboard ──────────────────────
+        // Every action that declares a shortcut AND runs without
+        // arguments gets its key wired here, automatically: registering
+        // an action is enough (CLAUDE.md 4.4), no per-key QML. Space is
+        // the one exception - its handler above needs the no-media
+        // fallback. A focused text field still consumes these first, so
+        // typing never triggers an action.
+        Instantiator {
+            model: Actions.catalogue.filter(function (a) {
+                return a.shortcut !== "" && a.invocable === true
+                       && a.shortcut !== "Space";
+            })
+            delegate: Shortcut {
+                required property var modelData
+                sequences: [modelData.shortcut]
+                context: Qt.ApplicationShortcut
+                onActivated: Actions.invoke(modelData.id)
+            }
+        }
+
+        // Ctrl+K: the command palette.
+        Shortcut {
+            sequences: ["Ctrl+K"]
+            context: Qt.ApplicationShortcut
+            onActivated: palette.visible ? palette.close() : palette.open()
         }
 
         focus: true
@@ -511,16 +540,8 @@ Window {
                     event.accepted = true;
                 }
                 break;
-            case Qt.Key_S:
-                if ((event.modifiers & Qt.ControlModifier) && Project.isOpen) {
-                    Actions.invoke("project.save");
-                    event.accepted = true;
-                }
-                break;
-            case Qt.Key_F11:
-                Actions.invoke("view.toggle_fullscreen");
-                event.accepted = true;
-                break;
+            // Ctrl+S and F11 now come from the registry's shortcut map
+            // (project.save, view.toggle_fullscreen declare them).
             case Qt.Key_Escape:
                 if (win.isFullscreen) {
                     Actions.invoke("view.toggle_fullscreen");

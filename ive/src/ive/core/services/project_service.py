@@ -115,6 +115,9 @@ class ProjectService(QObject):
         self._import_active: dict[str, Any] | None = None
         self._import_done = 0
         self._import_total = 0
+        #: Copied clip snapshots, and the project they belong to.
+        self._clipboard: list[dict[str, Any]] = []
+        self._clipboard_project = ""
 
     # ── properties for QML ────────────────────────────────────────────
 
@@ -321,6 +324,70 @@ class ProjectService(QObject):
     def remove_clip(self, clip_id: str) -> bool:
         return self._edit("timeline.remove_clip",
                           lambda: self._project.remove_clip(clip_id))
+
+    @Slot("QVariantList", result=bool)
+    def remove_clips(self, clip_ids: list) -> bool:
+        """Remove a whole selection - one undo step for all of it."""
+        ids = [str(i) for i in clip_ids or []]
+        if not ids:
+            return False
+        return self._edit("timeline.remove_clip",
+                          lambda: self._project.remove_clips(ids) > 0)
+
+    # ── clipboard ─────────────────────────────────────────────────────
+    # Snapshots of copied clips, kept per project: a clip references its
+    # pool entry, and pasting it into a project that never imported that
+    # file would create a link to nothing.
+
+    clipboardChanged = Signal()
+
+    @Property(int, notify=clipboardChanged)
+    def clipboardCount(self) -> int:
+        return len(self._clipboard)
+
+    @Slot("QVariantList", result=int)
+    def copy_clips(self, clip_ids: list) -> int:
+        """Snapshot the clips for a later paste. Returns how many."""
+        if self._project is None:
+            return 0
+        documents = []
+        for clip_id in clip_ids or []:
+            clip = self._project.find_clip(str(clip_id))
+            if clip is not None:
+                documents.append(clip.to_dict())
+        if documents:
+            self._clipboard = documents
+            self._clipboard_project = self._project.id
+            self.clipboardChanged.emit()
+            log.info("Copied %d clip(s)", len(documents))
+        return len(documents)
+
+    @Slot(float, result=int)
+    def paste_clips(self, at: float = -1.0) -> int:
+        """Paste the copied clips from ``at`` (negative = the end of the
+        cut), keeping their spacing. One undo step; a clipboard from
+        another project is refused, never half-linked."""
+        if self._project is None or not self._clipboard:
+            return 0
+        if self._clipboard_project != self._project.id:
+            log.warning("Clipboard belongs to another project; not pasting")
+            self.error.emit("clipboard_other_project")
+            return 0
+        if at < 0:
+            at = self._project.timeline_duration
+        import copy as _copy
+
+        documents = _copy.deepcopy(self._clipboard)
+        pasted: list = []
+
+        def mutate():
+            pasted.extend(self._project.paste_clips(documents, at))
+            return bool(pasted)
+
+        if not self._edit("timeline.paste", mutate):
+            return 0
+        log.info("Pasted %d clip(s) at %.2fs", len(pasted), at)
+        return len(pasted)
 
     @Slot(str, float, result=bool)
     def split_clip(self, clip_id: str, at: float) -> bool:

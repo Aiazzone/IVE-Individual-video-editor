@@ -132,9 +132,21 @@ fa seek preciso, e lo scrubbing e' fluido. Su tutte e tre le piattaforme.
       bordo SINISTRO — param `start` di trim_clip; un clip senza
       sorgente si allunga a sinistra liberamente). Ripple delete
       esplicito: da fare
-- [ ] Selezione singola e multipla, copia/incolla
-- [ ] Scorciatoie da tastiera mappate su action id
-- [ ] Command palette (viene gratis dal registry)
+- [x] Selezione singola e multipla, copia/incolla (2026-08-24):
+      Ctrl+click aggiunge alla selezione (primaria + extra nello
+      ShellState), Delete toglie tutto in un undo
+      (`timeline.remove_clips`), Ctrl+C/Ctrl+V copiano e incollano dal
+      playhead con spaziatura e proprieta' intatte, id nuovi, clipboard
+      per progetto (mai link a media inesistenti)
+- [x] Scorciatoie da tastiera mappate su action id (2026-08-24): ogni
+      azione che dichiara `shortcut` e gira senza argomenti viene
+      cablata da un Instantiator in Main.qml — registrare l'azione
+      basta. Ctrl+B = split al playhead, Ctrl+C/V, Ctrl+S, F11,
+      Home/End; Space resta a mano (fallback senza media)
+- [x] Command palette (2026-08-24, `CommandPalette.qml`, Ctrl+K):
+      filtra il catalogo del registry sulle azioni invocabili senza
+      parametri; frecce + Invio eseguono. Il registry reso visibile:
+      zero manutenzione UI quando le azioni cambiano
 
 **Fatto quando:** si monta un video reale: import, taglio, riordino, salvataggio,
 riapertura. Il primo momento in cui l'app e' "usabile".

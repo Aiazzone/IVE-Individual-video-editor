@@ -21,3 +21,4 @@ PackInstallOverlay 1.0 PackInstallOverlay.qml
 IdleBackdrop 1.0 IdleBackdrop.qml
 OfficialPacksOverlay 1.0 OfficialPacksOverlay.qml
 AudioContent 1.0 AudioContent.qml
+CommandPalette 1.0 CommandPalette.qml

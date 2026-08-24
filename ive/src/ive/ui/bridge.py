@@ -70,6 +70,9 @@ class ShellState(QObject):
         #: selecting a title on the video open its words in the panel.
         self._selected_clip = ""
         self._selected_kind = ""
+        #: Ids Ctrl+clicked ONTO the primary selection - the rest of a
+        #: multi-selection. Delete and copy act on primary + these.
+        self._selected_extra: list[str] = []
         self._values: dict[str, Any] = {}
         self._rebuild()
         settings.changed.connect(self._on_setting_changed)
@@ -101,6 +104,22 @@ class ShellState(QObject):
         self._selected_kind = kind
         self._rebuild()
 
+    @Slot("QVariantList")
+    def set_extra_selected(self, clip_ids) -> None:
+        """The multi-selection beyond the primary clip (Ctrl+click)."""
+        ids = [str(i) for i in clip_ids or [] if str(i)]
+        if ids == self._selected_extra:
+            return
+        self._selected_extra = ids
+        self._rebuild()
+
+    def selected_ids(self) -> list[str]:
+        """Every selected clip id, primary first - what the copy and
+        delete actions operate on."""
+        out = [self._selected_clip] if self._selected_clip else []
+        out += [i for i in self._selected_extra if i not in out]
+        return out
+
     @Slot(bool)
     def set_glass_supported(self, supported: bool) -> None:
         """Result of the runtime capability check, from the composition root."""
@@ -130,6 +149,7 @@ class ShellState(QObject):
         values["windowHidden"] = self._window_hidden
         values["selectedClipId"] = self._selected_clip
         values["selectedKind"] = self._selected_kind
+        values["selectedExtra"] = list(self._selected_extra)
         # A hidden window renders nothing worth blurring, and sampling it is
         # exactly what stalls.
         values["glassActive"] = active and not self._window_hidden
@@ -171,14 +191,22 @@ class ActionBridge(QObject):
             return ""
 
     @Property("QVariantList", constant=True)
-    def catalogue(self) -> list[dict[str, str]]:
-        """Every action, for the command palette."""
+    def catalogue(self) -> list[dict[str, Any]]:
+        """Every action, for the command palette and the shortcut map.
+
+        ``invocable`` = callable with no arguments: only these appear in
+        the palette and get their declared shortcut wired automatically -
+        an action that NEEDS parameters (a path, a clip id) can only run
+        from a place that has them.
+        """
         return [
             {
                 "id": a.id,
                 "titleKey": a.title_key,
                 "category": a.category,
                 "shortcut": a.shortcut,
+                "invocable": all(not p.required
+                                 for p in (a.params or {}).values()),
             }
             for a in self._registry.all()
         ]

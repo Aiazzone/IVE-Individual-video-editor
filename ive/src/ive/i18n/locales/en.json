@@ -368,5 +368,9 @@
   "settings.canvas_fit.fit": "Fit",
   "settings.canvas_fit.fill": "Fill",
   "settings.canvas_fit.blur": "Blur",
-  "project.importing": "Importing %1 of %2…"
+  "project.importing": "Importing %1 of %2…",
+  "palette.hint": "Type a command…",
+  "palette.empty": "No command matches",
+  "timeline.copy": "Copy clips",
+  "timeline.paste": "Paste clips"
 }

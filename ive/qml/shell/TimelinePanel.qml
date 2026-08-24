@@ -178,6 +178,29 @@ Item {
     // tools on the other for the same underlying clip.
     property string selectedClipId: ""
     property string selectedKind: ""
+    /*! Ids Ctrl+clicked ONTO the primary selection: the rest of a
+        multi-selection. Delete and Ctrl+C act on primary + these. */
+    property var extraSelected: []
+    onExtraSelectedChanged: Shell.set_extra_selected(extraSelected)
+
+    /*! Ctrl+click: grow or shrink the multi-selection. The primary
+        stays what it is - the toolbox needs ONE clip to describe. */
+    function toggleExtra(clipId, kind) {
+        if (selectedClipId === "") {
+            selectedClipId = clipId;
+            selectedKind = kind;
+            return;
+        }
+        if (clipId === selectedClipId)
+            return;
+        var list = extraSelected.slice();
+        var found = list.indexOf(clipId);
+        if (found >= 0)
+            list.splice(found, 1);
+        else
+            list.push(clipId);
+        extraSelected = list;
+    }
 
     // Mirrored into the shell state, so the on-video handles and the Text
     // panel see the SAME selection the timeline does (and back: selecting
@@ -212,6 +235,7 @@ Item {
         selectedClipId = "";
         selectedKind = "";
         selectedTransition = null;
+        extraSelected = [];
     }
 
     /*! Live clip data by id, for handlers that need sourceIn/mediaDuration
@@ -229,6 +253,17 @@ Item {
         the whole clip goes. The Delete key (Main.qml) and the trash button
         both land here. */
     function deleteSelected() {
+        // A multi-selection goes WHOLE: every selected clip is removed
+        // in one undo step (the audio-lane subtlety below is a
+        // single-selection nicety; picking many means "take them away").
+        if (extraSelected.length > 0) {
+            var ids = extraSelected.slice();
+            if (selectedClipId !== "" && ids.indexOf(selectedClipId) < 0)
+                ids.unshift(selectedClipId);
+            clearSelection();
+            Actions.invoke("timeline.remove_clips", { clip_ids: ids });
+            return;
+        }
         // A selected transition pill deletes the TRANSITION, never the
         // clip it happens to reference.
         if (selectedKind === "transition" && selectedTransition !== null) {
@@ -975,9 +1010,11 @@ Item {
                                 clip: true
 
                                 readonly property bool selected:
-                                    root.selectedClipId === modelData.id
-                                    && root.selectedKind
-                                       === (lane.modelData.kind)
+                                    (root.selectedClipId === modelData.id
+                                     && root.selectedKind
+                                        === (lane.modelData.kind))
+                                    || root.extraSelected.indexOf(
+                                           modelData.id) >= 0
 
                                 border.width: selected ? 2 : 1
                                 border.color: selected
@@ -1209,7 +1246,9 @@ Item {
                                 // keeps the old "open this file in the
                                 // preview" behaviour.
                                 TapHandler {
+                                    acceptedModifiers: Qt.NoModifier
                                     onTapped: {
+                                        root.extraSelected = [];
                                         root.selectedClipId = clip.modelData.id;
                                         root.selectedKind =
                                             lane.modelData.kind;
@@ -1220,6 +1259,14 @@ Item {
                                             Actions.invoke("timeline.preview_clip",
                                                            { clip_id: clip.modelData.id });
                                     }
+                                }
+                                // Ctrl+click grows the selection instead
+                                // of replacing it.
+                                TapHandler {
+                                    acceptedModifiers: Qt.ControlModifier
+                                    onTapped: root.toggleExtra(
+                                        clip.modelData.id,
+                                        lane.modelData.kind)
                                 }
 
                                 // Reorder by dragging. The clip follows the

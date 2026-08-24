@@ -98,6 +98,71 @@ def place_effect(ctx, effect_id: str, at: float, duration: float):
 
 
 @action(
+    id="timeline.remove_clips",
+    title_key="timeline.remove_clip",
+    desc_key="Remove several clips at once - a whole selection, one "
+             "undo step.",
+    category="timeline",
+    params={"clip_ids": Param(list, required=True)},
+)
+def remove_clips(ctx, clip_ids: list):
+    if not ctx.require("project").remove_clips(list(clip_ids or [])):
+        raise RuntimeError("Nothing to remove")
+
+
+@action(
+    id="timeline.split_at_playhead",
+    title_key="timeline.split",
+    desc_key="Split the A/V clip under the playhead in two, right where "
+             "the playhead stands.",
+    category="timeline",
+    shortcut="Ctrl+B",
+)
+def split_at_playhead(ctx):
+    playback = ctx.require("playback")
+    project = ctx.require("project")
+    at = float(getattr(playback, "positionSeconds", 0.0) or 0.0)
+    target = next((c for c in project.timelineClips
+                   if c["track"] == 0 and c["start"] + 0.05 < at
+                   < c["end"] - 0.05), None)
+    if target is None:
+        raise RuntimeError("No clip under the playhead to split")
+    if not project.split_clip(target["id"], at):
+        raise RuntimeError("The split failed")
+
+
+@action(
+    id="timeline.copy_selection",
+    title_key="timeline.copy",
+    desc_key="Copy the selected clips (the whole multi-selection) for a "
+             "later paste.",
+    category="timeline",
+    shortcut="Ctrl+C",
+)
+def copy_selection(ctx):
+    shell = ctx.require("shell")
+    ids = shell.selected_ids()
+    if not ids or ctx.require("project").copy_clips(ids) == 0:
+        raise RuntimeError("Nothing selected to copy")
+
+
+@action(
+    id="timeline.paste",
+    title_key="timeline.paste",
+    desc_key="Paste the copied clips at the playhead (or at the end when "
+             "nothing plays), keeping their spacing. One undo step.",
+    category="timeline",
+    shortcut="Ctrl+V",
+)
+def paste_clips(ctx):
+    playback = ctx.require("playback")
+    at = (float(playback.positionSeconds)
+          if getattr(playback, "hasMedia", False) else -1.0)
+    if ctx.require("project").paste_clips(at) == 0:
+        raise RuntimeError("Nothing to paste")
+
+
+@action(
     id="timeline.drop_media",
     title_key="timeline.place_media",
     desc_key="Import files or folders and lay them on the A/V track back "

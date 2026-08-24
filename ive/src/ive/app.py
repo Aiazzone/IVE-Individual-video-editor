@@ -86,6 +86,8 @@ class Application:
             events=self.events,
         )
         self.context.extras["playback"] = self.playback
+        # The selection lives in the shell; copy/delete actions read it.
+        self.context.extras["shell"] = self.shell
         self.context.project = self.project
         self.context.extras["export"] = self.export
         self.context.extras["proxies"] = self.proxies

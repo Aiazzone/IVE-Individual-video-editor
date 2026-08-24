@@ -544,6 +544,41 @@ class Project:
         self.reflow()
         return True
 
+    def remove_clips(self, clip_ids) -> int:
+        """Remove several clips at once; one reflow at the end."""
+        wanted = {str(i) for i in clip_ids}
+        before = len(self.timeline)
+        self.timeline = [c for c in self.timeline if c.id not in wanted]
+        removed = before - len(self.timeline)
+        if removed:
+            self.reflow()
+        return removed
+
+    def paste_clips(self, documents: list, at: float) -> list:
+        """Recreate copied clips from ``at``, keeping their spacing.
+
+        Each document is a ``TimelineClip.to_dict()`` snapshot; every
+        pasted clip gets a FRESH id (a paste is a new clip, never an
+        alias). The earliest copied start becomes ``at`` and the others
+        keep their distance from it, so a copied arrangement lands as
+        the same arrangement. Track 0 reflows: there the paste point is
+        an insertion point, like a drop.
+        """
+        if not documents:
+            return []
+        base = min(float(d.get("start") or 0.0) for d in documents)
+        at = max(0.0, float(at))
+        pasted = []
+        for document in documents:
+            clip = TimelineClip.from_dict(document)
+            clip.id = _new_id()
+            clip.start = at + (float(document.get("start") or 0.0) - base)
+            self.timeline.append(clip)
+            pasted.append(clip)
+        if any(c.track == 0 for c in pasted):
+            self.reflow(0)
+        return pasted
+
     def find_clip(self, clip_id: str) -> "TimelineClip | None":
         return next((c for c in self.timeline if c.id == clip_id), None)
 

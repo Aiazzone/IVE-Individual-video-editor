@@ -368,5 +368,9 @@
   "settings.canvas_fit.fit": "Ajustar",
   "settings.canvas_fit.fill": "Rellenar",
   "settings.canvas_fit.blur": "Desenfocar",
-  "project.importing": "Importando %1 de %2…"
+  "project.importing": "Importando %1 de %2…",
+  "palette.hint": "Escribe un comando…",
+  "palette.empty": "Ningún comando coincide",
+  "timeline.copy": "Copiar clips",
+  "timeline.paste": "Pegar clips"
 }
