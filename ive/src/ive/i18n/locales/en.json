@@ -367,5 +367,6 @@
   "settings.canvas_fit.hint": "What happens to a clip shaped differently from the canvas. Fit adds bars and never crops; Fill crops the overflow; Blur fills the bars with a blurred copy of the picture. Preview and export share the choice.",
   "settings.canvas_fit.fit": "Fit",
   "settings.canvas_fit.fill": "Fill",
-  "settings.canvas_fit.blur": "Blur"
+  "settings.canvas_fit.blur": "Blur",
+  "project.importing": "Importing %1 of %2…"
 }

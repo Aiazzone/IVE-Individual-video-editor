@@ -118,8 +118,13 @@ fa seek preciso, e lo scrubbing e' fluido. Su tutte e tre le piattaforme.
       completamento): rilasciati sulla TIMELINE diventano clip nel punto
       del rilascio — pool e montaggio in un solo undo
       (`timeline.drop_media` / `import_and_place`); altrove entrano nel
-      pool. Cartelle ricorsive e duplicati riusati. Restano: import
-      asincrono con progresso, ordinamento per data di ripresa
+      pool. Cartelle ricorsive e duplicati riusati. **Import asincrono
+      con progresso** (stesso giorno): le probe girano su un worker
+      (`_ImportWorker`), la UI non si congela mai, riga di progresso con
+      annulla nel pannello Progetto, il lotto atterra intero in un solo
+      undo (mai mezzi atterraggi; un lotto che atterra dopo la chiusura
+      del suo progetto viene scartato). Resta: ordinamento per data di
+      ripresa
 - [x] QML timeline: ruler, tracce, clip, playhead, zoom, scroll
 - [x] Drag & drop dal media pool alla timeline
 - [x] Trim con maniglie (con snap tra corsie), split, delete con reflow

@@ -158,6 +158,49 @@ Item {
                 TapHandler { onTapped: importDialog.open() }
             }
 
+            // The probing runs on a worker: this line is what tells the
+            // user a big folder is being read, and lets them stop it.
+            RowLayout {
+                objectName: "import_progress"
+                visible: Project.importing
+                Layout.fillWidth: true
+                spacing: Theme.m.space2
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 3
+                    Text {
+                        Layout.fillWidth: true
+                        text: (Tr.s["project.importing"] || "%1 / %2")
+                            .replace("%1", Project.importDone)
+                            .replace("%2", Project.importTotal)
+                        color: Theme.c.textMuted
+                        font.pixelSize: Theme.m.fontSizeXs
+                    }
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 3
+                        radius: 1.5
+                        color: Qt.alpha(Theme.c.glassOn, 0.10)
+                        Rectangle {
+                            width: parent.width
+                                   * (Project.importTotal > 0
+                                      ? Project.importDone / Project.importTotal
+                                      : 0)
+                            height: parent.height
+                            radius: 1.5
+                            color: Theme.c.accent
+                        }
+                    }
+                }
+                IconButton {
+                    objectName: "import_cancel"
+                    size: 24; iconSize: 12
+                    icon: Icons.close
+                    label: Tr.s["export.cancel"] || ""
+                    onTriggered: Project.cancel_import()
+                }
+            }
+
             Text {
                 visible: Project.mediaCount > 0
                 Layout.fillWidth: true

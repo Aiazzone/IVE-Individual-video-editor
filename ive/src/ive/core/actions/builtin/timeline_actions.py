@@ -112,7 +112,10 @@ def place_effect(ctx, effect_id: str, at: float, duration: float):
     },
 )
 def drop_media(ctx, paths: list, at: float):
-    if ctx.require("project").import_and_place(list(paths or []), at) == 0:
+    # Asynchronous: the files are probed on a worker and the clips land
+    # where the pointer said once the probing is done.
+    if ctx.require("project").import_and_place_async(list(paths or []),
+                                                     at) == 0:
         raise RuntimeError("Nothing usable was dropped")
 
 

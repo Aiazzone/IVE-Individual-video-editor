@@ -367,5 +367,6 @@
   "settings.canvas_fit.hint": "O que acontece com um clipe de formato diferente da tela. Ajustar adiciona faixas e nunca corta; Preencher corta o excesso; Desfocar preenche as faixas com uma cópia desfocada da imagem. Pré-visualização e exportação compartilham a escolha.",
   "settings.canvas_fit.fit": "Ajustar",
   "settings.canvas_fit.fill": "Preencher",
-  "settings.canvas_fit.blur": "Desfocar"
+  "settings.canvas_fit.blur": "Desfocar",
+  "project.importing": "Importando %1 de %2…"
 }

@@ -16,7 +16,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import Property, QObject, Signal, Slot
+from PySide6.QtCore import Property, QObject, Qt, QThread, Signal, Slot
 
 from ive.core.commands.project_commands import ProjectEdit
 from ive.core.model.project import PROJECT_SUFFIX, MediaItem, Project
@@ -36,6 +36,53 @@ MEDIA_SUFFIXES = {
 }
 
 
+class _ImportWorker(QObject):
+    """Probes media files off the GUI thread, one job at a time.
+
+    Probing is the slow half of an import (FFmpeg opens every file); a
+    camera-card folder froze the interface for seconds when it ran on
+    the GUI thread. The worker only READS: it hands (path, probe info)
+    pairs back and the service applies them to the model on the GUI
+    thread, where the model lives (rule 4.8).
+    """
+
+    progress = Signal(int, int)          # done, total
+    finished = Signal(object)            # {"job", "results", "cancelled"}
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._abort = False
+
+    def cancel(self) -> None:
+        # Called DIRECTLY from the GUI thread (a bool write is atomic
+        # enough): a queued cancel would arrive when the job is over.
+        self._abort = True
+
+    def reset(self) -> None:
+        # Armed by the service RIGHT BEFORE a job is dispatched - never
+        # inside run(), where it would erase a cancel that raced ahead
+        # of the queued start.
+        self._abort = False
+
+    @Slot(object)
+    def run(self, job: dict) -> None:
+        files = job["files"]
+        results: list[tuple[str, Any]] = []
+        for index, path in enumerate(files):
+            if self._abort:
+                break
+            try:
+                info = probe(Path(path))
+            except MediaProbeError as exc:
+                log.warning("Skipping %s: %s", Path(path).name, exc)
+                info = None
+            if info is not None:
+                results.append((str(path), info))
+            self.progress.emit(index + 1, len(files))
+        self.finished.emit({"job": job, "results": results,
+                            "cancelled": self._abort})
+
+
 class ProjectService(QObject):
     """Owns the open project."""
 
@@ -46,6 +93,8 @@ class ProjectService(QObject):
     error = Signal(str)
     #: (imported, skipped, failed) after an import batch.
     imported = Signal(int, int, int)
+
+    importChanged = Signal()
 
     def __init__(self, settings=None, history=None,
                  parent: QObject | None = None) -> None:
@@ -58,6 +107,14 @@ class ProjectService(QObject):
         self._history = history
         self._project: Project | None = None
         self._dirty = False
+        #: The async import worker (lazy: tests and scripts that only use
+        #: the synchronous paths never pay for a thread).
+        self._import_thread = None
+        self._import_worker = None
+        self._import_queue: list[dict[str, Any]] = []
+        self._import_active: dict[str, Any] | None = None
+        self._import_done = 0
+        self._import_total = 0
 
     # ── properties for QML ────────────────────────────────────────────
 
@@ -556,6 +613,201 @@ class ProjectService(QObject):
         log.info("Dropped %d file(s) onto the timeline at %.2fs "
                  "(%d new in the pool)", len(line), at, len(new_items))
         return len(line)
+
+    # ── asynchronous import ───────────────────────────────────────────
+    # The slow half of an import is the probe (FFmpeg opens every file);
+    # these run it on a worker and apply the results in ONE edit when it
+    # lands. The interface never freezes, a progress line says where the
+    # job is, and cancel discards the batch whole - never half a landing.
+
+    @Property(bool, notify=importChanged)
+    def importing(self) -> bool:
+        return self._import_active is not None
+
+    @Property(int, notify=importChanged)
+    def importDone(self) -> int:
+        return self._import_done
+
+    @Property(int, notify=importChanged)
+    def importTotal(self) -> int:
+        return self._import_total
+
+    _startImport = Signal(object)
+
+    @Slot("QVariantList", result=int)
+    def import_paths_async(self, paths: list) -> int:
+        """Import off the GUI thread. Returns how many files were queued
+        (0 = nothing usable); the pool updates when the probing lands."""
+        return self._queue_import(paths, None)
+
+    @Slot("QVariantList", float, result=int)
+    def import_and_place_async(self, paths: list, at: float) -> int:
+        """The drop-on-the-timeline gesture, probed off the GUI thread:
+        the clips land where the pointer said, when the probing is done."""
+        return self._queue_import(paths, max(0.0, float(at)))
+
+    @Slot()
+    def cancel_import(self) -> None:
+        """Stop the running batch and drop the waiting ones. Nothing of
+        a cancelled batch is applied: no half landings."""
+        self._import_queue.clear()
+        if self._import_worker is not None and self._import_active:
+            self._import_worker.cancel()
+
+    def _queue_import(self, paths: list, at: float | None) -> int:
+        if self._project is None:
+            self.error.emit("no_project")
+            return 0
+        files = [str(f) for f in self._collect_files(paths)]
+        if not files:
+            self.error.emit("nothing_imported")
+            return 0
+        self._import_queue.append({"files": files, "at": at,
+                                   "project_id": self._project.id})
+        self._ensure_import_worker()
+        self._dispatch_import()
+        return len(files)
+
+    def _collect_files(self, paths: list) -> list[Path]:
+        """Files and folders (recursive), media suffixes only, deduped -
+        the fast part of an import, safe on the GUI thread."""
+        files: list[Path] = []
+        seen: set = set()
+        for raw in paths:
+            path = Path(_strip_url(str(raw)))
+            if path.is_dir():
+                candidates = sorted(
+                    p for p in path.rglob("*")
+                    if p.is_file() and p.suffix.lower() in MEDIA_SUFFIXES)
+            elif path.is_file() and path.suffix.lower() in MEDIA_SUFFIXES:
+                candidates = [path]
+            else:
+                continue
+            for file in candidates:
+                try:
+                    resolved = file.resolve()
+                except OSError:
+                    resolved = file
+                if resolved in seen:
+                    continue
+                seen.add(resolved)
+                files.append(file)
+        return files
+
+    def _ensure_import_worker(self) -> None:
+        if self._import_thread is not None:
+            return
+        self._import_thread = QThread()
+        self._import_thread.setObjectName("import")
+        self._import_worker = _ImportWorker()
+        self._import_worker.moveToThread(self._import_thread)
+        self._startImport.connect(self._import_worker.run)
+        self._import_worker.progress.connect(self._on_import_progress)
+        self._import_worker.finished.connect(self._on_import_finished)
+        self._import_thread.start()
+
+    def _dispatch_import(self) -> None:
+        if self._import_active is not None or not self._import_queue:
+            return
+        self._import_active = self._import_queue.pop(0)
+        self._import_done = 0
+        self._import_total = len(self._import_active["files"])
+        self._import_worker.reset()
+        self.importChanged.emit()
+        self._startImport.emit(self._import_active)
+
+    def _on_import_progress(self, done: int, total: int) -> None:
+        self._import_done, self._import_total = done, total
+        self.importChanged.emit()
+
+    def _on_import_finished(self, payload: dict) -> None:
+        job = payload["job"]
+        results = payload["results"]
+        self._import_active = None
+        self.importChanged.emit()
+        try:
+            if payload["cancelled"]:
+                log.info("Import cancelled; %d probed file(s) discarded",
+                         len(results))
+                return
+            if self._project is None or self._project.id != job["project_id"]:
+                log.info("Import landed after its project closed; discarded")
+                return
+            self._apply_import(results, job["at"])
+        finally:
+            self._dispatch_import()
+
+    def _apply_import(self, results: list, at: float | None) -> None:
+        """Turn probed files into pool entries (and clips, for a drop on
+        the timeline) - ONE edit, exactly like the synchronous paths."""
+        base = self._project.base
+        new_items: list[MediaItem] = []
+        line: list[MediaItem] = []
+        for path_str, info in results:
+            path = Path(path_str)
+            try:
+                resolved = path.resolve()
+            except OSError:
+                resolved = path
+
+            def _same(entry) -> bool:
+                try:
+                    return Path(entry.resolve(base)).resolve() == resolved
+                except OSError:
+                    return False
+
+            existing = next((m for m in self._project.media if _same(m)),
+                            None)
+            if existing is not None:
+                if at is not None:
+                    line.append(existing)
+                continue
+            video = info.primary_video
+            width = height = 0
+            fps = 0.0
+            if video is not None:
+                width, height = video.display_size
+                fps = float(video.fps)
+            item = MediaItem(
+                path=self._project.relative_to_base(path),
+                name=path.name, duration=info.duration,
+                width=width, height=height, fps=fps,
+                has_audio=info.has_audio,
+            )
+            new_items.append(item)
+            line.append(item)
+        if not new_items and not line:
+            self.error.emit("nothing_imported")
+            return
+
+        def mutate():
+            for item in new_items:
+                self._project.add_media(item)
+            if at is not None:
+                cursor = at
+                for item in line:
+                    clip = self._project.add_clip(
+                        item.id, item.duration or 5.0, at=cursor)
+                    cursor = clip.end
+            return True
+
+        label = "timeline.place_media" if at is not None else "media.import"
+        self._edit(label, mutate, timeline=at is not None,
+                   media=bool(new_items))
+        log.info("Async import landed: %d new in the pool, %d clip(s) "
+                 "placed", len(new_items), len(line) if at is not None else 0)
+
+    def shutdown(self) -> None:
+        """Stop the import worker; safe to call with none running."""
+        self.cancel_import()
+        if self._import_thread is not None:
+            self._import_thread.quit()
+            if not self._import_thread.wait(4000):
+                log.warning("Import thread did not stop in time")
+                self._import_thread.terminate()
+                self._import_thread.wait(1000)
+            self._import_thread = None
+            self._import_worker = None
 
     @Slot(str, str, result=bool)
     def set_clip_audio_effect(self, clip_id: str, effect_id: str) -> bool:

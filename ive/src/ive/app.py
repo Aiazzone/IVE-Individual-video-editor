@@ -212,6 +212,7 @@ class Application:
         self.music.shutdown()
         self.packs.shutdown()
         self.export.shutdown()
+        self.project.shutdown()
         self.project.close()
         self.playback.shutdown()
         self.settings.flush()

@@ -367,5 +367,6 @@
   "settings.canvas_fit.hint": "Qué pasa con un clip de formato distinto al lienzo. Ajustar añade bandas y nunca recorta; Rellenar recorta lo que sobra; Desenfocar rellena las bandas con una copia desenfocada de la imagen. Vista previa y exportación comparten la elección.",
   "settings.canvas_fit.fit": "Ajustar",
   "settings.canvas_fit.fill": "Rellenar",
-  "settings.canvas_fit.blur": "Desenfocar"
+  "settings.canvas_fit.blur": "Desenfocar",
+  "project.importing": "Importando %1 de %2…"
 }

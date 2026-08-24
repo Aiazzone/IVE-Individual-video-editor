@@ -79,7 +79,10 @@ def rename_project(ctx, name: str):
     params={"paths": Param(list, required=True, doc="File or folder paths.")},
 )
 def import_media(ctx, paths: list):
-    ctx.require("project").import_paths(list(paths))
+    # Asynchronous: the probing runs on a worker and the pool updates
+    # when it lands - a camera-card folder must not freeze the shell.
+    if ctx.require("project").import_paths_async(list(paths)) == 0:
+        raise RuntimeError("Nothing usable to import")
 
 
 @action(
