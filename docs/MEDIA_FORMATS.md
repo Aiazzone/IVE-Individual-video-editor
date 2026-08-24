@@ -229,6 +229,25 @@ supportata in import e in export come comodita', non come formato di lavoro.
 L'area piu' facile da sbagliare in modo invisibile. Serve un approccio
 graduale e onesto.
 
+**Stato 2026-08-24 — la matrice YUV↔RGB e' gestita.** In decodifica
+(`decoder._colour_hint`): un file **taggato** e' onorato da swscale da
+solo; un file **senza tag** (colorspace 0/2) usa la convenzione
+industriale per dimensione — piu' grande di SD (h>576 o w>1024) =
+BT.709, altrimenti BT.601. Misurato: (60,140,90) decodificato con la
+matrice sbagliata torna (52,129,88). In **export**: la conversione
+RGB→YUV usa la matrice implicata dalla dimensione d'uscita e il file la
+**dichiara** (`colorspace` 1 o 6) — prima convertiva col default 601
+senza dire nulla, e ogni player assumendo 709 sull'HD spostava i
+colori. Round-trip verificato in `tests/test_media_robustness.py`.
+Restano aperti: float lineare, range limited/full esplicito, tone
+mapping HDR→SDR (sotto). Nella stessa passata: **rotazione** dei
+telefoni (display matrix leggibile SOLO dal frame decodificato in
+PyAV 17 — la probe ne decodifica uno; convenzione ffprobe = gradi
+antiorari, il segno si inverte), **VFR** (fps = average_rate,
+campionamento per tempo) e **offset di partenza** (l'ancora audio del
+motore sottrae lo start_time dello stream: un MPEG-TS che parte a
+1,4 s suona dal primo frame).
+
 ### Fondamenta (obbligatorie fin dall'inizio)
 
 Anche restando solo in SDR, il pipeline deve essere **color-managed**:

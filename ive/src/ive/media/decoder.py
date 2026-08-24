@@ -220,13 +220,35 @@ class VideoDecoder:
         # The cached frame is at the old size; a repeat must not serve it.
         self._last = None
 
+    #: AVCOL_SPC values meaning "the file does not say": RGB/identity (0)
+    #: and unspecified (2). Everything else is a real declaration that
+    #: swscale already honours on its own.
+    _UNTAGGED_COLOURSPACES = (0, 2)
+
+    def _colour_hint(self, frame) -> dict:
+        """Which YUV matrix to decode with, when the file does not say.
+
+        swscale honours a declared colour space by itself; the problem is
+        the UNTAGGED file, where it silently assumes BT.601 - and most
+        untagged footage is HD, which by industry convention is BT.709.
+        Decoding a phone clip with the wrong matrix shifts every colour a
+        few percent (measured: (60,140,90) comes back (52,129,88)). The
+        size convention is the standard one: bigger than SD means 709.
+        """
+        if getattr(frame, "colorspace", 2) not in self._UNTAGGED_COLOURSPACES:
+            return {}
+        hd = frame.height > 576 or frame.width > 1024
+        return {"src_colorspace": "itu709" if hd else "itu601"}
+
     def _convert(self, frame, index: int) -> DecodedFrame:
         """FFmpeg frame -> contiguous RGB888 array, rotated for display."""
+        hint = self._colour_hint(frame)
         if self._output_size is not None:
             width, height = self._output_size
-            array = frame.to_ndarray(format="rgb24", width=width, height=height)
+            array = frame.reformat(width=width, height=height,
+                                   format="rgb24", **hint).to_ndarray()
         else:
-            array = frame.to_ndarray(format="rgb24")
+            array = frame.reformat(format="rgb24", **hint).to_ndarray()
 
         rotation = self.video.rotation
         if rotation == 90:

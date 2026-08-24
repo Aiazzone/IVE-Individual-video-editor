@@ -80,10 +80,18 @@ Lo step tecnicamente piu' rischioso: farlo presto.
 - [x] `media/reader.py` — decodifica su worker thread con coalescing delle richieste
 - [ ] `media/cache.py`
 - [ ] `media/thumbnails.py`, `waveform.py` — asincroni
-- [ ] Gestione colore fin da subito: spazio colore letto dai metadati,
-      elaborazione in float lineare, range limited/full corretto,
-      **tone mapping HDR→SDR** (vedi `MEDIA_FORMATS.md` §8)
-- [ ] Rotazione dai metadati, frame rate variabile, primo frame non a zero
+- [x] **Matrice colore corretta** (2026-08-24): un file taggato e'
+      onorato da swscale; un file SENZA tag usa la convenzione per
+      dimensione (HD = BT.709, non piu' il default 601); l'export
+      converte con la matrice dell'uscita E la dichiara nel file.
+      Restano (MEDIA_FORMATS.md §8): float lineare, range limited/full
+      esplicito, **tone mapping HDR→SDR**
+- [x] Rotazione dai metadati (2026-08-24: la display matrix dei telefoni
+      si legge SOLO dal frame decodificato in questo PyAV — la probe ne
+      decodifica uno; pixel-verificata fino al motore), frame rate
+      variabile (fps = average_rate, campionamento per TEMPO), primo
+      frame non a zero (video gia' ok; l'ancora AUDIO ora sottrae lo
+      start_time — un MPEG-TS non suona piu' 1,4 s in ritardo)
 - [x] `video_engine/`: frame, graph, compositor, backend CPU (in `engine/`)
 - [x] `audio_engine/`: mixer e resample in `engine/`, uscita in
       `playback/audio_output.py` (QAudioSink push-mode)

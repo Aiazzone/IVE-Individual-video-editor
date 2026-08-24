@@ -254,6 +254,17 @@ class _Worker(QObject):
             stream.pix_fmt = pix_fmt
             bitrate = int(options.get("video_bitrate_kbps") or 12000)
             stream.bit_rate = bitrate * 1000
+            # Convert RGB->YUV with the matrix the OUTPUT size implies
+            # (HD means BT.709) and SAY SO in the file: an untagged file
+            # converted with the 601 default reads slightly off on every
+            # player that assumes 709 for HD - which is all of them.
+            hd_output = height > 576 or width > 1024
+            encode_space = "itu709" if hd_output else "itu601"
+            try:
+                # 1 = BT.709, 6 = SMPTE 170M (the 601 the players expect).
+                stream.codec_context.colorspace = 1 if hd_output else 6
+            except Exception:
+                log.debug("Encoder %s takes no colorspace tag", encoder)
 
             # Audio only exists when the graph renders: the graph mixes every
             # clip's sound (volume, mute, music tracks) into one stereo
@@ -312,7 +323,8 @@ class _Worker(QObject):
                 last_array = array
                 video_frame = av.VideoFrame.from_ndarray(array, format="rgb24")
                 video_frame = video_frame.reformat(width=width, height=height,
-                                                   format=stream.pix_fmt)
+                                                   format=stream.pix_fmt,
+                                                   dst_colorspace=encode_space)
                 for packet in stream.encode(video_frame):
                     container.mux(packet)
 

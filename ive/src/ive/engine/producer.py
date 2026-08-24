@@ -225,6 +225,12 @@ class _AudioTrack:
         self._container = av.open(path)
         self._stream = self._container.streams.audio[0]
         self._stream.thread_type = "AUTO"
+        #: First pts of the stream, in STREAM time-base units. MPEG-TS
+        #: files start around 1.4 s, some phone files carry edit-list
+        #: offsets; media time 0 is THIS pts, not pts 0. Anchoring on raw
+        #: pts shifted every sample of such a file 1.4 s late against the
+        #: video (whose decoder already subtracts its own start).
+        self._start_pts = int(self._stream.start_time or 0)
         self._resampler = self._make_resampler()
         self._buffer = np.zeros((0, audio_format.channels), dtype=np.float32)
         #: Sample index of buffer[0]. None until the first decode after a seek
@@ -284,7 +290,8 @@ class _AudioTrack:
     def _rewind(self, start: int) -> None:
         seconds = max(0.0, start / self.format.sample_rate - 0.5)
         try:
-            self._container.seek(int(seconds / float(self._stream.time_base)),
+            self._container.seek(int(seconds / float(self._stream.time_base))
+                                 + self._start_pts,
                                  stream=self._stream, backward=True)
         except Exception:
             log.exception("Audio seek failed in %s", Path(self.path).name)
@@ -311,11 +318,17 @@ class _AudioTrack:
             return False
 
         if self._buffer_start is None:
-            # Anchor the buffer to where the seek REALLY landed.
+            # Anchor the buffer to where the seek REALLY landed - in
+            # MEDIA time, so the stream's own start offset is taken out
+            # (the frame may carry a different time base than the
+            # stream's, hence the conversion through seconds).
             pts = packet_frame.pts
             tb = packet_frame.time_base or self._stream.time_base
             if pts is not None and tb is not None:
-                self._buffer_start = int(round(pts * tb * self.format.sample_rate))
+                seconds = (float(pts * tb)
+                           - float(self._start_pts * self._stream.time_base))
+                self._buffer_start = int(round(seconds
+                                               * self.format.sample_rate))
             else:
                 self._buffer_start = self._target
 

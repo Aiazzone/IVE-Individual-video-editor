@@ -1,8 +1,11 @@
-"""Media inspection: what a file contains, without decoding it.
+"""Media inspection: what a file contains.
 
-Reads container and stream metadata only, so opening a media pool of hundreds
-of files stays fast. Everything a clip needs to be placed on a timeline comes
-from here; pixels come from :mod:`ive.media.decoder`.
+Reads container and stream metadata, plus at most ONE decoded frame when
+a video stream carries no legacy ``rotate`` tag - the display matrix
+(how every modern phone records orientation) is only reachable that way
+in this PyAV build. Still ~10 ms per file, and imports probe on a worker
+thread. Everything a clip needs to be placed on a timeline comes from
+here; pixels come from :mod:`ive.media.decoder`.
 """
 
 from __future__ import annotations
@@ -95,20 +98,40 @@ class MediaInfo:
 
 
 def _rotation_of(stream) -> int:
-    """Rotation in degrees, from metadata or the display matrix."""
+    """Rotation from the legacy ``rotate`` metadata tag, when present.
+
+    Modern files do not have the tag: FFmpeg dropped it years ago in
+    favour of display-matrix side data, which this PyAV build exposes
+    only on DECODED frames - see :func:`_frame_rotation`.
+    """
     raw = stream.metadata.get("rotate")
     if raw:
         try:
             return int(float(raw)) % 360
         except (TypeError, ValueError):
             pass
-    # Newer FFmpeg exposes it as display matrix side data instead.
+    return 0
+
+
+def _frame_rotation(container, stream) -> int:
+    """Rotation in CLOCKWISE display degrees, read off the first frame.
+
+    A phone shoots portrait video stored landscape plus a display
+    matrix; PyAV 17 surfaces that matrix only as ``frame.rotation``
+    (counterclockwise, ffprobe's convention - an iPhone portrait file
+    reads -90), and the stream object has no getter at all. So the probe
+    decodes ONE frame when a video stream is present: ~10 ms, the price
+    of never showing a vertical video on its side. The sign is flipped
+    to the clockwise convention of the old ``rotate`` tag, which is what
+    the decoder's ``np.rot90`` mapping was built against.
+    """
     try:
-        for side in stream.side_data:
-            if "DISPLAYMATRIX" in str(side.type).upper():
-                return int(round(float(side.rotation))) % 360
-    except Exception:  # pragma: no cover - depends on the PyAV build
-        log.debug("Could not read the display matrix of stream %s", stream.index)
+        for frame in container.decode(stream):
+            raw = getattr(frame, "rotation", 0) or 0
+            return int(-round(float(raw))) % 360
+    except Exception:
+        log.debug("Could not decode a frame for the rotation of %s",
+                  stream.index, exc_info=True)
     return 0
 
 
@@ -193,6 +216,19 @@ def probe(path: str | Path) -> MediaInfo:
 
         if not videos and not audios:
             raise MediaProbeError(f"{path.name} contains no audio or video stream")
+
+        # The display matrix (how EVERY modern phone stores rotation) is
+        # only reachable through a decoded frame in this PyAV; ask for it
+        # when the metadata tag said nothing. One decode per probe.
+        if videos and videos[0].rotation == 0:
+            from dataclasses import replace
+
+            stream = next((s for s in container.streams
+                           if s.index == videos[0].index), None)
+            if stream is not None:
+                rotation = _frame_rotation(container, stream)
+                if rotation:
+                    videos[0] = replace(videos[0], rotation=rotation)
 
         # Containers sometimes lie about the overall duration; trust the streams.
         if duration <= 0:

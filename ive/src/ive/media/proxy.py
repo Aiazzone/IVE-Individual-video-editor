@@ -118,10 +118,20 @@ class _Worker(QObject):
                 self.failed.emit(source, "no video stream")
                 return
 
-            width, src_height = video.display_size
-            scale = height / max(1, src_height)
-            target_w = max(2, int(round(width * scale)) & ~1)
-            target_h = max(2, height & ~1)
+            # Scale on the DISPLAY geometry but store in the SOURCE
+            # orientation: a rotated phone clip keeps its landscape
+            # storage and gets the display matrix copied below, so the
+            # proxy decodes exactly like the original - upright and
+            # undistorted (squeezing the stored frame into the display
+            # shape bent every proxied portrait video).
+            disp_w, disp_h = video.display_size
+            scale = height / max(1, disp_h)
+            target_disp_w = max(2, int(round(disp_w * scale)) & ~1)
+            target_disp_h = max(2, height & ~1)
+            if video.rotation in (90, 270):
+                target_w, target_h = target_disp_h, target_disp_w
+            else:
+                target_w, target_h = target_disp_w, target_disp_h
             fps = float(video.fps) or 25.0
 
             encoder = encoder_for("h264", target_w, target_h, "yuv420p", fps)
@@ -141,6 +151,26 @@ class _Worker(QObject):
             stream_out.pix_fmt = "yuv420p"
             if encoder.startswith("libx264"):
                 stream_out.options = {"crf": str(quality), "preset": "veryfast"}
+            if video.rotation:
+                try:
+                    # Back to the ffprobe convention (counterclockwise):
+                    # the probe flipped the sign reading it.
+                    stream_out.set_display_rotation(-video.rotation)
+                except Exception:
+                    log.warning("Proxy could not carry the rotation of %s",
+                                src.name, exc_info=True)
+            # The transcode stays in YUV, so the pixels keep the source
+            # matrix - the TAG has to travel too, or the proxy (smaller,
+            # often SD-sized) is decoded with the wrong convention.
+            try:
+                source_space = int(stream_in.codec_context.colorspace or 0)
+                if source_space in (0, 2):
+                    source_space = 1 if (video.height > 576
+                                         or video.width > 1024) else 6
+                stream_out.codec_context.colorspace = source_space
+            except Exception:
+                log.debug("Proxy could not tag the colour space",
+                          exc_info=True)
 
             total = stream_in.frames or int(round(info.duration * fps)) or 1
             log.info("Proxy: %s -> %dx%d via %s (%d frames)",
