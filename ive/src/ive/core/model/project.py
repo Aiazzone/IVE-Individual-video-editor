@@ -644,13 +644,20 @@ class Project:
         clip.fade_out = min(half, max(0.0, float(fade_out)))
         return True
 
-    def trim_clip(self, clip_id: str, source_in: float, duration: float) -> bool:
+    def trim_clip(self, clip_id: str, source_in: float, duration: float,
+                  start: float | None = None) -> bool:
         """Resize a clip: new head offset into the source, new length.
 
         Clamped against the SOURCE: a clip can never show material the file
         does not have (head before 0, tail past the media duration), and
         never collapses below a tenth of a second. The timeline reflows, so
         neighbours close up around the new size.
+
+        ``start`` matters on the FREE lanes (colour, sticker, text, music):
+        a head trim there must move the left edge, not the right one -
+        without it the clip keeps its start and shrinks from the tail,
+        which is the other handle's job. On track 0 the reflow decides
+        every start, so the value is accepted and then overruled.
         """
         clip = self.find_clip(clip_id)
         if clip is None:
@@ -664,6 +671,8 @@ class Project:
             duration = min(duration, limit - source_in)
         clip.source_in = source_in
         clip.duration = duration
+        if start is not None:
+            clip.start = max(0.0, float(start))
         if clip.track == 0:
             # Only the A/V track is gapless; a resized effect stays put.
             self.reflow(0)

@@ -393,6 +393,18 @@ Window {
                 win.openSection("new");
                 return;
             }
+            // Released over the TIMELINE, a file does not just join the
+            // pool: it lands as a clip where the pointer says, pool and
+            // cut in one undo step. Anywhere else keeps the old meaning,
+            // "bring these into the project".
+            if (drop.y >= win.height - win.timelineHeight) {
+                Actions.invoke("timeline.drop_media", {
+                    paths: list,
+                    at: Math.max(0, timeline.secondsAtWindow(drop.x, drop.y))
+                });
+                drop.accept();
+                return;
+            }
             Actions.invoke("project.import_media", { paths: list });
             drop.accept();
         }

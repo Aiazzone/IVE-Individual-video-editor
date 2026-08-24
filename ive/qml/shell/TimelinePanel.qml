@@ -73,6 +73,15 @@ Item {
             root.panelRequested(key);
     }
 
+    /*! Window coordinates -> seconds on the timeline, scroll and zoom
+        included. The window-wide file drop asks this when the release
+        happens over the lanes, so an external file lands exactly where
+        the pointer says. */
+    function secondsAtWindow(wx, wy) {
+        var local = content.mapFromItem(null, wx, wy);
+        return local.x / lanes.pps;
+    }
+
     // The timeline shows the PROJECT, not whatever is in the preview. Those
     // are different things, and conflating them hid the fact that a project
     // holds many clips.
@@ -1292,8 +1301,15 @@ Item {
                                                 8 / lanes.pps);
                                             var clipData = root.clipDataFor(
                                                 clip.modelData.id);
-                                            var minStart = clip.modelData.from
-                                                - (clipData ? clipData.sourceIn : 0);
+                                            // A clip WITH a source cannot show
+                                            // material before its own frame 0;
+                                            // one without (sticker, text,
+                                            // effect) grows left freely.
+                                            var minStart = clipData
+                                                && clipData.mediaDuration > 0
+                                                ? clip.modelData.from
+                                                  - clipData.sourceIn
+                                                : 0;
                                             proposed = Math.max(minStart,
                                                 Math.min(clip.modelData.to - 0.1,
                                                          proposed));
@@ -1319,7 +1335,12 @@ Item {
                                             Actions.invoke("timeline.trim_clip", {
                                                 clip_id: clipData.id,
                                                 source_in: clipData.sourceIn + delta,
-                                                duration: clipData.duration - delta
+                                                duration: clipData.duration - delta,
+                                                // The LEFT edge is the one
+                                                // moving: free lanes take the
+                                                // new start (track 0 reflows
+                                                // over it anyway).
+                                                start: clipData.start + delta
                                             });
                                         }
                                     }

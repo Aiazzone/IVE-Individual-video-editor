@@ -417,11 +417,18 @@ class ProjectService(QObject):
                               clip_id, transition_id, duration, edge))
 
     @Slot(str, float, float, result=bool)
-    def trim_clip(self, clip_id: str, source_in: float, duration: float) -> bool:
-        """Resize one clip, clamped to its source material."""
+    @Slot(str, float, float, float, result=bool)
+    def trim_clip(self, clip_id: str, source_in: float, duration: float,
+                  start: float = -1.0) -> bool:
+        """Resize one clip, clamped to its source material.
+
+        ``start`` < 0 keeps the clip where it is; a head trim on a free
+        lane passes the new start so the LEFT edge is the one moving.
+        """
         return self._edit("timeline.trim",
-                          lambda: self._project.trim_clip(clip_id, source_in,
-                                                          duration))
+                          lambda: self._project.trim_clip(
+                              clip_id, source_in, duration,
+                              start=None if start < 0 else float(start)))
 
     @Slot(str, bool, result=bool)
     def set_clip_muted(self, clip_id: str, muted: bool) -> bool:
@@ -477,6 +484,78 @@ class ProjectService(QObject):
 
         return self._edit("timeline.place_music", mutate,
                           media=new_item is not None)
+
+    @Slot("QVariantList", float, result=int)
+    def import_and_place(self, paths: list, at: float) -> int:
+        """Files dropped ON the timeline: pool and cut in ONE undo step.
+
+        Each usable file (folders scanned like import) becomes a pool
+        entry - reused when the file is already there - and a clip on the
+        A/V track, laid back to back from the drop point. Probing happens
+        outside the recorded edit, like import; one Ctrl+Z takes the
+        clips AND the new pool entries away together. Returns how many
+        clips were placed.
+        """
+        if self._project is None:
+            self.error.emit("no_project")
+            return 0
+        at = max(0.0, float(at))
+        files: list[Path] = []
+        for raw in paths:
+            path = Path(_strip_url(str(raw)))
+            if path.is_dir():
+                files.extend(sorted(
+                    p for p in path.rglob("*")
+                    if p.is_file() and p.suffix.lower() in MEDIA_SUFFIXES
+                ))
+            elif path.is_file() and path.suffix.lower() in MEDIA_SUFFIXES:
+                files.append(path)
+        base = self._project.base
+        new_items: list[MediaItem] = []
+        line: list[MediaItem] = []
+        seen: set = set()
+        for file in files:
+            try:
+                resolved = file.resolve()
+            except OSError:
+                resolved = file
+            if resolved in seen:
+                continue
+            seen.add(resolved)
+            def _same(entry) -> bool:
+                try:
+                    return Path(entry.resolve(base)).resolve() == resolved
+                except OSError:
+                    return False
+
+            existing = next((m for m in self._project.media if _same(m)),
+                            None)
+            item = existing or self._probe_to_item(file)
+            if item is None:
+                continue
+            if existing is None:
+                new_items.append(item)
+            line.append(item)
+        if not line:
+            self.error.emit("nothing_imported")
+            return 0
+
+        def mutate():
+            for item in new_items:
+                self._project.add_media(item)
+            cursor = at
+            for item in line:
+                duration = item.duration or 5.0
+                clip = self._project.add_clip(item.id, duration, at=cursor)
+                cursor = clip.end
+            return True
+
+        if not self._edit("timeline.place_media", mutate,
+                          media=bool(new_items)):
+            return 0
+        log.info("Dropped %d file(s) onto the timeline at %.2fs "
+                 "(%d new in the pool)", len(line), at, len(new_items))
+        return len(line)
 
     @Slot(str, str, result=bool)
     def set_clip_audio_effect(self, clip_id: str, effect_id: str) -> bool:

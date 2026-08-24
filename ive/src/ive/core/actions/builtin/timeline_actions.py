@@ -98,6 +98,25 @@ def place_effect(ctx, effect_id: str, at: float, duration: float):
 
 
 @action(
+    id="timeline.drop_media",
+    title_key="timeline.place_media",
+    desc_key="Import files or folders and lay them on the A/V track back "
+             "to back from a point in time - the dropped-on-the-timeline "
+             "gesture, one undo step for the whole landing.",
+    category="timeline",
+    params={
+        "paths": Param(list, required=True,
+                       doc="Files or folders (paths or file:// URLs)."),
+        "at": Param(float, required=True,
+                    doc="Seconds on the timeline where the first clip lands."),
+    },
+)
+def drop_media(ctx, paths: list, at: float):
+    if ctx.require("project").import_and_place(list(paths or []), at) == 0:
+        raise RuntimeError("Nothing usable was dropped")
+
+
+@action(
     id="timeline.trim_clip",
     title_key="timeline.trim",
     desc_key="Resize a clip: new offset into its source and new duration, "
@@ -107,10 +126,16 @@ def place_effect(ctx, effect_id: str, at: float, duration: float):
         "clip_id": Param(str, required=True),
         "source_in": Param(float, required=True),
         "duration": Param(float, required=True),
+        "start": Param(float, required=False,
+                       doc="New start on a free lane, so a head trim moves "
+                           "the LEFT edge. Omit (or negative) to stay put; "
+                           "track 0 reflows regardless."),
     },
 )
-def trim_clip(ctx, clip_id: str, source_in: float, duration: float):
-    if not ctx.require("project").trim_clip(clip_id, source_in, duration):
+def trim_clip(ctx, clip_id: str, source_in: float, duration: float,
+              start: float = -1.0):
+    if not ctx.require("project").trim_clip(clip_id, source_in, duration,
+                                            start):
         raise RuntimeError(f"Unknown clip {clip_id}")
 
 

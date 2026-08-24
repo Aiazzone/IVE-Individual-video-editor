@@ -113,13 +113,20 @@ fa seek preciso, e lo scrubbing e' fluido. Su tutte e tre le piattaforme.
 
 ## Fase 3 — Timeline  ·  XL
 
-- [ ] Media pool: import, metadata, thumbnail
-- [ ] **Drag & drop di file e cartelle** dall'esterno, scansione ricorsiva,
-      import asincrono con progresso, ordinamento per data di ripresa,
-      rilevamento duplicati
-- [ ] QML timeline: ruler, tracce, clip, playhead, zoom, scroll
-- [ ] Drag & drop dal media pool alla timeline
-- [ ] Trim, split, ripple delete, snap
+- [x] Media pool: import, metadata, thumbnail (pannello Progetto)
+- [x] **Drag & drop di file e cartelle** dall'esterno (2026-08-23 il
+      completamento): rilasciati sulla TIMELINE diventano clip nel punto
+      del rilascio — pool e montaggio in un solo undo
+      (`timeline.drop_media` / `import_and_place`); altrove entrano nel
+      pool. Cartelle ricorsive e duplicati riusati. Restano: import
+      asincrono con progresso, ordinamento per data di ripresa
+- [x] QML timeline: ruler, tracce, clip, playhead, zoom, scroll
+- [x] Drag & drop dal media pool alla timeline
+- [x] Trim con maniglie (con snap tra corsie), split, delete con reflow
+      (2026-08-23: il trim di testa sulle corsie libere ora muove il
+      bordo SINISTRO — param `start` di trim_clip; un clip senza
+      sorgente si allunga a sinistra liberamente). Ripple delete
+      esplicito: da fare
 - [ ] Selezione singola e multipla, copia/incolla
 - [ ] Scorciatoie da tastiera mappate su action id
 - [ ] Command palette (viene gratis dal registry)
