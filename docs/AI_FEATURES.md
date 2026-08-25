@@ -119,6 +119,42 @@ Punti importanti:
 permissiva, buona velocita' su CPU, timestamp per parola. Alternativa
 leggera: `whisper.cpp`.
 
+### Stato (2026-08-25): implementati
+
+- `ai/model_registry.py` + `ai/downloader.py`: catalogo con URL ancorati
+  a revisione e SHA-256 per file, download streaming con verifica hash,
+  ripresa per-file, cancel pulito. Modelli: `whisper-tiny` (~78 MB) e
+  `whisper-small` (~486 MB, default), pesi MIT in `models/subtitles/`.
+- `ai/subtitles/`: estrazione audio PyAV (16 kHz mono, tempo MEDIA con
+  `start_time` sottratto), trascrizione faster-whisper con VAD e
+  timestamp per parola, segmentazione in righe (`segment.py`, regole:
+  max 42 caratteri, max 5.5 s, min 0.8 s, gap 0.9 s, stacco a fine
+  frase) — PER SORGENTE, non sul mix: trim e spostamenti sono rispettati
+  per costruzione e la corsia Musica non inquina mai le parole.
+- **La trascrizione gira in un PROCESSO separato**
+  (`ai/subtitles/worker.py`, protocollo line-JSON su stdin/stdout).
+  Non e' solo isolamento dei crash: **ctranslate2 porta il suo
+  `libiomp5md.dll`** e nel venv condiviso (torch, runtime Intel in
+  Library/bin) l'import nel processo dell'app ABORTISCE con
+  `OMP Error #15` prima di qualunque eccezione Python. Il workaround
+  (`KMP_DUPLICATE_LIB_OK`) sta nel worker e solo li'; il processo app
+  non importa mai faster_whisper/ctranslate2 (la disponibilita' si
+  controlla con `find_spec`, senza import).
+- `SubtitleService` (`ui/subtitle_service.py`, singleton QML
+  `Subtitles`), card nel pannello Testo, azioni
+  `timeline.auto_subtitles` / `subtitles.download_model` /
+  `subtitles.cancel`; le righe atterrano via `place_subtitles` in UN
+  undo come titoli normali (y=0.88, scale 0.05) — modificabili una per
+  una. Settings: `ai.subtitles_model`, `ai.subtitles_language`.
+- Test: `tests/test_subtitles.py` (57 check: regole, registro,
+  downloader su `file://`, trascrizione reale del parlato TTS col tiny,
+  worker, servizio con undo e cancel), visual
+  `tests/visual/test_subtitles_ui.py`.
+
+Restano: import/export SRT/VTT/ASS, karaoke per parola (i timestamp
+sono gia' salvati nel task ma non nel modello), scelta lingua dalla UI,
+schermata "Modelli AI" nei settings, `estimate()` prima di partire.
+
 ---
 
 ## 5. Traduzione

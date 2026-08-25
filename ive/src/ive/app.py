@@ -125,6 +125,10 @@ class Application:
         from ive.ui.duck_shades import DuckShadeService
 
         self.duckshades = DuckShadeService(self.project)
+        from ive.ui.subtitle_service import SubtitleService
+
+        self.subtitles = SubtitleService(self.settings, self.project)
+        self.context.extras["subtitles"] = self.subtitles
         register_singletons(
             theme=self.theme,
             translations=self.translations,
@@ -145,6 +149,7 @@ class Application:
             audiofx=self.audiofx,
             music=self.music,
             duckshade=self.duckshades,
+            subtitles=self.subtitles,
         )
         # Same rule as the singletons: register before the engine exists.
         qmlRegisterType(PreviewItem, "IVE", 1, 0, "PreviewItem")
@@ -210,6 +215,7 @@ class Application:
 
         self.watchdog.stop()
         self.proxies.shutdown()
+        self.subtitles.shutdown()
         self.duckshades.shutdown()
         self.music.shutdown()
         self.packs.shutdown()
@@ -238,6 +244,7 @@ class Application:
         from ive.core.actions.builtin import text_actions  # noqa: F401
         from ive.core.actions.builtin import transition_actions  # noqa: F401
         from ive.core.actions.builtin import pack_actions  # noqa: F401
+        from ive.core.actions.builtin import subtitle_actions  # noqa: F401
 
         self.registry.add_pending()
         log.info("Registered %d actions", len(tuple(self.registry.all())))

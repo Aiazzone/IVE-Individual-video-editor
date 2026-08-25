@@ -130,6 +130,17 @@ SETTINGS: dict[str, Setting] = {
            doc="Ids of the music tracks starred by the user, in the order "
                "they were starred."),
 
+        # ── AI ──────────────────────────────────────────────────────────
+        _s("ai.subtitles_model", "whisper-small", str,
+           choices=("whisper-tiny", "whisper-small"),
+           doc="Which speech model the automatic subtitles use. 'small' "
+               "(~460 MB) is markedly better on real speech; 'tiny' "
+               "(~75 MB) is for quick tries and weak machines. Weights "
+               "download on explicit request, never silently."),
+        _s("ai.subtitles_language", "", str,
+           doc="Spoken language for the automatic subtitles as an ISO code "
+               "('it', 'en', ...); empty means detect it from the audio."),
+
         # ── stickers and transitions ────────────────────────────────────
         _s("sticker.favorites", [], list,
            doc="Ids of the stickers starred by the user, in the order they "

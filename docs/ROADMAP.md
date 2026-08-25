@@ -276,11 +276,21 @@ core, e un plugin rotto non fa cadere l'app.
 
 Nell'ordine, per rapporto valore/rischio:
 
-- [ ] Infrastruttura: `AITask`, model registry, downloader, runtime, backend
-      (primo modello ONNX gia' in campo il 2026-08-23: Silero VAD in
-      `models/vad/` per il ducking «Intelligente», CPU, fallback pulito
-      se manca — `ive/audio/vad.py`)
-- [ ] **Sottotitoli automatici** — il valore piu' alto, il rischio piu' basso
+- [x] Infrastruttura (2026-08-25, la parte che serviva): model registry
+      con URL ancorati a revisione + SHA-256, downloader con verifica
+      hash/ripresa/cancel (`ive/ai/`), pesi in `models/<task>/`; inferenza
+      in PROCESSO separato (crash isolation + conflitto OpenMP del venv,
+      vedi `AI_FEATURES.md` §4). Restano: `AITask.estimate`, schermata
+      "Modelli AI" nei settings, selezione backend GPU. (Primo modello
+      ONNX gia' in campo il 2026-08-23: Silero VAD in `models/vad/` per
+      il ducking «Intelligente».)
+- [x] **Sottotitoli automatici** (2026-08-25): faster-whisper con
+      timestamp per parola, trascrizione per sorgente (trim rispettati,
+      corsia Musica esclusa), segmentazione in righe leggibili, titoli
+      modificabili sulla corsia Testo in UN undo; card nel pannello
+      Testo con download esplicito del modello (tiny/small, MIT),
+      progresso e annulla; azioni `timeline.auto_subtitles` e
+      `subtitles.*`. Restano: SRT/VTT, karaoke, lingua dalla UI
 - [ ] **Traduzione** dei sottotitoli
 - [ ] **Rimozione sfondo** — attenzione alle licenze
 - [ ] **Motion tracking** — prima i tracker OpenCV, poi il livello AI

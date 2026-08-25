@@ -92,6 +92,10 @@ della prima release pubblica.
 | **Pillow** | MIT-CMU (HPND) | |
 | **ONNX Runtime** | MIT | Provider CPU/CUDA/DirectML. |
 | **Silero VAD** (pesi, `models/vad/silero_vad.onnx`) | MIT (snakers4/silero-vad) | Rilevamento voce per il ducking «Intelligente». ~2 MB, CPU. In `models/`, mai nel repo; se manca l'app ricade sul rilevatore a livello. Aggiunto 2026-08-23. |
+| **faster-whisper** | MIT | Sottotitoli automatici (speech-to-text con timestamp per parola). Gira SOLO nel processo worker (`ive/ai/subtitles/worker.py`), mai nel processo dell'app. Aggiunto 2026-08-25, verificato su PyPI. |
+| **CTranslate2** | MIT | Runtime di inferenza di faster-whisper. Porta il suo `libiomp5md.dll`: e' il motivo del processo separato. |
+| **tokenizers** (HuggingFace) | Apache-2.0 | Dipendenza di faster-whisper. |
+| **Whisper tiny/small** (pesi, `models/subtitles/…`, conversione Systran/faster-whisper-*) | MIT (OpenAI Whisper; conversione CTranslate2 stessa licenza) | Scaricati su richiesta esplicita dal pannello Testo, URL ancorati a revisione + SHA-256 in `ive/ai/model_registry.py`. Mai nel repo. Uso commerciale consentito. Verificato 2026-08-25. |
 | **OpenVINO** | Apache-2.0 | |
 | **PyInstaller** | GPL-2.0 con **bootloader exception** | L'exception permette di distribuire app con qualunque licenza. |
 | **pytest / pytest-qt** | MIT | Solo sviluppo. |

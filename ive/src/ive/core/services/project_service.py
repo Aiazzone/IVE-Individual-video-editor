@@ -457,6 +457,47 @@ class ProjectService(QObject):
 
         return self._edit("text.place", mutate)
 
+    @Slot("QVariantList", result=int)
+    def place_subtitles(self, lines: list) -> int:
+        """Generated subtitle lines land as text clips - ONE undo step.
+
+        Each entry is ``{"start", "end", "text"}`` in timeline seconds.
+        The clips are ordinary titles in the subtitle position (low,
+        small), so every line is editable, movable and deletable by
+        hand afterwards - the AI produced a starting point, nothing
+        opaque (docs/AI_FEATURES.md §1). Returns how many lines landed.
+        """
+        if self._project is None:
+            return 0
+        payload = []
+        for raw in (lines.toVariant() if hasattr(lines, "toVariant")
+                    else lines) or []:
+            text = str(raw.get("text") or "").strip()
+            try:
+                start = float(raw.get("start"))
+                end = float(raw.get("end"))
+            except (TypeError, ValueError):
+                continue
+            if text and end > start >= 0.0:
+                payload.append((start, end, text))
+        if not payload:
+            return 0
+
+        def mutate():
+            landed = 0
+            for start, end, text in payload:
+                clip = self._project.add_text(
+                    text, start, max(0.1, end - start),
+                    y=0.88, scale=0.05)
+                if clip is not None:
+                    landed += 1
+            return landed > 0
+
+        if not self._edit("timeline.subtitles", mutate):
+            return 0
+        log.info("Subtitles placed: %d lines", len(payload))
+        return len(payload)
+
     @Slot(str, str, str, str, str, bool, bool, result=bool)
     def set_clip_text(self, clip_id: str, text: str, font: str, color: str,
                       outline: str, bold: bool, italic: bool) -> bool:
