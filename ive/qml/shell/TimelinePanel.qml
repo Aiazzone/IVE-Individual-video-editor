@@ -778,8 +778,13 @@ Item {
                 Layout.fillHeight: true
                 clip: true
 
+                // On the SCROLLER width, not the lanes': when the vertical
+                // scrollbar is up, the scroller leaves it a gutter, and the
+                // seconds-to-pixels scale must follow or the last clip ends
+                // underneath the bar - where its trim handle cannot be
+                // grabbed.
                 readonly property real pps:
-                    width * root.zoom / Math.max(0.001, root.duration)
+                    scroller.width * root.zoom / Math.max(0.001, root.duration)
                 readonly property real rulerH: Theme.m.rulerHeight
                 /*! Every track stacked: what the vertical scroll covers. */
                 readonly property real tracksH: {
@@ -823,6 +828,12 @@ Item {
                     objectName: "timeline_tracks_scroller"
                     anchors.fill: parent
                     anchors.bottomMargin: lanes.rulerH
+                    // The vertical scrollbar gets a GUTTER, not an overlay:
+                    // laid over the tracks it sat exactly on the right trim
+                    // handle of any clip ending at the timeline's edge (a
+                    // music track covering the cut always does) and stole
+                    // the grab.
+                    anchors.rightMargin: vbar.visible ? 12 : 0
                     contentWidth: width * root.zoom
                     contentHeight: Math.max(lanes.tracksH, height)
                     interactive: root.zoom > 1 || contentHeight > height + 1
@@ -877,9 +888,23 @@ Item {
                     id: laneDrop
                     anchors.fill: parent
                     keys: ["ive-media", "ive-effect", "ive-sticker",
-                           "ive-transition"]
+                           "ive-transition", "ive-music"]
                     onDropped: function (drop) {
                         var seconds = drop.x / lanes.pps;
+                        var music = (drop.source && drop.source.musicTrackId)
+                            ? drop.source.musicTrackId : "";
+                        if (music !== "") {
+                            // A library track dropped anywhere lands on the
+                            // Music lane at the drop time; the "cover the
+                            // cut" switch of the Audio panel rides along.
+                            Actions.invoke("timeline.place_music", {
+                                track_id: music,
+                                at: Math.max(0, seconds),
+                                cover: drop.source.musicCover === true
+                            });
+                            drop.accept();
+                            return;
+                        }
                         var transition = (drop.source
                                           && drop.source.transitionId)
                             ? drop.source.transitionId : "";

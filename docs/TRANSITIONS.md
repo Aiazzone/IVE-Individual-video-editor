@@ -128,13 +128,16 @@ anteprima):
 | blender | ms/frame | come |
 |---|---|---|
 | crossfade | 2.1 | `cv2.addWeighted` |
-| luma/wipe (tutte) | 5.5–6.0 | vedi sotto |
+| luma/wipe (tutte) | ~4 (720p), ~8 (1080p) | vedi sotto |
 | push/slide | 1.2–1.8 | puro slicing numpy (memcpy) |
 | zoom | 4.1 | crop + `cv2.resize` + mix |
 | dip nero/bianco | 2.0 | blend scalare |
 
 Pull dal grafo DENTRO la finestra (doppia decodifica + blend):
-10.8 ms/frame contro 6.0 fuori — la transizione aggiunge ~5 ms.
+17.6 ms/frame contro 9.0 fuori sul canvas piccolo dei test; su un
+canvas 1080p con sorgenti 1080p, 55 contro 23 — oltre il budget, ed
+e' per questo che la fluidita' della finestra la garantisce il
+READ-AHEAD (vedi sotto), non il costo del singolo frame.
 
 **La tempesta di seek (bug reale, riportato dall'utente il 2026-08-19)**:
 il builder condivideva UN decoder per file; con una transizione fra due
@@ -162,9 +165,28 @@ cachata per size; mappe file cachate per (path, mtime); fallback numpy
 col trucco del delta (una sola widening multiply); niente float nel
 percorso senza cv2.
 
+**Seconda passata (2026-08-25, "le transizioni scattano")**: a 1080p il
+blend luma costava 21.5 ms. Meta' era spreco: `1.0 - weights` e' un'op
+float a schermo intero (5.5 ms) sostituita da una SECONDA LUT a 256
+voci, e i tre buffer (due piani di pesi + output) vengono riusati per
+size invece di essere allocati a ogni frame. 21.5 → 8.8 ms,
+bit-identico. Il riuso dell'output e' sicuro perche' il grafo e' tirato
+UN frame alla volta e ogni consumatore copia o codifica prima del frame
+successivo. Tentativi RESPINTI dalle misure: aritmetica intera con
+`cv2.multiply` int16 (3x piu' lenta di blendLinear), pull delle tracce
+in parallelo dentro al Tractor (il GIL mangia il guadagno: 59 → 63 ms).
+
+Il resto del costo della finestra e' la doppia decodifica (~23 ms a
+clip a 1080p), incomprimibile sul singolo frame: la copre il
+**read-ahead** (`ive/media/reader.py`), portato da 12 frame / 64 MB a
+30 frame / 192 MB — a 1080p e' 1.2 s di riserva, piu' della finestra
+standard da 1 s, quindi il buffer si riempie prima della finestra e si
+svuota attraversandola senza che lo schermo perda colpi.
+
 Margini futuri se serviranno: pesi luma quantizzati per riusare la LUT
 fra frame vicini; blend sul GPU quando il preview passera' all'item a
-texture (la QML API non cambia); SIMD esplicito via cv2.UMat/OpenCL.
+texture (la QML API non cambia); SIMD esplicito via cv2.UMat/OpenCL
+(misurato 13.7 ms a 1080p col download incluso — non basta da solo).
 
 ## 6. Prossimi passi
 

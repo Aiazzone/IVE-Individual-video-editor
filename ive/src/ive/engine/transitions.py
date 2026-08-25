@@ -97,6 +97,10 @@ class Luma(Blender):
         self._map = map_u8.astype(np.uint8, copy=False)
         self.softness = max(0.005, min(1.0, float(softness)))
         self._sized: dict[tuple[int, int], np.ndarray] = {}
+        #: Reused weight/output buffers per canvas size. Allocating the
+        #: three of them (20 MB at 1080p) every frame measured as half
+        #: the blend cost - see the note in blend().
+        self._scratch: dict[tuple[int, int], tuple] = {}
 
     def _map_for(self, height: int, width: int) -> np.ndarray:
         key = (height, width)
@@ -132,8 +136,26 @@ class Luma(Blender):
             # SIMD gather + SIMD blend: measured 104 -> ~3 ms per 720p
             # frame against the pure-numpy expression this replaces
             # (whose uint16 broadcast temporaries were the whole cost).
-            weights = cv2.LUT(gate, lut.astype(np.float32))
-            return cv2.blendLinear(base, top, 1.0 - weights, weights)
+            #
+            # The inverse weights come from a SECOND 256-entry LUT, not
+            # from `1.0 - weights` (a full-frame float op), and the two
+            # weight planes plus the output are reused buffers: together
+            # measured 19.5 -> 8.8 ms per 1080p frame, bit-identical.
+            # The returned buffer is overwritten by the NEXT call at the
+            # same size - safe, because the graph is pulled strictly one
+            # frame at a time and every consumer copies or encodes the
+            # picture before asking for the next one.
+            scratch = self._scratch.get((height, width))
+            if scratch is None:
+                scratch = (np.empty((height, width), np.float32),
+                           np.empty((height, width), np.float32),
+                           np.empty_like(base))
+                self._scratch[(height, width)] = scratch
+            w, iw, out = scratch
+            lut32 = lut.astype(np.float32)
+            cv2.LUT(gate, lut32, dst=w)
+            cv2.LUT(gate, 1.0 - lut32, dst=iw)
+            return cv2.blendLinear(base, top, iw, w, dst=out)
         # Fallback: gather uint8 weights, blend via the delta trick -
         # one widening multiply instead of two, no HxWx3 uint16 pair.
         w = (lut * 255.0).astype(np.uint8)[gate][..., None].astype(np.int32)

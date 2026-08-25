@@ -22,6 +22,53 @@ Item {
     property string musicCategory: ""
     property bool coverCut: true
 
+    /*! Track being dragged towards the timeline. While set, FloatingPanel
+        reads `interacting` and must not retract - same contract as the
+        media pool, the colour effects and the stickers. */
+    property string draggingMusicId: ""
+    property string draggingMusicTitle: ""
+    property point dragScenePos: Qt.point(0, 0)
+    readonly property bool interacting: draggingMusicId !== ""
+
+    // Window-level ghost carrying the Drag (the panel clips its children,
+    // and the attached Drag only publishes positions when its item MOVES).
+    // Release calls Drag.drop(); flipping Drag.active off is a cancel.
+    Rectangle {
+        id: musicGhost
+        parent: root.Window.window
+            ? root.Window.window.contentItem : root
+        visible: root.draggingMusicId !== ""
+        width: 132
+        height: 26
+        radius: Theme.m.radiusSm
+        color: Theme.c.clipMusic
+        opacity: 0.9
+        x: root.dragScenePos.x - 66
+        y: root.dragScenePos.y - 13
+        z: 100000
+
+        /*! Read by the timeline's DropArea via drop.source. */
+        property string musicTrackId: root.draggingMusicId
+        /*! The repeat-until-the-cut-ends switch rides along. */
+        property bool musicCover: root.coverCut
+
+        Drag.active: root.draggingMusicId !== ""
+        Drag.keys: ["ive-music"]
+        Drag.hotSpot.x: 66
+        Drag.hotSpot.y: 13
+
+        Text {
+            anchors.fill: parent
+            anchors.margins: 5
+            text: root.draggingMusicTitle
+            color: "#FFFFFF"
+            font.pixelSize: Theme.m.fontSizeXs
+            elide: Text.ElideMiddle
+            horizontalAlignment: Text.AlignHCenter
+            verticalAlignment: Text.AlignVCenter
+        }
+    }
+
     onAudioClipChanged: if (audioClip !== null) tab = "clip"
 
     /*! The selected clip WITH sound, or null - live from the project. */
@@ -589,6 +636,36 @@ Item {
                             }
                         }
                     }
+                    // Dragging a row lays the track on the Music lane at
+                    // the drop point - same gesture as the media pool.
+                    // The Drag rides the window-level ghost above.
+                    DragHandler {
+                        id: musicDragHandler
+                        enabled: Project.isOpen
+                        target: null
+                        // The row lives inside the panel's Flickable;
+                        // without this the list steals the gesture and
+                        // no drag ever begins.
+                        grabPermissions: PointerHandler.CanTakeOverFromAnything
+                        onCentroidChanged: {
+                            if (active)
+                                root.dragScenePos = centroid.scenePosition;
+                        }
+                        onActiveChanged: {
+                            if (active) {
+                                hoverPreviewTimer.stop();
+                                Music.stop();
+                                root.dragScenePos = centroid.scenePosition;
+                                root.draggingMusicId = row.modelData.id;
+                                root.draggingMusicTitle = row.modelData.title;
+                                return;
+                            }
+                            musicGhost.Drag.drop();
+                            root.draggingMusicId = "";
+                            root.draggingMusicTitle = "";
+                        }
+                    }
+
                     // Resting the pointer on a row previews the track;
                     // leaving stops it. A preview started with the play
                     // button is pinned and ignores the pointer.

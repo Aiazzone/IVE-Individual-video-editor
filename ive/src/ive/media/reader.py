@@ -53,13 +53,16 @@ __all__ = ["VideoReader"]
 #: and the one after, which is what a sequence actually touches.
 _CACHE_SIZE = 3
 
-#: Frames decoded in advance during playback. Deep enough to absorb the
-#: variance between an I-frame and a B-frame, shallow enough that a seek does
-#: not throw away much work.
-_READ_AHEAD = 12
-#: ...but the depth is capped by memory, not by frame count: twelve 4K frames
-#: are 300 MB of RGB, which is not a buffer, it is a leak with a schedule.
-_READ_AHEAD_BYTES = 64 * 1024 * 1024
+#: Frames decoded in advance during playback. Deep enough to absorb a whole
+#: TRANSITION window: inside one the graph decodes BOTH clips and blends
+#: (measured 59 ms/frame at 1080p against a 40 ms budget), so fluidity there
+#: comes from the reserve built up beforehand, not from the frame rate of
+#: production. A second of cushion covers the standard 1 s window.
+_READ_AHEAD = 30
+#: ...but the depth is capped by memory, not by frame count: thirty 4K frames
+#: are 750 MB of RGB, which is not a buffer, it is a leak with a schedule.
+#: 192 MB keeps the full second at 1080p and grants 4K seven frames.
+_READ_AHEAD_BYTES = 192 * 1024 * 1024
 
 
 def _read_ahead_depth(width: int, height: int) -> int:
