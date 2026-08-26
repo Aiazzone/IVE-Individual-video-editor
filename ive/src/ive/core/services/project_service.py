@@ -757,6 +757,14 @@ class ProjectService(QObject):
                           lambda: self._project.remove_clip_keyframe(
                               clip_id, t))
 
+    @Slot(str, float, str, result=bool)
+    def set_keyframe_easing(self, clip_id: str, t: float,
+                            easing: str) -> bool:
+        """Give the diamond at clip-local ``t`` its travel character."""
+        return self._edit("video.keyframe_easing",
+                          lambda: self._project.set_keyframe_easing(
+                              clip_id, t, easing))
+
     @Slot(str, result=float)
     def overlay_aspect(self, clip_id: str) -> float:
         """Width / height of an overlay clip's graphic, for the handles."""

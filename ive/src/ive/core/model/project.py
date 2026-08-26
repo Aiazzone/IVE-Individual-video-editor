@@ -294,8 +294,11 @@ class TimelineClip:
             crop=_clean_crop(data.get("crop") or {}),
             opacity=min(1.0, max(0.0, _as_float(data.get("opacity"), 1.0))),
             keyframes=[
-                {str(k): float(v) for k, v in entry.items()
-                 if k in ("t", "x", "y", "scale", "rotation", "opacity")}
+                {**{str(k): float(v) for k, v in entry.items()
+                    if k in ("t", "x", "y", "scale", "rotation",
+                             "opacity")},
+                 **({"easing": str(entry["easing"])}
+                    if entry.get("easing") else {})}
                 for entry in (data.get("keyframes") or [])
                 if isinstance(entry, dict) and "t" in entry
             ],
@@ -670,9 +673,33 @@ class Project:
                    if k in ("x", "y", "scale", "rotation", "opacity")}
         if not allowed or not (0.0 <= float(t) <= clip.duration + 1e-6):
             return False
+        easing = str((values or {}).get("easing") or "")
+        if easing:
+            allowed["easing"] = easing
         clip.keyframes = upsert(clip.keyframes, float(t), allowed)
         if any(k in allowed for k in ("x", "y", "scale", "rotation")):
             clip.placed = True
+        return True
+
+    def set_keyframe_easing(self, clip_id: str, t: float,
+                            easing: str) -> bool:
+        """Give the diamond at clip-local ``t`` its travel character.
+
+        The easing describes how the values ARRIVE at that pin
+        (utils/keyframes.py). Only a diamond that exists can take one.
+        """
+        from ive.utils.keyframes import EASINGS, keyframe_at
+
+        clip = self.find_clip(clip_id)
+        if clip is None or str(easing) not in EASINGS:
+            return False
+        standing = keyframe_at(clip.keyframes, float(t))
+        if standing is None:
+            return False
+        if str(easing) == "linear":
+            standing.pop("easing", None)   # linear is the unmarked default
+        else:
+            standing["easing"] = str(easing)
         return True
 
     def remove_clip_keyframe(self, clip_id: str, t: float) -> bool:

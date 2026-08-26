@@ -167,6 +167,29 @@ def set_clip_keyframe(ctx, clip_id: str, t: float, x=None, y=None,
 
 
 @action(
+    id="timeline.set_keyframe_easing",
+    title_key="video.keyframe_easing",
+    desc_key="How the values ARRIVE at the keyframe standing at a "
+             "clip-local time: linear, smooth, ease_in, ease_out, or "
+             "spring (overshoots and settles, like something with "
+             "mass).",
+    category="timeline",
+    params={
+        "clip_id": Param(str, required=True),
+        "t": Param(float, required=True, doc="Clip-local seconds."),
+        "easing": Param(str, required=True,
+                        doc="linear | smooth | ease_in | ease_out | "
+                            "spring"),
+    },
+)
+def set_keyframe_easing(ctx, clip_id: str, t: float, easing: str):
+    if not ctx.require("project").set_keyframe_easing(clip_id, t, easing):
+        raise RuntimeError(
+            f"No keyframe at {t:.2f}s on {clip_id}, or {easing!r} is not "
+            f"an easing")
+
+
+@action(
     id="timeline.remove_clip_keyframe",
     title_key="video.keyframe_remove",
     desc_key="Remove the keyframe standing at a clip-local time.",

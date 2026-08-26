@@ -253,7 +253,11 @@ l'altro.
       CLIP-locale (`utils/keyframes.py`, condiviso da modello e motore
       via `clip_keyframe_values`); su un clip animato il drag delle
       maniglie pianta un rombo invece di muovere la trasformazione
-      statica. Restano: easing/editor curve, time remap a curve
+      statica. **Easing fatto** (2026-08-28): ogni rombo porta la curva
+      di ARRIVO (lineare/morbida/entrata/uscita/**molla** — oscillatore
+      smorzato, ~12% di overshoot, si assesta nel segmento; chip
+      accanto al bottone rombo, azione timeline.set_keyframe_easing).
+      Restano: editor curve visuale, time remap a curve
 - [x] **Correzione colore manuale** (2026-08-27): nove manopole
       (luminosita', contrasto, saturazione, gamma, temperatura, tinta,
       ombre, luci, vignettatura) su qualunque clip della corsia Colore

@@ -668,6 +668,7 @@ Item {
             // opacity there; tap again = take the pin away. Between
             // pins the values run linearly (utils/keyframes.py).
             IconButton {
+                id: kfButton
                 objectName: "timeline_keyframe_button"
                 visible: root.selectedKind === "video"
                          && root.selectedClipData !== null
@@ -717,6 +718,70 @@ Item {
                         x: v.x, y: v.y, scale: v.scale,
                         rotation: v.rotation, opacity: v.opacity
                     });
+                }
+            }
+
+            // How the values ARRIVE at the pin under the playhead:
+            // shown only while the diamond is lit. "Spring" overshoots
+            // and settles, like something with mass; linear is the
+            // unmarked default.
+            Row {
+                id: easingChips
+                visible: kfButton.visible && kfButton.checked
+                spacing: 2
+
+                readonly property string current: {
+                    if (root.selectedClipData === null)
+                        return "linear";
+                    var keys = root.selectedClipData.keyframes || [];
+                    for (var i = 0; i < keys.length; i++)
+                        if (Math.abs(keys[i].t - kfButton.localT) <= 0.05)
+                            return keys[i].easing || "linear";
+                    return "linear";
+                }
+
+                Repeater {
+                    model: ["linear", "smooth", "ease_in", "ease_out",
+                            "spring"]
+                    delegate: Rectangle {
+                        id: easeChip
+                        required property var modelData
+                        objectName: "timeline_ease_" + modelData
+                        readonly property bool current:
+                            easingChips.current === modelData
+                        width: easeText.implicitWidth + 10
+                        height: 20
+                        radius: 999
+                        color: current ? Qt.alpha(Theme.c.accent, 0.25)
+                             : Qt.alpha(root.onGlass, 0.08)
+                        border.width: 1
+                        border.color: current ? Theme.c.accent
+                            : Qt.alpha(root.onGlass, 0.16)
+                        Text {
+                            id: easeText
+                            anchors.centerIn: parent
+                            text: Tr.s["video.ease." + easeChip.modelData]
+                                  || easeChip.modelData
+                            color: easeChip.current
+                                ? root.onGlass
+                                : Qt.alpha(root.onGlass, 0.72)
+                            font.pixelSize: Theme.m.fontSizeXs
+                            font.bold: easeChip.current
+                        }
+                        HoverHandler { cursorShape: Qt.PointingHandCursor }
+                        TapHandler {
+                            onTapped: {
+                                if (root.selectedClipData !== null)
+                                    Actions.invoke(
+                                        "timeline.set_keyframe_easing", {
+                                            clip_id:
+                                                root.selectedClipData.id,
+                                            t: kfButton.localT,
+                                            easing: easeChip.modelData
+                                        });
+                            }
+                        }
+                    }
                 }
             }
 
