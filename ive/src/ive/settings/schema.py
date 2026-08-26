@@ -178,9 +178,11 @@ SETTINGS: dict[str, Setting] = {
         _s("media.proxy_enabled", True, bool,
            doc="Edit against small stand-in copies. The export always reads "
                "the originals, whatever this says."),
-        _s("media.proxy_threshold", 1440, int, minimum=480, maximum=4320,
-           doc="Above this height a proxy is built. 1080p decodes in ~6 ms "
-               "here, 2160p in ~35 ms; the line sits between them."),
+        _s("media.proxy_threshold", 720, int, minimum=480, maximum=4320,
+           doc="Above this height a proxy is built. Default 720: even plain "
+               "1080p misses the 33 ms budget on a modest CPU the moment a "
+               "clip plays at 4x speed (measured ~50 ms a frame). A strong "
+               "machine can raise this to 1440 and edit 1080p originals."),
         _s("media.proxy_height", 540, int, minimum=270, maximum=1080,
            doc="Height of the proxy."),
         _s("project.canvas", "auto", str,

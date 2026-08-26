@@ -352,6 +352,13 @@ class Application:
             )
         elif key == "log.level":
             logging.getLogger().setLevel(getattr(logging, str(value), logging.INFO))
+        elif key.startswith("media.proxy"):
+            # A new threshold or height changes which files deserve a
+            # stand-in and which file the preview should read. Queue the
+            # missing builds and rebuild the graph now - not at the next
+            # import.
+            self._queue_proxies()
+            self._sync_sequence()
 
     def _on_creation_failed(self, url: QUrl) -> None:
         log.critical("QML object creation failed for %s", url.toString())

@@ -47,6 +47,8 @@ _SHELL_KEYS = {
     "project.canvas": "projectCanvas",
     "project.canvas_fit": "projectCanvasFit",
     "media.proxy_enabled": "proxyEnabled",
+    "media.proxy_threshold": "proxyThreshold",
+    "media.proxy_height": "proxyHeight",
     "playback.volume": "volume",
     "playback.muted": "muted",
     "audio.ducking_mode": "duckingMode",

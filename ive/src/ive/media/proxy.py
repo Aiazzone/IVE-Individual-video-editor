@@ -46,9 +46,11 @@ class ProxyPolicy:
     """When to build a proxy, and how small."""
 
     enabled: bool = True
-    #: Above this height the original is too heavy to scrub. 1080p decodes in
-    #: about 6 ms here, 2160p in 35 - the line sits between them.
-    threshold_height: int = 1440
+    #: Above this height the original is too heavy to scrub. 720 by
+    #: default: even 1080p misses the 33 ms budget on a modest CPU the
+    #: moment a clip plays at 4x (measured ~50 ms an output frame).
+    #: The settings expose it, so a strong machine can raise it.
+    threshold_height: int = 720
     #: Target height. 540p keeps a decode near 2 ms and still shows framing,
     #: focus and motion well enough to cut on.
     height: int = 540
@@ -311,9 +313,16 @@ class ProxyManager(QObject):
     # ── lookup ────────────────────────────────────────────────────────
 
     def path_for(self, source: str | Path) -> Path:
-        """Where the proxy for this file would live."""
+        """Where the proxy for this file would live.
+
+        The policy height is part of the name: raising the working
+        resolution in settings must not keep serving the old, smaller
+        stand-ins. Proxies at other heights become orphans and are
+        swept by clear_cache.
+        """
         source = Path(source)
-        return self._folder / f"{proxy_key(source)}.mp4"
+        return self._folder / (f"{proxy_key(source)}"
+                               f"_{self.policy.height}.mp4")
 
     @Slot(str, result=bool)
     def has_proxy(self, source: str) -> bool:

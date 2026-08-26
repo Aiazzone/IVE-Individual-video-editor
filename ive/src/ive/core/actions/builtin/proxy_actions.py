@@ -53,4 +53,13 @@ def cancel(ctx):
     category="media",
 )
 def clear_cache(ctx):
-    ctx.require("proxies").clear_cache()
+    proxies = ctx.require("proxies")
+    proxies.clear_cache()
+    # The open project just lost its stand-ins - queue them again, or
+    # the preview reads heavy originals until the next import.
+    try:
+        project = ctx.require("project")
+    except Exception:
+        return
+    paths = [m["path"] for m in project.media if not m.get("missing")]
+    proxies.request_many(paths)

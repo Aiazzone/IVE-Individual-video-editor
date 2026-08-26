@@ -40,6 +40,7 @@ Item {
                 { value: "layout",     text: Tr.s["settings.tab.layout"] || "" },
                 { value: "appearance", text: Tr.s["settings.tab.appearance"] || "" },
                 { value: "audio",      text: Tr.s["settings.tab.audio"] || "" },
+                { value: "media",      text: Tr.s["settings.tab.media"] || "" },
                 { value: "ai",         text: Tr.s["settings.tab.ai"] || "" },
                 { value: "language",   text: Tr.s["settings.tab.language"] || "" }
             ]
@@ -166,6 +167,101 @@ Item {
                 color: Theme.c.textDisabled
                 font.pixelSize: Theme.m.fontSizeXs
                 lineHeight: 1.35
+            }
+        }
+
+        // ── media / proxies ───────────────────────────────────────
+        // The proxy is the working copy the PREVIEW edits against; the
+        // export always reads the originals. Both dials go through the
+        // generic settings.set action, and the app reacts live: new
+        // builds are queued and the graph re-resolves its files.
+        CardGroup {
+            visible: root.tab === "media"
+            title: Tr.s["proxy.title"] || ""
+
+            SwitchRow {
+                checked: Shell.v.proxyEnabled
+                label: Tr.s["proxy.enabled"] || ""
+                onToggled: function (v) {
+                    Actions.invoke("proxy.set_enabled", { enabled: v });
+                }
+            }
+
+            SettingRow {
+                label: Tr.s["settings.proxy_threshold"] || ""
+                hint: Tr.s["settings.proxy_threshold.hint"] || ""
+                Segmented {
+                    objectName: "settings_proxy_threshold"
+                    enabled: Shell.v.proxyEnabled
+                    opacity: enabled ? 1 : 0.45
+                    value: String(Shell.v.proxyThreshold)
+                    model: [
+                        { value: "720",  text: "720p" },
+                        { value: "1080", text: "1080p" },
+                        { value: "1440", text: "1440p" }
+                    ]
+                    onPicked: function (v) {
+                        Actions.invoke("settings.set",
+                                       { key: "media.proxy_threshold",
+                                         value: v });
+                    }
+                }
+            }
+
+            SettingRow {
+                label: Tr.s["settings.proxy_height"] || ""
+                hint: Tr.s["settings.proxy_height.hint"] || ""
+                Segmented {
+                    objectName: "settings_proxy_height"
+                    enabled: Shell.v.proxyEnabled
+                    opacity: enabled ? 1 : 0.45
+                    value: String(Shell.v.proxyHeight)
+                    model: [
+                        { value: "360",  text: "360p" },
+                        { value: "540",  text: "540p" },
+                        { value: "720",  text: "720p" },
+                        { value: "1080", text: "1080p" }
+                    ]
+                    onPicked: function (v) {
+                        Actions.invoke("settings.set",
+                                       { key: "media.proxy_height",
+                                         value: v });
+                    }
+                }
+            }
+
+            Text {
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                text: Tr.s["proxy.hint"] || ""
+                color: Theme.c.textDisabled
+                font.pixelSize: Theme.m.fontSizeXs
+                lineHeight: 1.35
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                Text {
+                    Layout.fillWidth: true
+                    text: Proxies.busy
+                        ? (Tr.s["proxy.building"] || "")
+                              .replace("{name}", Proxies.currentName)
+                        : (Tr.s["proxy.cache"] || "")
+                              .replace("{size}",
+                                       Math.round(Proxies.cacheSizeMb))
+                    color: Proxies.busy ? Theme.c.accent
+                                        : Theme.c.textDisabled
+                    font.pixelSize: Theme.m.fontSizeXs
+                    elide: Text.ElideRight
+                }
+                IconButton {
+                    objectName: "settings_proxy_clear"
+                    visible: !Proxies.busy && Proxies.cacheSizeMb > 0.5
+                    size: 26; iconSize: 14
+                    icon: Icons.trash
+                    label: Tr.s["proxy.clear"] || ""
+                    onTriggered: Actions.invoke("proxy.clear_cache")
+                }
             }
         }
 
