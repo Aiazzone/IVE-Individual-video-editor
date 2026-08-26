@@ -78,7 +78,11 @@ def main() -> int:
 
     print(json.dumps({"lines": [
         {"start": round(line.start, 3), "end": round(line.end, 3),
-         "text": line.text} for line in lines]}), flush=True)
+         "text": line.text,
+         "words": [{"start": round(float(w["start"]), 3),
+                    "end": round(float(w["end"]), 3),
+                    "text": str(w["text"])} for w in line.words]}
+        for line in lines]}), flush=True)
     return 0
 
 

@@ -38,8 +38,16 @@ _STROKE = 0.08
 _MAX_HEIGHT = 2160
 
 
-def _build_path(text: str, font_family: str, bold: bool, italic: bool):
-    """The glyph outlines, centred per line, plus the padded bounds."""
+def _build_paths(text: str, font_family: str, bold: bool, italic: bool):
+    """Glyph outlines: the whole block, and one path PER WORD.
+
+    The word paths are laid at the very positions their glyphs hold in
+    the full block (prefix advance, so spacing survives), in reading
+    order - which is what lets karaoke recolour "the words said so far"
+    without a second layout that could drift from the first.
+    """
+    import re
+
     from PySide6.QtGui import QFont, QFontMetricsF, QPainterPath
 
     font = QFont(font_family) if font_family else QFont()
@@ -53,14 +61,27 @@ def _build_path(text: str, font_family: str, bold: bool, italic: bool):
     block_width = max(widths) if widths else 0.0
 
     path = QPainterPath()
+    word_paths: list = []
     for index, line in enumerate(lines):
         if not line:
             continue
-        path.addText((block_width - widths[index]) / 2.0,
-                     metrics.ascent() + index * metrics.height(),
-                     font, line)
+        left = (block_width - widths[index]) / 2.0
+        baseline = metrics.ascent() + index * metrics.height()
+        path.addText(left, baseline, font, line)
+        for match in re.finditer(r"\S+", line):
+            word = QPainterPath()
+            word.addText(
+                left + metrics.horizontalAdvance(line[:match.start()]),
+                baseline, font, match.group())
+            word_paths.append(word)
     pad = _REF_SIZE * _STROKE / 2.0 + 2.0
     bounds = path.boundingRect().adjusted(-pad, -pad, pad, pad)
+    return path, word_paths, bounds
+
+
+def _build_path(text: str, font_family: str, bold: bool, italic: bool):
+    """The glyph outlines, centred per line, plus the padded bounds."""
+    path, _words, bounds = _build_paths(text, font_family, bold, italic)
     return path, bounds
 
 
@@ -80,18 +101,22 @@ def text_aspect(text: str, font: str = "", bold: bool = True,
 def render_text(text: str, height_px: int, *, font: str = "",
                 color: str = "#FFFFFF", outline: str = "#000000",
                 bold: bool = True, italic: bool = False,
-                rotation: float = 0.0) -> np.ndarray | None:
+                rotation: float = 0.0, highlight: str = "",
+                highlight_count: int = 0) -> np.ndarray | None:
     """The title as a straight-RGBA array, ``height_px`` tall.
 
     ``outline`` empty means no outline. Rotation is baked into the
     raster like the static stickers', so the compositor only ever
-    pastes an axis-aligned rectangle.
+    pastes an axis-aligned rectangle. With ``highlight`` set, the first
+    ``highlight_count`` words (reading order) are filled in that colour
+    instead of ``color`` - the karaoke state at one instant; the caller
+    picks the count from its word timestamps.
     """
     from PySide6.QtCore import Qt
     from PySide6.QtGui import (QColor, QImage, QPainter, QPen, QTransform)
 
     try:
-        path, bounds = _build_path(text, font, bold, italic)
+        path, word_paths, bounds = _build_paths(text, font, bold, italic)
     except Exception:
         log.exception("Could not lay out text")
         return None
@@ -113,7 +138,14 @@ def render_text(text: str, height_px: int, *, font: str = "",
                    Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap,
                    Qt.PenJoinStyle.RoundJoin)
         painter.strokePath(path, pen)
-    painter.fillPath(path, QColor(color))
+    spoken = min(int(highlight_count), len(word_paths)) \
+        if highlight else 0
+    if spoken > 0:
+        for index, word in enumerate(word_paths):
+            painter.fillPath(word, QColor(highlight if index < spoken
+                                          else color))
+    else:
+        painter.fillPath(path, QColor(color))
     painter.end()
 
     if abs(float(rotation)) > 0.01:
@@ -152,6 +184,15 @@ def attach_text_sprites(spans: list[dict]) -> list[dict]:
                 scale = float(_span.get("scale") or 0.1)
             if rotation is None:
                 rotation = float(_span.get("rotation") or 0.0)
+            # Karaoke: how many words have been SPOKEN by this local
+            # instant. The raster depends only on that count, so the
+            # cache holds at most words+1 states per size - a frame in
+            # the middle of a line costs nothing new.
+            words = _span.get("words") or []
+            spoken = 0
+            if _span.get("karaoke") and words:
+                spoken = sum(1 for w in words
+                             if float(w.get("start", 0.0)) <= seconds + 1e-3)
             key = (
                 str(_span.get("text") or ""),
                 str(_span.get("font") or ""),
@@ -161,12 +202,15 @@ def attach_text_sprites(spans: list[dict]) -> list[dict]:
                 bool(_span.get("italic", False)),
                 int(round(canvas_h * scale)),
                 round(rotation, 1),
+                spoken,
+                str(_span.get("karaoke_color") or "") if spoken else "",
             )
             arr = _cache.get(key)
             if arr is None:
                 arr = render_text(key[0], key[6], font=key[1], color=key[2],
                                   outline=key[3], bold=key[4], italic=key[5],
-                                  rotation=key[7])
+                                  rotation=key[7], highlight=key[9],
+                                  highlight_count=key[8])
                 _cache[key] = arr
                 # A scale or rotation drag sweeps many sizes and angles;
                 # keep the cache from hoarding all of them.

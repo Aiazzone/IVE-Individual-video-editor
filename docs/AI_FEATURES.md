@@ -151,9 +151,28 @@ leggera: `whisper.cpp`.
   worker, servizio con undo e cancel), visual
   `tests/visual/test_subtitles_ui.py`.
 
-Restano: import/export SRT/VTT/ASS, karaoke per parola (i timestamp
-sono gia' salvati nel task ma non nel modello), scelta lingua dalla UI,
-schermata "Modelli AI" nei settings, `estimate()` prima di partire.
+Secondo passaggio (2026-08-26), anche questi implementati:
+
+- **SRT/VTT** (`ive/text/subtitle_files.py`): export della corsia Testo
+  (dialetto dall'estensione) e import tollerante (BOM, tag, timestamp
+  senza ore, cue rotte saltate mai fatali) — azioni
+  `subtitles.export_file` / `subtitles.import_file`, bottoni nella card.
+- **Karaoke per parola**: i word timestamp stanno nel MODELLO
+  (`TimelineClip.words`, clip-locali, sopravvivono a salvataggio e
+  spostamenti), lo switch e' per clip (`timeline.set_clip_karaoke`,
+  solo su clip CON parole), il renderer colora le parole gia' dette
+  (`render_text(highlight, highlight_count)`, path per parola alla
+  stessa posizione del blocco) e il closure `sprite` la sceglie dal
+  tempo locale — cache a N+1 stati per size, anteprima ed export
+  identici per costruzione. Verificato sui pixel.
+- **Lingua dalla UI**: chip nella card (Auto/IT/EN/PT/ES/FR/DE →
+  `subtitles.set_language`).
+- **Schermata "Modelli AI"** (Impostazioni → AI): scelta del modello
+  (`subtitles.set_model`), per ogni modello stato/peso su disco/
+  licenza, download e rimozione espliciti (`Subtitles.download(id)`,
+  `Subtitles.remove(id)`).
+
+Restano: ASS, `estimate()` prima di partire, traduzione (§5).
 
 ---
 

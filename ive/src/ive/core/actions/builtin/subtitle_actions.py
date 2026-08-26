@@ -41,6 +41,54 @@ def auto_subtitles(ctx, language: str = ""):
 
 
 @action(
+    id="timeline.set_clip_karaoke",
+    title_key="subtitles.karaoke",
+    desc_key="Light the words of one subtitle clip up as they are "
+             "spoken (karaoke). Works only on clips that carry word "
+             "timestamps - the generated ones do.",
+    category="timeline",
+    params={
+        "clip_id": Param(str, required=True),
+        "enabled": Param(bool, required=True),
+    },
+)
+def set_clip_karaoke(ctx, clip_id: str, enabled: bool):
+    if not ctx.require("project").set_clip_karaoke(clip_id, enabled):
+        raise RuntimeError(f"Clip {clip_id} has no words to light up")
+
+
+@action(
+    id="subtitles.export_file",
+    title_key="subtitles.export",
+    desc_key="Write the Text lane as a subtitle file; .srt or .vtt "
+             "follows the extension of the path.",
+    category="timeline",
+    params={"path": Param(str, required=True)},
+)
+def export_file(ctx, path: str):
+    count = ctx.require("project").export_subtitles(path)
+    if count <= 0:
+        raise RuntimeError("Nothing on the Text lane to export, "
+                           "or the path is not writable")
+    return {"lines": count}
+
+
+@action(
+    id="subtitles.import_file",
+    title_key="subtitles.import",
+    desc_key="Read an .srt or .vtt file and lay its cues on the Text "
+             "lane as editable titles - one undo step.",
+    category="timeline",
+    params={"path": Param(str, required=True)},
+)
+def import_file(ctx, path: str):
+    count = ctx.require("project").import_subtitles(path)
+    if count <= 0:
+        raise RuntimeError("No readable cue in that file")
+    return {"lines": count}
+
+
+@action(
     id="subtitles.download_model",
     title_key="subtitles.download",
     desc_key="Download the speech model the automatic subtitles use "
@@ -51,6 +99,37 @@ def auto_subtitles(ctx, language: str = ""):
 def download_model(ctx):
     if not ctx.require("subtitles").download_model():
         raise RuntimeError("A download is already running")
+
+
+@action(
+    id="subtitles.set_model",
+    title_key="subtitles.model",
+    desc_key="Choose which speech model the automatic subtitles use "
+             "(whisper-tiny or whisper-small).",
+    category="ai",
+    params={"model_id": Param(str, required=True)},
+)
+def set_model(ctx, model_id: str):
+    from ive.ai import model_entry
+
+    if model_entry(model_id) is None:
+        raise RuntimeError(f"Unknown model {model_id!r}")
+    ctx.require("settings").set("ai.subtitles_model", model_id)
+    ctx.require("subtitles").refresh()
+
+
+@action(
+    id="subtitles.set_language",
+    title_key="subtitles.language",
+    desc_key="Spoken language for the automatic subtitles as an ISO "
+             "code ('it', 'en', ...); empty detects it from the audio.",
+    category="ai",
+    params={"language": Param(str, required=False)},
+)
+def set_language(ctx, language: str = ""):
+    ctx.require("settings").set("ai.subtitles_language",
+                                str(language).strip().lower())
+    ctx.require("subtitles").refresh()
 
 
 @action(

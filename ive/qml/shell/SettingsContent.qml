@@ -40,9 +40,104 @@ Item {
                 { value: "layout",     text: Tr.s["settings.tab.layout"] || "" },
                 { value: "appearance", text: Tr.s["settings.tab.appearance"] || "" },
                 { value: "audio",      text: Tr.s["settings.tab.audio"] || "" },
+                { value: "ai",         text: Tr.s["settings.tab.ai"] || "" },
                 { value: "language",   text: Tr.s["settings.tab.language"] || "" }
             ]
             onPicked: function (v) { root.tab = v; }
+        }
+
+        // ── AI models ─────────────────────────────────────────────
+        // What is installed, how much it weighs, which licence - and
+        // the way to fetch or free each one. Nothing downloads itself.
+        CardGroup {
+            visible: root.tab === "ai"
+            title: Tr.s["settings.section.ai_models"] || ""
+
+            SettingRow {
+                label: Tr.s["subtitles.model"] || ""
+                Segmented {
+                    objectName: "settings_subtitles_model"
+                    value: Subtitles.modelId
+                    model: [
+                        { value: "whisper-tiny",  text: "Tiny" },
+                        { value: "whisper-small", text: "Small" }
+                    ]
+                    onPicked: function (v) {
+                        Actions.invoke("subtitles.set_model",
+                                       { model_id: v });
+                    }
+                }
+            }
+
+            Repeater {
+                model: Subtitles.models
+                delegate: RowLayout {
+                    id: modelRow
+                    required property var modelData
+                    Layout.fillWidth: true
+                    spacing: Theme.m.space2
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 1
+                        Text {
+                            text: modelRow.modelData.name
+                            color: Theme.c.text
+                            font.pixelSize: Theme.m.fontSizeSm
+                        }
+                        Text {
+                            text: (modelRow.modelData.installed
+                                   ? (Tr.s["ai.installed"] || "")
+                                         .replace("{n}",
+                                                  modelRow.modelData.diskMb)
+                                   : (Tr.s["ai.not_installed"] || "")
+                                         .replace("{n}",
+                                                  modelRow.modelData.sizeMb))
+                                  + " · " + modelRow.modelData.license
+                            color: Theme.c.textDisabled
+                            font.pixelSize: Theme.m.fontSizeXs
+                            elide: Text.ElideRight
+                            Layout.fillWidth: true
+                        }
+                    }
+                    Text {
+                        visible: Subtitles.downloadingId
+                                 === modelRow.modelData.id
+                        text: Math.round(Subtitles.downloadProgress * 100)
+                              + "%"
+                        color: Theme.c.accent
+                        font.pixelSize: Theme.m.fontSizeXs
+                    }
+                    IconButton {
+                        objectName: "ai_model_get_" + modelRow.modelData.id
+                        visible: !modelRow.modelData.installed
+                                 && Subtitles.downloadingId
+                                    !== modelRow.modelData.id
+                        size: 26; iconSize: 14
+                        icon: Icons.download
+                        label: Tr.s["subtitles.download"] || ""
+                        onTriggered: Subtitles.download(
+                            modelRow.modelData.id)
+                    }
+                    IconButton {
+                        objectName: "ai_model_rm_" + modelRow.modelData.id
+                        visible: modelRow.modelData.installed
+                        size: 26; iconSize: 14
+                        icon: Icons.trash
+                        label: Tr.s["ai.remove"] || ""
+                        onTriggered: Subtitles.remove(modelRow.modelData.id)
+                    }
+                }
+            }
+
+            Text {
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                text: Tr.s["settings.ai_models.hint"] || ""
+                color: Theme.c.textDisabled
+                font.pixelSize: Theme.m.fontSizeXs
+                lineHeight: 1.35
+            }
         }
 
         // ── audio ─────────────────────────────────────────────────

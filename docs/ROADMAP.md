@@ -290,7 +290,10 @@ Nell'ordine, per rapporto valore/rischio:
       modificabili sulla corsia Testo in UN undo; card nel pannello
       Testo con download esplicito del modello (tiny/small, MIT),
       progresso e annulla; azioni `timeline.auto_subtitles` e
-      `subtitles.*`. Restano: SRT/VTT, karaoke, lingua dalla UI
+      `subtitles.*`. Secondo passaggio (2026-08-26): export/import
+      SRT e VTT, karaoke per parola (timestamp nel modello, switch per
+      clip, pixel-verificato), lingua dalla UI, schermata "Modelli AI"
+      nelle impostazioni (download/rimozione per modello). Resta: ASS
 - [ ] **Traduzione** dei sottotitoli
 - [ ] **Rimozione sfondo** — attenzione alle licenze
 - [ ] **Motion tracking** — prima i tracker OpenCV, poi il livello AI

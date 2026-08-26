@@ -160,6 +160,14 @@ class TimelineClip:
     outline: str = "#000000"
     bold: bool = True
     italic: bool = False
+    #: Word timestamps inside a text clip, CLIP-LOCAL seconds:
+    #: ``[{"start", "end", "text"}, ...]``. The automatic subtitles fill
+    #: them; hand-made titles have none. What makes karaoke possible.
+    words: list = field(default_factory=list)
+    #: Karaoke: words switch to ``karaoke_color`` as they are spoken.
+    #: Only meaningful on a clip that HAS words.
+    karaoke: bool = False
+    karaoke_color: str = "#FFD467"
     #: Motion preset applied to an overlay clip (sticker or text): the
     #: id of a keyframe recipe from the motion catalogue, "" = still.
     motion_id: str = ""
@@ -199,6 +207,14 @@ class TimelineClip:
             transition_in_duration=min(5.0, max(0.1, _as_float(
                 data.get("transition_in_duration"), 0.5))),
             text=text,
+            words=[{"start": max(0.0, _as_float(w.get("start"))),
+                    "end": max(0.0, _as_float(w.get("end"))),
+                    "text": _as_str(w.get("text"))}
+                   for w in (data.get("words") or [])
+                   if isinstance(w, dict) and _as_str(w.get("text"))],
+            karaoke=bool(data.get("karaoke", False)),
+            karaoke_color=_as_str(data.get("karaoke_color"),
+                                  "#FFD467") or "#FFD467",
             font=_as_str(data.get("font")),
             color=_as_str(data.get("color"), "#FFFFFF") or "#FFFFFF",
             # None (absent) falls back to the default; an explicit "" is
@@ -424,12 +440,18 @@ class Project:
                  x: float = 0.5, y: float = 0.5, scale: float = 0.1,
                  rotation: float = 0.0, font: str = "",
                  color: str = "#FFFFFF", outline: str = "#000000",
-                 bold: bool = True, italic: bool = False) -> "TimelineClip | None":
-        """Place a title over ``[at, at+duration)`` on the Text lane."""
+                 bold: bool = True, italic: bool = False,
+                 words: list | None = None) -> "TimelineClip | None":
+        """Place a title over ``[at, at+duration)`` on the Text lane.
+
+        ``words`` are CLIP-LOCAL word timestamps (the automatic
+        subtitles pass them); they enable the karaoke switch later.
+        """
         text = str(text).strip()
         if not text:
             return None
         clip = TimelineClip(media_id="", text=text,
+                            words=list(words or []),
                             font=str(font), color=str(color) or "#FFFFFF",
                             outline=str(outline),
                             bold=bool(bold), italic=bool(italic),
@@ -460,6 +482,22 @@ class Project:
         clip.outline = str(outline)
         clip.bold = bool(bold)
         clip.italic = bool(italic)
+        return True
+
+    def set_clip_karaoke(self, clip_id: str, enabled: bool,
+                         color: str = "") -> bool:
+        """Turn per-word highlighting on or off for one text clip.
+
+        Only a clip WITH word timestamps can light up: without them
+        there is nothing to time the highlight against, and pretending
+        otherwise would paint garbage.
+        """
+        clip = self.find_clip(clip_id)
+        if clip is None or not clip.text or not clip.words:
+            return False
+        clip.karaoke = bool(enabled)
+        if color:
+            clip.karaoke_color = str(color)
         return True
 
     def set_clip_motion(self, clip_id: str, motion_id: str) -> bool:

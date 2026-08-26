@@ -316,6 +316,13 @@ class PlaybackService(QObject):
                     "y": float(entry.get("y", 0.5)),
                     "scale": float(entry.get("scale", 0.1)),
                     "rotation": float(entry.get("rotation", 0.0)),
+                    # Karaoke: clip-local word timestamps ride along so
+                    # the sprite can recolour the words as they are
+                    # spoken - preview and export share the span.
+                    "words": [dict(w) for w in (entry.get("words") or [])],
+                    "karaoke": bool(entry.get("karaoke", False)),
+                    "karaoke_color": str(entry.get("karaokeColor")
+                                         or "#FFD467"),
                 })
                 continue
             sticker_id = str(entry.get("stickerId") or "")

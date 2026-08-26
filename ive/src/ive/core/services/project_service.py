@@ -272,6 +272,9 @@ class ProjectService(QObject):
                 "duckDb": clip.duck_db,
                 "x": clip.x, "y": clip.y,
                 "scale": clip.scale, "rotation": clip.rotation,
+                "words": list(clip.words),
+                "karaoke": clip.karaoke,
+                "karaokeColor": clip.karaoke_color,
                 "hasVideo": bool(item.width > 0) if item else False,
                 "hasAudio": bool(item.has_audio) if item else False,
                 "missing": bool(item.missing) if item
@@ -478,17 +481,32 @@ class ProjectService(QObject):
                 end = float(raw.get("end"))
             except (TypeError, ValueError):
                 continue
-            if text and end > start >= 0.0:
-                payload.append((start, end, text))
+            if not text or not end > start >= 0.0:
+                continue
+            # Word timestamps come in TIMELINE time (the transcriber's
+            # frame of reference); the clip stores them CLIP-LOCAL so
+            # they survive the clip being moved.
+            words = []
+            for word in raw.get("words") or []:
+                try:
+                    w_start = float(word.get("start")) - start
+                    w_end = float(word.get("end")) - start
+                except (TypeError, ValueError):
+                    continue
+                w_text = str(word.get("text") or "").strip()
+                if w_text and w_end > w_start >= -1e-3:
+                    words.append({"start": max(0.0, w_start),
+                                  "end": w_end, "text": w_text})
+            payload.append((start, end, text, words))
         if not payload:
             return 0
 
         def mutate():
             landed = 0
-            for start, end, text in payload:
+            for start, end, text, words in payload:
                 clip = self._project.add_text(
                     text, start, max(0.1, end - start),
-                    y=0.88, scale=0.05)
+                    y=0.88, scale=0.05, words=words)
                 if clip is not None:
                     landed += 1
             return landed > 0
@@ -497,6 +515,68 @@ class ProjectService(QObject):
             return 0
         log.info("Subtitles placed: %d lines", len(payload))
         return len(payload)
+
+    @Slot(str, bool, result=bool)
+    def set_clip_karaoke(self, clip_id: str, enabled: bool) -> bool:
+        """Light the words of one subtitle up as they are spoken."""
+        return self._edit("text.karaoke",
+                          lambda: self._project.set_clip_karaoke(
+                              clip_id, enabled))
+
+    @Slot(str, result=int)
+    def export_subtitles(self, path: str) -> int:
+        """Write the Text lane as a subtitle FILE - .srt or .vtt.
+
+        The dialect follows the extension. Every Text-lane clip is a
+        cue, whatever made it - generated, imported or typed by hand:
+        the lane IS the subtitle track. Returns how many cues were
+        written; 0 means nothing to write or an unwritable path.
+        """
+        if self._project is None:
+            return 0
+        from ive.text.subtitle_files import format_srt, format_vtt
+
+        lines = [{"start": clip.start, "end": clip.end, "text": clip.text}
+                 for clip in self._project.timeline
+                 if clip.track == self._project.TEXT_TRACK and clip.text]
+        if not lines:
+            return 0
+        target = Path(_strip_url(str(path)))
+        content = (format_vtt(lines) if target.suffix.lower() == ".vtt"
+                   else format_srt(lines))
+        try:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(content, encoding="utf-8")
+        except OSError:
+            log.exception("Could not write subtitles to %s", target)
+            return 0
+        log.info("Subtitles exported: %d cues -> %s", len(lines), target)
+        return len(lines)
+
+    @Slot(str, result=int)
+    def import_subtitles(self, path: str) -> int:
+        """Read an .srt/.vtt file onto the Text lane, one undo step.
+
+        The cues land through the same gate the generated lines use, so
+        position, size and editability are identical. Returns the cue
+        count; 0 = unreadable file or nothing readable in it.
+        """
+        if self._project is None:
+            return 0
+        from ive.text.subtitle_files import parse_subtitles
+
+        source = Path(_strip_url(str(path)))
+        try:
+            content = source.read_text(encoding="utf-8-sig")
+        except (OSError, UnicodeDecodeError):
+            log.warning("Could not read subtitle file %s", source)
+            return 0
+        lines = parse_subtitles(content)
+        if not lines:
+            return 0
+        count = self.place_subtitles(lines)
+        log.info("Subtitles imported: %d cues from %s", count, source)
+        return count
 
     @Slot(str, str, str, str, str, bool, bool, result=bool)
     def set_clip_text(self, clip_id: str, text: str, font: str, color: str,

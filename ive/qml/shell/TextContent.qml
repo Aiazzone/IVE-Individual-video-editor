@@ -13,6 +13,7 @@
 // (colour, outline, bold, italic, font) commit immediately - each is a
 // deliberate choice, so each is its own undo step.
 import QtQuick
+import QtQuick.Dialogs
 import QtQuick.Layouts
 import components
 import IVE
@@ -229,6 +230,56 @@ Item {
                 }
             }
 
+            // The spoken language: auto-detect by default, a chip pins
+            // it when the detection guesses wrong on short clips.
+            Flow {
+                visible: Subtitles.state === "ready"
+                Layout.fillWidth: true
+                spacing: Theme.m.space1
+
+                Repeater {
+                    model: [{ code: "", label: Tr.s["subtitles.lang.auto"]
+                                            || "Auto" },
+                            { code: "it", label: "IT" },
+                            { code: "en", label: "EN" },
+                            { code: "pt", label: "PT" },
+                            { code: "es", label: "ES" },
+                            { code: "fr", label: "FR" },
+                            { code: "de", label: "DE" }]
+                    delegate: Rectangle {
+                        id: langChip
+                        required property var modelData
+                        objectName: "subtitles_lang_"
+                                    + (modelData.code || "auto")
+                        readonly property bool current:
+                            Subtitles.language === modelData.code
+                        width: langText.implicitWidth + Theme.m.space3 * 2
+                        height: 24
+                        radius: 999
+                        color: current ? Qt.alpha(Theme.c.accent, 0.2)
+                             : Qt.alpha(Theme.c.glassOn, 0.06)
+                        border.width: 1
+                        border.color: current ? Theme.c.accent
+                                              : Qt.alpha(Theme.c.glassOn, 0.12)
+                        Text {
+                            id: langText
+                            anchors.centerIn: parent
+                            text: langChip.modelData.label
+                            color: langChip.current ? Theme.c.text
+                                                    : Theme.c.textMuted
+                            font.pixelSize: Theme.m.fontSizeXs
+                            font.bold: langChip.current
+                        }
+                        HoverHandler { cursorShape: Qt.PointingHandCursor }
+                        TapHandler {
+                            onTapped: Actions.invoke(
+                                "subtitles.set_language",
+                                { language: langChip.modelData.code })
+                        }
+                    }
+                }
+            }
+
             Rectangle {
                 objectName: "subtitles_generate_button"
                 visible: Subtitles.state === "ready" && !Subtitles.running
@@ -324,6 +375,76 @@ Item {
                 font.pixelSize: Theme.m.fontSizeXs
                 lineHeight: 1.35
             }
+
+            // Files: the Text lane in and out as .srt/.vtt. No model
+            // needed - these work even where the speech engine cannot.
+            RowLayout {
+                id: fileRow
+                Layout.fillWidth: true
+                spacing: Theme.m.space2
+
+                readonly property bool hasTitles: {
+                    var clips = Project.timelineClips;
+                    for (var i = 0; i < clips.length; i++)
+                        if (clips[i].track === 3 && clips[i].text)
+                            return true;
+                    return false;
+                }
+
+                Repeater {
+                    model: [{ key: "import", enabled: Project.isOpen },
+                            { key: "export",
+                              enabled: fileRow.hasTitles }]
+                    delegate: Rectangle {
+                        id: fileButton
+                        required property var modelData
+                        objectName: "subtitles_" + modelData.key + "_button"
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: Theme.m.controlHeight - 4
+                        radius: Theme.m.radiusMd
+                        color: fileHover.hovered && modelData.enabled
+                               ? Theme.c.bgHover
+                               : Qt.alpha(Theme.c.glassOn, 0.08)
+                        border.width: 1
+                        border.color: Theme.c.border
+                        opacity: modelData.enabled ? 1 : 0.4
+                        Text {
+                            anchors.centerIn: parent
+                            text: Tr.s["subtitles." + fileButton.modelData.key]
+                                  || ""
+                            color: Theme.c.text
+                            font.pixelSize: Theme.m.fontSizeXs + 1
+                        }
+                        HoverHandler { id: fileHover
+                                       cursorShape: Qt.PointingHandCursor }
+                        TapHandler {
+                            enabled: fileButton.modelData.enabled
+                            onTapped: fileButton.modelData.key === "import"
+                                      ? importDialog.open()
+                                      : exportDialog.open()
+                        }
+                    }
+                }
+            }
+        }
+
+        FileDialog {
+            id: importDialog
+            title: Tr.s["subtitles.import"] || ""
+            fileMode: FileDialog.OpenFile
+            nameFilters: ["SRT / WebVTT (*.srt *.vtt)"]
+            onAccepted: Actions.invoke("subtitles.import_file",
+                                       { path: String(selectedFile) })
+        }
+
+        FileDialog {
+            id: exportDialog
+            title: Tr.s["subtitles.export"] || ""
+            fileMode: FileDialog.SaveFile
+            defaultSuffix: "srt"
+            nameFilters: ["SRT (*.srt)", "WebVTT (*.vtt)"]
+            onAccepted: Actions.invoke("subtitles.export_file",
+                                       { path: String(selectedFile) })
         }
 
         // ── edit the selected title ───────────────────────────────
@@ -373,6 +494,25 @@ Item {
                                 root.commitStyle({});
                         }
                     }
+                }
+            }
+
+            // Karaoke: only a clip that carries word timestamps (the
+            // generated subtitles do) can light its words up in time.
+            SwitchRow {
+                objectName: "text_karaoke_switch"
+                visible: root.textClip !== null
+                         && root.textClip.words !== undefined
+                         && root.textClip.words.length > 0
+                Layout.fillWidth: true
+                label: Tr.s["subtitles.karaoke"] || ""
+                checked: root.textClip !== null
+                         && root.textClip.karaoke === true
+                onToggled: function (v) {
+                    if (root.textClip !== null)
+                        Actions.invoke("timeline.set_clip_karaoke", {
+                            clip_id: root.textClip.id, enabled: v
+                        });
                 }
             }
 

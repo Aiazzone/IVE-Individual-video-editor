@@ -26,7 +26,9 @@ from pathlib import Path
 
 from PySide6.QtCore import Property, QObject, QProcess, Signal, Slot
 
-from ive.ai import fetch_model, model_entry, ModelDownloadError
+from ive.ai import (MODELS, ModelDownloadError, fetch_model,
+                    installed_bytes, is_installed, model_entry,
+                    remove_model)
 from ive.ai.subtitles import SubtitleTask
 
 log = logging.getLogger(__name__)
@@ -49,6 +51,7 @@ class SubtitleService(QObject):
         self._settings = settings
         self._project = project
         self._downloading = False
+        self._downloading_id = ""
         self._download_progress = 0.0
         self._download_cancel = threading.Event()
         self._download_thread: threading.Thread | None = None
@@ -90,6 +93,32 @@ class SubtitleService(QObject):
         entry = model_entry(self._model_id())
         return str(entry["weights_license"]) if entry else ""
 
+    @Property(str, notify=stateChanged)
+    def modelId(self) -> str:
+        return self._model_id()
+
+    @Property(str, notify=stateChanged)
+    def language(self) -> str:
+        return str(self._settings.get("ai.subtitles_language") or "")
+
+    @Property("QVariantList", notify=stateChanged)
+    def models(self) -> list:
+        """Every catalogued model, for the "AI models" settings card:
+        id, name, catalogue size, licence, installed, and the real
+        footprint on disk."""
+        out = []
+        for model_id in MODELS:
+            entry = model_entry(model_id)
+            out.append({
+                "id": model_id,
+                "name": str(entry["name"]),
+                "sizeMb": int(round(entry["total_size"] / 1e6)),
+                "license": str(entry["weights_license"]),
+                "installed": is_installed(model_id),
+                "diskMb": int(round(installed_bytes(model_id) / 1e6)),
+            })
+        return out
+
     @Slot()
     def refresh(self) -> None:
         self.stateChanged.emit()
@@ -112,12 +141,22 @@ class SubtitleService(QObject):
     def lastCount(self) -> int:
         return self._last_count
 
+    @Property(str, notify=downloadChanged)
+    def downloadingId(self) -> str:
+        return self._downloading_id if self._downloading else ""
+
     @Slot(result=bool)
     def download_model(self) -> bool:
-        """Fetch the configured model's weights. Explicit, cancellable."""
-        if self._downloading:
+        """Fetch the CONFIGURED model's weights - the card's button."""
+        return self.download(self._model_id())
+
+    @Slot(str, result=bool)
+    def download(self, model_id: str) -> bool:
+        """Fetch one model's weights. Explicit, cancellable."""
+        if self._downloading or model_entry(str(model_id)) is None:
             return False
-        model_id = self._model_id()
+        model_id = str(model_id)
+        self._downloading_id = model_id
         self._downloading = True
         self._download_progress = 0.0
         self._download_cancel.clear()
@@ -153,6 +192,16 @@ class SubtitleService(QObject):
     @Slot()
     def cancel_download(self) -> None:
         self._download_cancel.set()
+
+    @Slot(str, result=bool)
+    def remove(self, model_id: str) -> bool:
+        """Free one model's disk space. Refused while it is in use."""
+        if self._downloading or self._running:
+            return False
+        if not remove_model(str(model_id)):
+            return False
+        self.stateChanged.emit()
+        return True
 
     # ── generation ────────────────────────────────────────────────────
 

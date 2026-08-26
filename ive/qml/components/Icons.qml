@@ -26,6 +26,10 @@ QtObject {
         "M2 8a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v1"
         + " M2 8l1.5 10a2 2 0 0 0 2 2h13a2 2 0 0 0 2-1.6L22 11H6.2a2 2 0 0 0-1.9 1.4Z"
     readonly property string check: "M20 6 9 17l-5-5"
+    // An arrow dropping into a tray: fetch something onto this machine.
+    readonly property string download:
+        "M12 3v12 M12 15l-4-4 M12 15l4-4"
+        + " M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"
     readonly property string alert:
         "M12 9v4 M12 17h.01"
         + " M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"
