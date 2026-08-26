@@ -371,18 +371,24 @@ class PlaybackService(QObject):
                     "rotation": float(entry.get("rotation", 0.0)),
                 })
                 continue
-            effect_id = str(entry.get("effectId") or "")
-            if effect_id:
-                # A Color-lane clip: not a segment, a graded stretch. The
-                # recipe is resolved HERE so the graph (and the export,
-                # which shares it) never has to know the catalogue.
+            if int(entry.get("track") or 0) == 1:
+                # A Color-lane clip: not a segment, a graded stretch.
+                # The recipe is resolved HERE so the graph (and the
+                # export, which shares it) never has to know the
+                # catalogue; the MANUAL grade compiles to the same op
+                # vocabulary and layers after the recipe.
+                from ive.color.grade import ops_from_grade
                 from ive.color.library import ops_for
 
-                spans.append({
-                    "start": float(entry.get("start") or 0.0),
-                    "end": float(entry.get("end") or 0.0),
-                    "ops": ops_for(effect_id),
-                })
+                effect_id = str(entry.get("effectId") or "")
+                ops = list(ops_for(effect_id)) if effect_id else []
+                ops += ops_from_grade(entry.get("grade") or {})
+                if ops:
+                    spans.append({
+                        "start": float(entry.get("start") or 0.0),
+                        "end": float(entry.get("end") or 0.0),
+                        "ops": ops,
+                    })
                 continue
             path = str(entry.get("path") or "")
             if not path or not Path(path).is_file():

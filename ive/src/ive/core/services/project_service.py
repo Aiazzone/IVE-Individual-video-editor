@@ -226,6 +226,9 @@ class ProjectService(QObject):
                 effect = effect_by_id(clip.effect_id)
                 names = effect["names"] if effect else {}
                 name = names.get("en") or clip.effect_id
+            elif clip.track == Project.COLOR_TRACK:
+                # A bare Adjust clip: the manual grade IS its identity.
+                name = "Adjust"
             elif clip.sticker_id:
                 sticker = sticker_by_id(clip.sticker_id)
                 names = sticker["names"] if sticker else {}
@@ -247,6 +250,7 @@ class ProjectService(QObject):
                 "id": clip.id,
                 "mediaId": clip.media_id,
                 "effectId": clip.effect_id,
+                "grade": dict(clip.grade),
                 "stickerId": clip.sticker_id,
                 "text": clip.text,
                 "motionId": clip.motion_id,
@@ -429,6 +433,38 @@ class ProjectService(QObject):
             return clip
 
         return self._edit("timeline.place_effect", mutate)
+
+    @Slot(float, result=bool)
+    def place_grade(self, at: float) -> bool:
+        """An "Adjust" clip at ``at``: manual dials, no recipe.
+
+        Dropped over a video clip it adopts that clip's exact span (the
+        common intent, same as the effect drop); on empty ground it
+        covers three seconds and the trim handles take it from there.
+        """
+        if self._project is None:
+            return False
+        start, duration = float(at), 3.0
+        for clip in self._project.timeline:
+            if clip.track == 0 and clip.media_id \
+                    and clip.start <= at < clip.end:
+                start, duration = clip.start, clip.duration
+                break
+
+        def mutate():
+            clip = self._project.add_grade(start, duration)
+            log.info("Adjust clip placed at %.2fs for %.2fs",
+                     clip.start, clip.duration)
+            return clip
+
+        return self._edit("color.adjust", mutate)
+
+    @Slot(str, str, float, result=bool)
+    def set_clip_grade(self, clip_id: str, key: str, value: float) -> bool:
+        """Turn one dial of a Color-lane clip's manual grade."""
+        return self._edit("color.grade",
+                          lambda: self._project.set_clip_grade(clip_id,
+                                                               key, value))
 
     @Slot(str, float, float, result=bool)
     def place_sticker(self, sticker_id: str, at: float,

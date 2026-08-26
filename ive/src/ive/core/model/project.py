@@ -143,6 +143,10 @@ class TimelineClip:
     #: For clips on the Color track (track 1): the colour effect applied to
     #: the stretch of timeline this clip covers. media_id is "" for these.
     effect_id: str = ""
+    #: Manual grade on a Color-lane clip: dial values away from their
+    #: defaults (ive/color/grade.py), layered AFTER the effect recipe.
+    #: A clip may carry a grade alone - the "Adjust" clip.
+    grade: dict = field(default_factory=dict)
     #: For clips on the Sticker track (track 2): which sticker is shown.
     #: media_id is "" for these too.
     sticker_id: str = ""
@@ -206,12 +210,19 @@ class TimelineClip:
         effect_id = _as_str(data.get("effect_id"))
         sticker_id = _as_str(data.get("sticker_id"))
         text = _as_str(data.get("text"))
-        if not media_id and not effect_id and not sticker_id and not text:
+        # A Color-lane clip may be a bare "Adjust": no effect, just a
+        # manual grade (possibly still at its defaults).
+        is_colour_lane = _as_int(data.get("track")) == 1
+        if (not media_id and not effect_id and not sticker_id and not text
+                and not is_colour_lane):
             raise ValueError("timeline clip references no media, effect, "
                              "sticker or text")
+        from ive.color.grade import clamp_grade
+
         return cls(
             media_id=media_id,
             effect_id=effect_id,
+            grade=clamp_grade(data.get("grade") or {}),
             sticker_id=sticker_id,
             transition_id=_as_str(data.get("transition_id")),
             transition_duration=min(5.0, max(0.1, _as_float(
@@ -429,6 +440,32 @@ class Project:
                             track=self.COLOR_TRACK)
         self.timeline.append(clip)
         return clip
+
+    def add_grade(self, at: float, duration: float) -> "TimelineClip":
+        """An "Adjust" clip: a manual grade with no recipe underneath."""
+        clip = TimelineClip(media_id="", effect_id="",
+                            start=max(0.0, float(at)),
+                            duration=max(0.1, float(duration)),
+                            track=self.COLOR_TRACK)
+        self.timeline.append(clip)
+        return clip
+
+    def set_clip_grade(self, clip_id: str, key: str, value: float) -> bool:
+        """Turn one dial of a Color-lane clip's manual grade.
+
+        Setting a dial back to its default REMOVES it from the grade:
+        the dict stays the exact list of what the user changed.
+        """
+        from ive.color.grade import DIALS, clamp_grade
+
+        clip = self.find_clip(clip_id)
+        if clip is None or clip.track != self.COLOR_TRACK \
+                or str(key) not in DIALS:
+            return False
+        merged = dict(clip.grade)
+        merged[str(key)] = float(value)
+        clip.grade = clamp_grade(merged)
+        return True
 
     #: Track 2 is the Sticker lane; free-form like the Color lane.
     STICKER_TRACK = 2

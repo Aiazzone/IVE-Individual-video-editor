@@ -128,6 +128,141 @@ Item {
             onPicked: function (v) { root.tab = v; }
         }
 
+        // ── the manual grade ──────────────────────────────────────
+        // Nine dials on the SELECTED Color-lane clip - an effect gets
+        // hand adjustments layered on top of its recipe, an "Adjust"
+        // clip is dials alone. Committed on release, one undo each;
+        // the default value removes the dial from the grade.
+        CardGroup {
+            id: adjustCard
+            visible: root.tab === "colors" && root.section === ""
+            title: Tr.s["color.adjust_group"] || ""
+
+            readonly property var gradeClip: {
+                var id = Shell.v.selectedClipId || "";
+                if (id === "")
+                    return null;
+                var clips = Project.timelineClips;
+                for (var i = 0; i < clips.length; i++)
+                    if (clips[i].id === id && clips[i].track === 1)
+                        return clips[i];
+                return null;
+            }
+
+            Rectangle {
+                objectName: "color_adjust_add"
+                visible: adjustCard.gradeClip === null
+                Layout.fillWidth: true
+                Layout.preferredHeight: Theme.m.controlHeight
+                radius: Theme.m.radiusMd
+                color: adjHover.hovered && Project.isOpen
+                       ? Theme.c.bgHover : Qt.alpha(Theme.c.glassOn, 0.08)
+                border.width: 1
+                border.color: Theme.c.border
+                opacity: Project.isOpen ? 1 : 0.4
+                Text {
+                    anchors.centerIn: parent
+                    text: Tr.s["color.adjust_add"] || ""
+                    color: Theme.c.text
+                    font.pixelSize: Theme.m.fontSizeSm
+                }
+                HoverHandler { id: adjHover
+                               cursorShape: Qt.PointingHandCursor }
+                TapHandler {
+                    enabled: Project.isOpen
+                    onTapped: {
+                        var at = Playback.hasMedia
+                            ? Playback.positionSeconds : 0;
+                        Actions.invoke("timeline.place_grade", { at: at });
+                        // Select what just landed, so the dials open on
+                        // it at once.
+                        var clips = Project.timelineClips;
+                        for (var i = clips.length - 1; i >= 0; i--)
+                            if (clips[i].track === 1
+                                    && clips[i].start <= at + 0.01
+                                    && at < clips[i].end + 0.01
+                                    && clips[i].effectId === "") {
+                                Shell.set_selected_clip(clips[i].id,
+                                                        "color");
+                                break;
+                            }
+                    }
+                }
+            }
+            Text {
+                visible: adjustCard.gradeClip === null
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                text: Tr.s["color.adjust_hint"] || ""
+                color: Theme.c.textDisabled
+                font.pixelSize: Theme.m.fontSizeXs
+                lineHeight: 1.35
+            }
+
+            Repeater {
+                model: [
+                    { key: "brightness", from: -0.5, to: 0.5, def: 0 },
+                    { key: "contrast", from: 0.2, to: 2, def: 1 },
+                    { key: "saturation", from: 0, to: 2, def: 1 },
+                    { key: "gamma", from: 0.3, to: 2.5, def: 1 },
+                    { key: "temperature", from: -1, to: 1, def: 0 },
+                    { key: "tint", from: -1, to: 1, def: 0 },
+                    { key: "shadows", from: -1, to: 1, def: 0 },
+                    { key: "highlights", from: -1, to: 1, def: 0 },
+                    { key: "vignette", from: 0, to: 1, def: 0 }
+                ]
+                delegate: RowLayout {
+                    id: dialRow
+                    required property var modelData
+                    visible: adjustCard.gradeClip !== null
+                    Layout.fillWidth: true
+                    spacing: Theme.m.space2
+                    Text {
+                        Layout.preferredWidth: 88
+                        text: Tr.s["color.dial." + dialRow.modelData.key]
+                              || dialRow.modelData.key
+                        color: Theme.c.textMuted
+                        font.pixelSize: Theme.m.fontSizeXs
+                        elide: Text.ElideRight
+                    }
+                    AppSlider {
+                        id: dial
+                        objectName: "color_dial_" + dialRow.modelData.key
+                        Layout.fillWidth: true
+                        from: dialRow.modelData.from
+                        to: dialRow.modelData.to
+                        stepSize: 0.01
+                        label: Tr.s["color.dial." + dialRow.modelData.key]
+                               || dialRow.modelData.key
+                        value: {
+                            var clip = adjustCard.gradeClip;
+                            if (clip === null)
+                                return dialRow.modelData.def;
+                            var held = clip.grade[dialRow.modelData.key];
+                            return held !== undefined ? held
+                                                      : dialRow.modelData.def;
+                        }
+                        onCommitted: function (v) {
+                            if (adjustCard.gradeClip !== null)
+                                Actions.invoke("timeline.set_clip_grade", {
+                                    clip_id: adjustCard.gradeClip.id,
+                                    key: dialRow.modelData.key,
+                                    value: Math.round(v * 100) / 100
+                                });
+                        }
+                    }
+                    Text {
+                        Layout.preferredWidth: 36
+                        horizontalAlignment: Text.AlignRight
+                        text: dial.effectiveValue.toFixed(2)
+                        color: Theme.c.textMuted
+                        font.pixelSize: Theme.m.fontSizeXs
+                        font.family: "monospace"
+                    }
+                }
+            }
+        }
+
         // ── the families (no previews here) ───────────────────────
         CardGroup {
             visible: root.tab === "colors" && root.section === ""

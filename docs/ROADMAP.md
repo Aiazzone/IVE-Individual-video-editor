@@ -229,8 +229,18 @@ l'altro.
 ## Fase 5 — Effetti e testo  ·  L
 
 - [ ] `effects/base.py` con parametri dichiarativi + registry
-- [ ] Transform, crop, opacita', speed/time remap
-- [ ] Correzione colore: lift/gamma/gain, curve, HSL, LUT `.cube`
+- [x] Transform e **speed** (2026-08-27): riquadro sul canvas per i
+      clip A/V (vedi Fase 4) e velocita' 0.1-8x con semantica CapCut
+      (`SpeedProducer` per entry: video mappato per tempo, audio
+      ricampionato — il pitch segue il passo; pitch-preserve in
+      seguito). Restano: crop, opacita' per clip, time remap a curve
+- [x] **Correzione colore manuale** (2026-08-27): nove manopole
+      (luminosita', contrasto, saturazione, gamma, temperatura, tinta,
+      ombre, luci, vignettatura) su qualunque clip della corsia Colore
+      — sopra una ricetta o su un clip «Regolazione» nudo
+      (`ive/color/grade.py` compila nello stesso vocabolario di op
+      delle ricette; azioni timeline.place_grade / set_clip_grade).
+      Restano: curve, HSL per gamma, LUT `.cube`
 - [ ] **Animazioni in/out** come keyframe dichiarativi (schema di
       `CONTENT_PACKS.md` §4.2), con preview nella libreria
 - [ ] Transizioni: dissolve, wipe, slide, zoom, + supporto luma matte

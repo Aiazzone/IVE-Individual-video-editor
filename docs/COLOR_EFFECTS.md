@@ -131,6 +131,25 @@ aggiunta). La tab Preferiti raccoglie gli effetti stellati da tutte le
 famiglie, con le stesse thumbnail trascinabili. `ColorFx.favorites`
 espone la lista a QML e si aggiorna sul cambio settings.
 
+## 4-ter. La regolazione manuale (2026-08-27)
+
+Nove manopole in cima al pannello (`color.dial.*`): luminosita',
+contrasto, saturazione, gamma, temperatura, tinta, ombre, luci,
+vignettatura. Vivono su un clip della corsia Colore — quello di un
+effetto (le correzioni si SOMMANO alla ricetta, in coda) oppure un clip
+«Regolazione» nudo (bottone nel pannello: adotta lo span del clip video
+sotto il playhead, come il drop degli effetti).
+
+Com'e' fatto: `ive/color/grade.py` — il grade e' un dict di manopole
+FUORI dal default (`TimelineClip.grade`, persistito) e compila nello
+STESSO vocabolario di op delle ricette (`ops_from_grade`), quindi il
+motore non sa nulla di nuovo e anteprima ed export restano identici per
+costruzione. Una manopola al default sparisce dal dict: il grade dice
+esattamente cosa l'utente ha toccato. Ogni commit di slider = un'azione
+`timeline.set_clip_grade` = un passo di undo. Restano: curve, HSL per
+gamma, LUT `.cube` (la 3D LUT in numpy costa ~50+ ms/frame: quando
+serve, valutare un'approssimazione o il futuro backend GPU).
+
 ## 5. Aggiungere un effetto nuovo
 
 1. Copiare un JSON esistente, cambiare `id`, `name`, `section`, `ops`.
