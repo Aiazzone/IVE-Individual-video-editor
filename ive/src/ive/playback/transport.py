@@ -893,11 +893,27 @@ class PlaybackService(QObject):
         frame = graph.frame_at(index)
         if frame is None:
             return None
-        image = frame.image()
+        # Sound first, and UNCONDITIONALLY. A late picture costs a repeated
+        # frame; late audio is a click at the sink. The audio stack is cheap
+        # (sequential decode + DSP), the video stack is where transitions,
+        # grades and placements live.
         audio = frame.audio()
+        seconds = index / self._fps if self._fps else 0.0
+        # When production cannot keep up with the clock (a stretch heavy
+        # with effects), this frame is already BEHIND the playhead and the
+        # GUI would drop its picture unseen. The graph is lazy end to end:
+        # an image never pulled is decode and filters never run. Skipping
+        # it lets the producer catch up within a frame or two instead of
+        # spiralling - the picture rate degrades under load, the sound
+        # stays whole. Reported as "crackling wherever the video wears
+        # effects": the audio buffers drained at exactly the pace the
+        # video filters overran the frame budget.
+        behind = (self._playing and self._fps
+                  and seconds < self._position - 1.5 / self._fps)
+        image = None if behind else frame.image()
         if image is None and audio is None:
             return None
-        return (index / self._fps if self._fps else 0.0, image, audio)
+        return (seconds, image, audio)
 
     @Slot()
     def close(self) -> None:
