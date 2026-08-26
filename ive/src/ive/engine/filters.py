@@ -766,11 +766,14 @@ class Placement(Filter):
             xs = (np.arange(box_w) * iw // box_w).clip(0, iw - 1)
             resized = image[ys][:, xs]
 
-        sprite = np.dstack([resized,
-                            np.full((box_h, box_w, 1), 255, np.uint8)])
+        # Unrotated, the box is a plain opaque rectangle: no alpha
+        # channel is built and the blend below is a paste, not per-pixel
+        # float math. Only a rotation needs RGBA - its interpolated
+        # alpha edge is the anti-aliasing.
+        sprite = resized
         if abs(rotation) > 0.01 and cv2 is not None:
-            # Rotate the RGBA sprite into its enlarged bounding box; the
-            # interpolated alpha edge is the anti-aliasing.
+            sprite = np.dstack([resized,
+                                np.full((box_h, box_w, 1), 255, np.uint8)])
             matrix = cv2.getRotationMatrix2D((box_w / 2.0, box_h / 2.0),
                                              -rotation, 1.0)
             cos = abs(matrix[0, 0])
@@ -815,9 +818,12 @@ class Placement(Filter):
 
 def _blend_over(image: np.ndarray, sprite: np.ndarray,
                 cx: float, cy: float, opacity: float = 1.0) -> None:
-    """Alpha-over ``sprite`` (straight RGBA) onto ``image``, centred on
-    ``(cx, cy)`` pixels, in place, at ``opacity`` (a motion preset's
-    fade). Off-frame parts are clipped away."""
+    """Blend ``sprite`` onto ``image``, centred on ``(cx, cy)`` pixels,
+    in place, at ``opacity`` (a motion preset's fade). RGB sprites are
+    fully opaque rectangles - a paste, or one ``addWeighted``, never
+    per-pixel float math; that path was 90 ms a frame on a 720p canvas
+    and made any placed clip unplayable. Straight-RGBA sprites keep the
+    per-pixel alpha-over. Off-frame parts are clipped away."""
     sh, sw = sprite.shape[:2]
     ih, iw = image.shape[:2]
     x0 = int(round(cx - sw / 2.0))
@@ -827,6 +833,25 @@ def _blend_over(image: np.ndarray, sprite: np.ndarray,
     if ix0 >= ix1 or iy0 >= iy1:
         return
     part = sprite[iy0 - y0:iy1 - y0, ix0 - x0:ix1 - x0]
+    if part.shape[2] == 3:
+        if opacity >= 0.999:
+            image[iy0:iy1, ix0:ix1] = part
+            return
+        opacity = max(0.0, opacity)
+        roi = image[iy0:iy1, ix0:ix1]
+        try:
+            import cv2
+            # Views of the canvas are not contiguous; addWeighted wants
+            # real Mats, so blend into a copy and assign back.
+            image[iy0:iy1, ix0:ix1] = cv2.addWeighted(
+                np.ascontiguousarray(part), opacity,
+                np.ascontiguousarray(roi), 1.0 - opacity, 0.0)
+        except ImportError:
+            image[iy0:iy1, ix0:ix1] = (
+                part.astype(np.float32) * opacity
+                + roi.astype(np.float32) * (1.0 - opacity)
+            ).astype(np.uint8)
+        return
     alpha = part[..., 3:4].astype(np.float32) / 255.0
     if opacity < 1.0:
         alpha = alpha * np.float32(max(0.0, opacity))
