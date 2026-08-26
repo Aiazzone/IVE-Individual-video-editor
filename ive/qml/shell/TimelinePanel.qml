@@ -1278,7 +1278,11 @@ Item {
                                 height: lane.height - Theme.m.trackLanePadding * 2
                                 radius: Theme.m.clipRadius
                                 color: modelData.color
-                                clip: true
+                                // NOT clipped: the selection glow and the
+                                // drop shadow live just outside the pill.
+                                // Whatever can overflow (wave, name) clips
+                                // itself instead.
+                                clip: false
 
                                 readonly property bool selected:
                                     (root.selectedClipId === modelData.id
@@ -1292,11 +1296,49 @@ Item {
                                     ? Theme.c.clipSelected
                                     : Qt.rgba(1, 1, 1, 0.15)
 
+                                // The clip sits ON the lane, not printed on
+                                // it: a soft shade pooling under its foot.
+                                Rectangle {
+                                    anchors.top: parent.bottom
+                                    anchors.left: parent.left
+                                    anchors.right: parent.right
+                                    anchors.leftMargin: 3
+                                    anchors.rightMargin: 3
+                                    height: 3
+                                    gradient: Gradient {
+                                        GradientStop { position: 0
+                                                       color: "#38000000" }
+                                        GradientStop { position: 1
+                                                       color: "#00000000" }
+                                    }
+                                }
+
+                                // Selection glow: three fading halo rings,
+                                // cheap borders instead of a shader - at a
+                                // full timeline the selected clip must be
+                                // findable at a glance.
+                                Repeater {
+                                    model: clip.selected ? 3 : 0
+                                    delegate: Rectangle {
+                                        required property int index
+                                        anchors.fill: parent
+                                        anchors.margins: -(2 + index * 2)
+                                        radius: Theme.m.clipRadius
+                                                + 2 + index * 2
+                                        color: "transparent"
+                                        border.width: 2
+                                        border.color: Qt.alpha(
+                                            Theme.c.clipSelected,
+                                            0.28 - index * 0.09)
+                                    }
+                                }
+
                                 // Thumbnail strip stand-in; real frames in stage 3.
                                 Row {
                                     visible: clip.modelData.film
                                     anchors.fill: parent
                                     anchors.leftMargin: 3
+                                    clip: true
                                     Repeater {
                                         model: Math.max(1, Math.floor(clip.width / 34))
                                         delegate: Item {
@@ -1312,9 +1354,51 @@ Item {
                                     }
                                 }
 
+                                // Film-strip perforations along the top and
+                                // bottom edges: video clips only - "this is
+                                // footage" readable at any zoom.
+                                Row {
+                                    objectName: "film_perfs_top"
+                                    visible: clip.modelData.film
+                                             && clip.height > 30
+                                    x: 5
+                                    y: 3
+                                    spacing: 6
+                                    Repeater {
+                                        model: Math.max(0, Math.floor(
+                                            (clip.width - 10) / 10))
+                                        delegate: Rectangle {
+                                            width: 4
+                                            height: 4
+                                            radius: 1
+                                            color: "#4D000000"
+                                        }
+                                    }
+                                }
+                                Row {
+                                    objectName: "film_perfs_bottom"
+                                    visible: clip.modelData.film
+                                             && clip.height > 30
+                                    x: 5
+                                    y: clip.height - 7
+                                    spacing: 6
+                                    Repeater {
+                                        model: Math.max(0, Math.floor(
+                                            (clip.width - 10) / 10))
+                                        delegate: Rectangle {
+                                            width: 4
+                                            height: 4
+                                            radius: 1
+                                            color: "#4D000000"
+                                        }
+                                    }
+                                }
+
                                 Text {
                                     x: 7
-                                    y: 4
+                                    y: clip.modelData.film ? 9 : 4
+                                    width: Math.max(0, clip.width - 14)
+                                    elide: Text.ElideRight
                                     text: clip.modelData.name
                                     color: "#EAFFFFFF"
                                     font.pixelSize: Theme.m.fontSizeXs
@@ -1837,10 +1921,11 @@ Item {
                         // old diamond now belongs to the keyframes).
                         Glyph {
                             anchors.centerIn: parent
-                            width: Math.min(13, parent.height * 0.55)
+                            width: Math.min(22, parent.height * 0.8,
+                                            parent.width * 0.8)
                             height: width
                             path: Icons.transition
-                            color: "#66333333"
+                            color: "#88333333"
                         }
 
                         // MouseAreas rather than handlers, DELIBERATELY:

@@ -76,7 +76,7 @@ BASE_METRICS: dict[str, Any] = {
     # Header width fits the track NAME alone: the per-track controls were
     # non-functional placeholders and were removed until they do something.
     "trackHeightVideo": 64, "trackHeightAudio": 48, "trackHeaderWidth": 64,
-    "trackLanePadding": 6, "clipGap": 3, "clipRadius": 6,
+    "trackLanePadding": 6, "clipGap": 3, "clipRadius": 8,
     "readoutIdleOpacity": 0.55,
 }
 
