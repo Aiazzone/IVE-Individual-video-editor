@@ -28,8 +28,12 @@ from PySide6.QtCore import Property, QObject, QProcess, Signal, Slot
 
 from ive.ai import (MODELS, ModelDownloadError, fetch_model,
                     installed_bytes, is_installed, model_entry,
-                    remove_model)
+                    remove_model, translate_route)
 from ive.ai.subtitles import SubtitleTask
+
+#: Characters per second past which a subtitle line reads too fast.
+#: The classic subtitling ceiling is ~17-21; the warning is advisory.
+_MAX_CPS = 21.0
 
 log = logging.getLogger(__name__)
 
@@ -42,6 +46,7 @@ class SubtitleService(QObject):
     stateChanged = Signal()
     downloadChanged = Signal()
     runChanged = Signal()
+    translateChanged = Signal()
     #: Lines landed on the timeline (count). For the UI's closing note.
     finished = Signal(int)
 
@@ -61,6 +66,17 @@ class SubtitleService(QObject):
         self._last_count = 0
         self._process: QProcess | None = None
         self._stdout = b""
+        self._detected_language = ""
+        self._translating = False
+        self._translate_progress = 0.0
+        self._translate_error = ""
+        self._last_translated = 0
+        self._long_lines = 0
+        self._tprocess: QProcess | None = None
+        self._tstdout = b""
+        #: (clip_id, duration) of the lines sent to the worker, in the
+        #: same order its texts come back.
+        self._tclips: list[tuple[str, float]] = []
 
     # ── model state ───────────────────────────────────────────────────
 
@@ -153,23 +169,38 @@ class SubtitleService(QObject):
     @Slot(str, result=bool)
     def download(self, model_id: str) -> bool:
         """Fetch one model's weights. Explicit, cancellable."""
-        if self._downloading or model_entry(str(model_id)) is None:
+        return self._download_ids([str(model_id)])
+
+    def _download_ids(self, model_ids: list) -> bool:
+        """Fetch several models in order, one progress bar over all."""
+        model_ids = [m for m in model_ids if model_entry(m) is not None]
+        if self._downloading or not model_ids:
             return False
-        model_id = str(model_id)
-        self._downloading_id = model_id
+        self._downloading_id = model_ids[0]
         self._downloading = True
         self._download_progress = 0.0
         self._download_cancel.clear()
         self.downloadChanged.emit()
+        totals = [int(model_entry(m)["total_size"]) for m in model_ids]
+        grand = sum(totals) or 1
 
         def run() -> None:
+            done_before = 0
             try:
-                fetch_model(model_id, progress=self._on_download_progress,
-                            cancelled=self._download_cancel.is_set)
-                log.info("Subtitle model %s installed", model_id)
+                for index, model_id in enumerate(model_ids):
+                    self._downloading_id = model_id
+                    self.downloadChanged.emit()
+
+                    def tick(done, _total, _base=done_before):
+                        self._on_download_progress(_base + done, grand)
+
+                    fetch_model(model_id, progress=tick,
+                                cancelled=self._download_cancel.is_set)
+                    done_before += totals[index]
+                    log.info("Model %s installed", model_id)
             except ModelDownloadError as exc:
                 if exc.reason != "cancelled":
-                    log.warning("Subtitle model download failed: %s", exc)
+                    log.warning("Model download failed: %s", exc)
                     self._error = f"download_{exc.reason}"
             finally:
                 self._downloading = False
@@ -179,7 +210,7 @@ class SubtitleService(QObject):
 
         self._error = ""
         self._download_thread = threading.Thread(
-            target=run, name="subtitle-model-download", daemon=True)
+            target=run, name="ai-model-download", daemon=True)
         self._download_thread.start()
         return True
 
@@ -242,20 +273,12 @@ class SubtitleService(QObject):
             self.runChanged.emit()
             return False
 
-        import ive
-
         job = {"model_id": self._model_id(),
                "language": str(self._settings.get("ai.subtitles_language")
                                or ""),
                "clips": clips}
-        from PySide6.QtCore import QProcessEnvironment
-
         process = QProcess(self)
-        env = QProcessEnvironment.systemEnvironment()
-        env.insert("PYTHONPATH", os.pathsep.join(filter(None, [
-            str(Path(ive.__file__).parents[1]),
-            env.value("PYTHONPATH", "")])))
-        process.setProcessEnvironment(env)
+        process.setProcessEnvironment(self._worker_env())
         process.readyReadStandardOutput.connect(self._on_worker_output)
         process.readyReadStandardError.connect(self._on_worker_log)
         process.finished.connect(self._on_worker_finished)
@@ -302,6 +325,9 @@ class SubtitleService(QObject):
         if "progress" in message:
             self._progress = float(message["progress"])
             self.runChanged.emit()
+        elif "language" in message:
+            self._detected_language = str(message["language"])
+            self.stateChanged.emit()
         elif "error" in message:
             self._error = str(message["error"])
         elif "lines" in message:
@@ -340,15 +366,196 @@ class SubtitleService(QObject):
         log.info("Subtitle generation finished: %d line(s), error=%r",
                  self._last_count, self._error)
 
+    def _worker_env(self):
+        import ive
+        from PySide6.QtCore import QProcessEnvironment
+
+        env = QProcessEnvironment.systemEnvironment()
+        env.insert("PYTHONPATH", os.pathsep.join(filter(None, [
+            str(Path(ive.__file__).parents[1]),
+            env.value("PYTHONPATH", "")])))
+        return env
+
+    # ── translation ───────────────────────────────────────────────────
+    # Same architecture as the generation: the pairs load ctranslate2,
+    # which must never enter this process, so the work happens in
+    # ive/ai/translate/worker.py and the answer comes back as data.
+
+    def _translate_source(self) -> str:
+        pinned = str(self._settings.get("ai.subtitles_language") or "")
+        return pinned or self._detected_language
+
+    @Property(str, notify=stateChanged)
+    def detectedLanguage(self) -> str:
+        return self._detected_language
+
+    @Property(str, notify=stateChanged)
+    def translateTarget(self) -> str:
+        return str(self._settings.get("ai.translate_target") or "en")
+
+    @Property(str, notify=stateChanged)
+    def translateState(self) -> str:
+        """"ready" | "model_missing" | "backend_missing" | "no_route"
+        | "no_source" - what stands between here and a translation."""
+        if getattr(sys, "frozen", False):
+            return "backend_missing"
+        source = self._translate_source()
+        if not source:
+            return "no_source"
+        from ive.ai.translate import TranslateTask
+
+        return TranslateTask.availability(source, self.translateTarget)
+
+    @Property(int, notify=stateChanged)
+    def translateMissingMb(self) -> int:
+        """Download size of the pairs still missing for the route."""
+        route = translate_route(self._translate_source(),
+                                self.translateTarget) or []
+        total = 0
+        for pair in route:
+            if not is_installed(pair):
+                entry = model_entry(pair)
+                total += int(entry["total_size"]) if entry else 0
+        return int(round(total / 1e6))
+
+    @Slot(result=bool)
+    def download_translate_models(self) -> bool:
+        """Fetch the missing pair(s) of the current route, in order."""
+        route = translate_route(self._translate_source(),
+                                self.translateTarget) or []
+        missing = [pair for pair in route if not is_installed(pair)]
+        return self._download_ids(missing) if missing else False
+
+    @Property(bool, notify=translateChanged)
+    def translating(self) -> bool:
+        return self._translating
+
+    @Property(float, notify=translateChanged)
+    def translateProgress(self) -> float:
+        return self._translate_progress
+
+    @Property(str, notify=translateChanged)
+    def translateError(self) -> str:
+        return self._translate_error
+
+    @Property(int, notify=translateChanged)
+    def lastTranslated(self) -> int:
+        return self._last_translated
+
+    @Property(int, notify=translateChanged)
+    def longLines(self) -> int:
+        """Lines whose translation may read too fast for their time."""
+        return self._long_lines
+
+    @Slot(result=bool)
+    def translate(self) -> bool:
+        """Translate every Text-lane clip; timings stay, one undo."""
+        if self._translating or self.translateState != "ready":
+            return False
+        clips = [c for c in self._project.timelineClips
+                 if c.get("track") == 3 and c.get("text")]
+        if not clips:
+            self._translate_error = "no_lines"
+            self.translateChanged.emit()
+            return False
+        self._tclips = [(c["id"], float(c["duration"])) for c in clips]
+        job = {"source": self._translate_source(),
+               "target": self.translateTarget,
+               "texts": [c["text"] for c in clips]}
+        process = QProcess(self)
+        process.setProcessEnvironment(self._worker_env())
+        process.readyReadStandardOutput.connect(self._on_translate_output)
+        process.readyReadStandardError.connect(self._on_translate_log)
+        process.finished.connect(self._on_translate_finished)
+        self._tprocess = process
+        self._tstdout = b""
+        self._translate_error = ""
+        self._last_translated = 0
+        self._long_lines = 0
+        self._translating = True
+        self._translate_progress = 0.0
+        self.translateChanged.emit()
+        log.info("Subtitle translation started: %d lines, %s -> %s",
+                 len(clips), job["source"], job["target"])
+        process.start(sys.executable, ["-m", "ive.ai.translate.worker"])
+        process.write(json.dumps(job).encode("utf-8"))
+        process.closeWriteChannel()
+        return True
+
+    @Slot()
+    def cancel_translate(self) -> None:
+        process = self._tprocess
+        if process is not None and self._translating:
+            log.info("Subtitle translation cancelled")
+            self._translate_error = "cancelled"
+            process.kill()
+
+    def _on_translate_output(self) -> None:
+        process = self._tprocess
+        if process is None:
+            return
+        self._tstdout += bytes(process.readAllStandardOutput().data())
+        while b"\n" in self._tstdout:
+            line, self._tstdout = self._tstdout.split(b"\n", 1)
+            self._handle_translate_line(line.strip())
+
+    def _handle_translate_line(self, line: bytes) -> None:
+        if not line:
+            return
+        try:
+            message = json.loads(line.decode("utf-8"))
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            log.warning("Unreadable translate line: %r", line[:120])
+            return
+        if "progress" in message:
+            self._translate_progress = float(message["progress"])
+            self.translateChanged.emit()
+        elif "error" in message:
+            self._translate_error = str(message["error"])
+        elif "texts" in message:
+            if self._translate_error == "cancelled":
+                return
+            texts = [str(t) for t in message["texts"]]
+            changes = [{"clip_id": cid, "text": text}
+                       for (cid, _dur), text in zip(self._tclips, texts)]
+            self._last_translated = self._project.apply_translations(changes)
+            self._long_lines = sum(
+                1 for (_cid, duration), text in zip(self._tclips, texts)
+                if duration > 0 and len(text) / duration > _MAX_CPS)
+
+    def _on_translate_log(self) -> None:
+        process = self._tprocess
+        if process is None:
+            return
+        text = bytes(process.readAllStandardError().data()) \
+            .decode("utf-8", "replace").strip()
+        for line in text.splitlines():
+            if line.strip():
+                log.info("[translate] %s", line.strip())
+
+    def _on_translate_finished(self, code: int, _status) -> None:
+        self._on_translate_output()
+        if code != 0 and not self._translate_error:
+            self._translate_error = f"worker_exit_{code}"
+        self._translating = False
+        process = self._tprocess
+        self._tprocess = None
+        if process is not None:
+            process.deleteLater()
+        self.translateChanged.emit()
+        log.info("Subtitle translation finished: %d clip(s), error=%r",
+                 self._last_translated, self._translate_error)
+
     # ── lifecycle ─────────────────────────────────────────────────────
 
     def shutdown(self) -> None:
         self._download_cancel.set()
-        process = self._process
-        if process is not None:
-            self._process = None
-            process.kill()
-            process.waitForFinished(2000)
+        for attr in ("_process", "_tprocess"):
+            process = getattr(self, attr)
+            if process is not None:
+                setattr(self, attr, None)
+                process.kill()
+                process.waitForFinished(2000)
         thread = self._download_thread
         if thread is not None and thread.is_alive():
             thread.join(timeout=5.0)

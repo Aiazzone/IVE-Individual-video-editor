@@ -96,6 +96,8 @@ della prima release pubblica.
 | **CTranslate2** | MIT | Runtime di inferenza di faster-whisper. Porta il suo `libiomp5md.dll`: e' il motivo del processo separato. |
 | **tokenizers** (HuggingFace) | Apache-2.0 | Dipendenza di faster-whisper. |
 | **Whisper tiny/small** (pesi, `models/subtitles/…`, conversione Systran/faster-whisper-*) | MIT (OpenAI Whisper; conversione CTranslate2 stessa licenza) | Scaricati su richiesta esplicita dal pannello Testo, URL ancorati a revisione + SHA-256 in `ive/ai/model_registry.py`. Mai nel repo. Uso commerciale consentito. Verificato 2026-08-25. |
+| **sentencepiece** | Apache-2.0 | Tokenizer per le coppie di traduzione. Solo nel processo worker. Aggiunto 2026-08-26. |
+| **Coppie Argos/OPUS-MT** (pesi, `models/translate/…`, `.argosmodel` da argos-net.com) | MIT/CC0 dichiarata da Argos Open Tech; dati OPUS (OpenSubtitles, ParaCrawl…) | Caricate direttamente con CTranslate2+sentencepiece: la libreria argostranslate (e la sua coda stanza/spacy) NON e' una dipendenza; la parte stanza dentro il pacchetto non viene mai caricata. Download esplicito con SHA-256. **Da riverificare alla fonte per coppia** (l'index argospm non porta il campo licenza). Aggiunto 2026-08-26. |
 | **OpenVINO** | Apache-2.0 | |
 | **PyInstaller** | GPL-2.0 con **bootloader exception** | L'exception permette di distribuire app con qualunque licenza. |
 | **pytest / pytest-qt** | MIT | Solo sviluppo. |

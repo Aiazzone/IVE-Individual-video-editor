@@ -18,3 +18,7 @@ faster-whisper>=1.2    # automatic subtitles: speech-to-text (MIT; pulls
                        # Runs ONLY in the subtitle worker process - never
                        # import it in the app process (duplicate-OpenMP
                        # abort; see ive/ai/subtitles/worker.py)
+sentencepiece>=0.2     # subtitle translation: tokenizer for the OPUS-MT
+                       # pairs, loaded with ctranslate2 directly (Apache-2.0;
+                       # NOT argostranslate - its stanza/spacy tail stays out).
+                       # Same worker-process-only rule as faster-whisper

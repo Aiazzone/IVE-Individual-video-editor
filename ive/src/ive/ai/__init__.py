@@ -18,9 +18,11 @@ from ive.ai.model_registry import (
     model_dir,
     model_entry,
     remove_model,
+    translate_route,
 )
 
 __all__ = [
     "MODELS", "model_entry", "model_dir", "is_installed",
     "installed_bytes", "remove_model", "fetch_model", "ModelDownloadError",
+    "translate_route",
 ]

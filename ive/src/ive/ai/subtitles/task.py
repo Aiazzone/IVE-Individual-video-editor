@@ -114,6 +114,10 @@ class SubtitleTask:
     def __init__(self, model_id: str) -> None:
         self.model_id = str(model_id)
         self._model = None
+        #: ISO code of the last language the model detected ("" before
+        #: any run). The translation step uses it as the source when
+        #: the user has not pinned one.
+        self.last_language = ""
 
     # -- availability ---------------------------------------------------
 
@@ -182,6 +186,9 @@ class SubtitleTask:
         except Exception as exc:
             raise TranscribeError(str(exc)) from exc
 
+        detected = str(getattr(info, "language", "") or "")
+        if detected:
+            self.last_language = detected
         words: list[dict] = []
         span = max(0.05, float(duration))
         for segment in segments:

@@ -185,7 +185,34 @@ Due usi distinti:
 > Da non confondere con l'i18n dell'interfaccia (`docs/I18N.md`): moduli
 > separati, nessun codice in comune.
 
-Punti importanti:
+### Stato (2026-08-26): la traduzione dei sottotitoli e' implementata
+
+- **Coppie OPUS-MT di Argos caricate DIRETTAMENTE** con ctranslate2 +
+  sentencepiece (`ive/ai/translate/`): la libreria argostranslate — che
+  trascina stanza, spacy e thinc nel venv — non entra mai. Le righe dei
+  sottotitoli sono corte: niente sentence splitter, una riga = un'unita';
+  i `\n` interni sopravvivono (le righe si traducono separatamente).
+- Coppie a catalogo (registry con URL ancorati e SHA-256): it/pt/es ↔ en.
+  Le coppie mancanti fanno **pivot per l'inglese** (`translate_route`).
+  Anche queste appaiono nella schermata "Modelli AI" con download e
+  rimozione.
+- La sorgente e' la lingua fissata nei settings o quella **rilevata**
+  dall'ultima trascrizione (il worker la riporta, `detectedLanguage`).
+- Inferenza in **processo separato** (`ive/ai/translate/worker.py`) —
+  stesso contratto e stesse ragioni dei sottotitoli (OpenMP + crash).
+- I timing NON si toccano; il testo cambia in UN undo
+  (`apply_translations`); word timestamp e karaoke vengono azzerati
+  (appartengono alle parole della lingua originale) e il Ctrl+Z riporta
+  TUTTO, karaoke compreso. Le righe la cui traduzione supera ~21
+  caratteri/secondo vengono contate e segnalate, mai troncate.
+- UI nella card sottotitoli: chip di destinazione (EN/IT/PT/ES),
+  bottone Traduci, download coppia con dimensione, progresso e annulla;
+  azioni `subtitles.translate` / `set_translate_target` /
+  `download_translate_models`.
+- Test: `tests/test_translate.py` (26 check, coppie reali it→en e pivot
+  it→es), visual esteso in `test_subtitles_ui.py`.
+
+Punti gia' fissati dal progetto e ancora validi:
 - Traduzione **locale** di default (Argos Translate / OPUS-MT).
 - Il risultato e' una **nuova traccia di sottotitoli**, l'originale resta.
 - Un glossario per-progetto permette di forzare la traduzione di termini

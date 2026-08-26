@@ -140,313 +140,6 @@ Item {
             }
         }
 
-        // ── automatic subtitles ───────────────────────────────────
-        // The speech in the cut's A/V clips becomes editable titles on
-        // the Text lane - one undo step, every line correctable here
-        // like any other title. The model is a state: missing means an
-        // invitation to download (size and licence on show), never an
-        // error. Work runs elsewhere; this card only watches.
-        CardGroup {
-            visible: root.view === ""
-            title: Tr.s["subtitles.group"] || ""
-
-            Text {
-                visible: Subtitles.state === "backend_missing"
-                Layout.fillWidth: true
-                wrapMode: Text.WordWrap
-                text: Tr.s["subtitles.backend_missing"] || ""
-                color: Theme.c.textDisabled
-                font.pixelSize: Theme.m.fontSizeXs
-                lineHeight: 1.35
-            }
-
-            // What would be (or was) downloaded: name, size, licence.
-            Text {
-                visible: Subtitles.state !== "backend_missing"
-                Layout.fillWidth: true
-                text: Subtitles.modelName + " · " + Subtitles.modelSizeMb
-                      + " MB · " + Subtitles.modelLicense
-                color: Theme.c.textMuted
-                font.pixelSize: Theme.m.fontSizeXs
-                elide: Text.ElideRight
-            }
-
-            Rectangle {
-                objectName: "subtitles_download_button"
-                visible: Subtitles.state === "model_missing"
-                         && !Subtitles.downloading
-                Layout.fillWidth: true
-                Layout.preferredHeight: Theme.m.controlHeight
-                radius: Theme.m.radiusMd
-                color: dlHover.hovered ? Theme.c.bgHover
-                                       : Qt.alpha(Theme.c.glassOn, 0.08)
-                border.width: 1
-                border.color: Theme.c.border
-                Text {
-                    anchors.centerIn: parent
-                    text: (Tr.s["subtitles.download"] || "")
-                          + " (" + Subtitles.modelSizeMb + " MB)"
-                    color: Theme.c.text
-                    font.pixelSize: Theme.m.fontSizeSm
-                }
-                HoverHandler { id: dlHover
-                               cursorShape: Qt.PointingHandCursor }
-                TapHandler {
-                    onTapped: Actions.invoke("subtitles.download_model", {})
-                }
-            }
-
-            RowLayout {
-                visible: Subtitles.downloading
-                Layout.fillWidth: true
-                spacing: Theme.m.space2
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: 3
-                    Text {
-                        text: Tr.s["subtitles.downloading"] || ""
-                        color: Theme.c.textMuted
-                        font.pixelSize: Theme.m.fontSizeXs
-                    }
-                    Rectangle {
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: 3
-                        radius: 1.5
-                        color: Qt.alpha(Theme.c.glassOn, 0.10)
-                        Rectangle {
-                            width: parent.width * Subtitles.downloadProgress
-                            height: parent.height
-                            radius: 1.5
-                            color: Theme.c.accent
-                        }
-                    }
-                }
-                IconButton {
-                    objectName: "subtitles_download_cancel"
-                    size: 24; iconSize: 12
-                    icon: Icons.close
-                    label: Tr.s["export.cancel"] || ""
-                    onTriggered: Subtitles.cancel_download()
-                }
-            }
-
-            // The spoken language: auto-detect by default, a chip pins
-            // it when the detection guesses wrong on short clips.
-            Flow {
-                visible: Subtitles.state === "ready"
-                Layout.fillWidth: true
-                spacing: Theme.m.space1
-
-                Repeater {
-                    model: [{ code: "", label: Tr.s["subtitles.lang.auto"]
-                                            || "Auto" },
-                            { code: "it", label: "IT" },
-                            { code: "en", label: "EN" },
-                            { code: "pt", label: "PT" },
-                            { code: "es", label: "ES" },
-                            { code: "fr", label: "FR" },
-                            { code: "de", label: "DE" }]
-                    delegate: Rectangle {
-                        id: langChip
-                        required property var modelData
-                        objectName: "subtitles_lang_"
-                                    + (modelData.code || "auto")
-                        readonly property bool current:
-                            Subtitles.language === modelData.code
-                        width: langText.implicitWidth + Theme.m.space3 * 2
-                        height: 24
-                        radius: 999
-                        color: current ? Qt.alpha(Theme.c.accent, 0.2)
-                             : Qt.alpha(Theme.c.glassOn, 0.06)
-                        border.width: 1
-                        border.color: current ? Theme.c.accent
-                                              : Qt.alpha(Theme.c.glassOn, 0.12)
-                        Text {
-                            id: langText
-                            anchors.centerIn: parent
-                            text: langChip.modelData.label
-                            color: langChip.current ? Theme.c.text
-                                                    : Theme.c.textMuted
-                            font.pixelSize: Theme.m.fontSizeXs
-                            font.bold: langChip.current
-                        }
-                        HoverHandler { cursorShape: Qt.PointingHandCursor }
-                        TapHandler {
-                            onTapped: Actions.invoke(
-                                "subtitles.set_language",
-                                { language: langChip.modelData.code })
-                        }
-                    }
-                }
-            }
-
-            Rectangle {
-                objectName: "subtitles_generate_button"
-                visible: Subtitles.state === "ready" && !Subtitles.running
-                Layout.fillWidth: true
-                Layout.preferredHeight: Theme.m.controlHeight + 6
-                radius: Theme.m.radiusMd
-                color: genHover.hovered ? Qt.lighter(Theme.c.accent, 1.1)
-                                        : Theme.c.accent
-                opacity: Project.isOpen ? 1 : 0.4
-                Text {
-                    anchors.centerIn: parent
-                    text: Tr.s["subtitles.generate"] || ""
-                    color: "#FFFFFF"
-                    font.pixelSize: Theme.m.fontSizeSm + 2
-                    font.bold: true
-                }
-                HoverHandler { id: genHover
-                               cursorShape: Qt.PointingHandCursor }
-                TapHandler {
-                    enabled: Project.isOpen
-                    onTapped: Actions.invoke("timeline.auto_subtitles", {})
-                }
-            }
-
-            RowLayout {
-                visible: Subtitles.running
-                Layout.fillWidth: true
-                spacing: Theme.m.space2
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: 3
-                    Text {
-                        objectName: "subtitles_progress_label"
-                        text: (Tr.s["subtitles.running"] || "") + " "
-                              + Math.round(Subtitles.progress * 100) + "%"
-                        color: Theme.c.textMuted
-                        font.pixelSize: Theme.m.fontSizeXs
-                    }
-                    Rectangle {
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: 3
-                        radius: 1.5
-                        color: Qt.alpha(Theme.c.glassOn, 0.10)
-                        Rectangle {
-                            width: parent.width * Subtitles.progress
-                            height: parent.height
-                            radius: 1.5
-                            color: Theme.c.accent
-                        }
-                    }
-                }
-                IconButton {
-                    objectName: "subtitles_cancel"
-                    size: 24; iconSize: 12
-                    icon: Icons.close
-                    label: Tr.s["export.cancel"] || ""
-                    onTriggered: Actions.invoke("subtitles.cancel", {})
-                }
-            }
-
-            // The closing note: how many lines landed, or what went
-            // wrong. A cancel says nothing - the user did it.
-            Text {
-                objectName: "subtitles_result"
-                visible: !Subtitles.running
-                         && (Subtitles.lastCount > 0
-                             || (Subtitles.error !== ""
-                                 && Subtitles.error !== "cancelled"))
-                Layout.fillWidth: true
-                wrapMode: Text.WordWrap
-                text: Subtitles.error !== ""
-                          && Subtitles.error !== "cancelled"
-                      ? (Tr.s["subtitles.err." + Subtitles.error]
-                         || (Tr.s["subtitles.err.failed"] || "")
-                            .replace("{e}", Subtitles.error))
-                      : (Tr.s["subtitles.done"] || "")
-                            .replace("{n}", Subtitles.lastCount)
-                color: Subtitles.error !== ""
-                       && Subtitles.error !== "cancelled"
-                       ? Theme.c.danger : Theme.c.textMuted
-                font.pixelSize: Theme.m.fontSizeXs
-                lineHeight: 1.35
-            }
-
-            Text {
-                visible: Subtitles.state !== "backend_missing"
-                Layout.fillWidth: true
-                wrapMode: Text.WordWrap
-                text: Subtitles.state === "model_missing"
-                      ? (Tr.s["subtitles.missing_hint"] || "")
-                      : (Tr.s["subtitles.hint"] || "")
-                color: Theme.c.textDisabled
-                font.pixelSize: Theme.m.fontSizeXs
-                lineHeight: 1.35
-            }
-
-            // Files: the Text lane in and out as .srt/.vtt. No model
-            // needed - these work even where the speech engine cannot.
-            RowLayout {
-                id: fileRow
-                Layout.fillWidth: true
-                spacing: Theme.m.space2
-
-                readonly property bool hasTitles: {
-                    var clips = Project.timelineClips;
-                    for (var i = 0; i < clips.length; i++)
-                        if (clips[i].track === 3 && clips[i].text)
-                            return true;
-                    return false;
-                }
-
-                Repeater {
-                    model: [{ key: "import", enabled: Project.isOpen },
-                            { key: "export",
-                              enabled: fileRow.hasTitles }]
-                    delegate: Rectangle {
-                        id: fileButton
-                        required property var modelData
-                        objectName: "subtitles_" + modelData.key + "_button"
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: Theme.m.controlHeight - 4
-                        radius: Theme.m.radiusMd
-                        color: fileHover.hovered && modelData.enabled
-                               ? Theme.c.bgHover
-                               : Qt.alpha(Theme.c.glassOn, 0.08)
-                        border.width: 1
-                        border.color: Theme.c.border
-                        opacity: modelData.enabled ? 1 : 0.4
-                        Text {
-                            anchors.centerIn: parent
-                            text: Tr.s["subtitles." + fileButton.modelData.key]
-                                  || ""
-                            color: Theme.c.text
-                            font.pixelSize: Theme.m.fontSizeXs + 1
-                        }
-                        HoverHandler { id: fileHover
-                                       cursorShape: Qt.PointingHandCursor }
-                        TapHandler {
-                            enabled: fileButton.modelData.enabled
-                            onTapped: fileButton.modelData.key === "import"
-                                      ? importDialog.open()
-                                      : exportDialog.open()
-                        }
-                    }
-                }
-            }
-        }
-
-        FileDialog {
-            id: importDialog
-            title: Tr.s["subtitles.import"] || ""
-            fileMode: FileDialog.OpenFile
-            nameFilters: ["SRT / WebVTT (*.srt *.vtt)"]
-            onAccepted: Actions.invoke("subtitles.import_file",
-                                       { path: String(selectedFile) })
-        }
-
-        FileDialog {
-            id: exportDialog
-            title: Tr.s["subtitles.export"] || ""
-            fileMode: FileDialog.SaveFile
-            defaultSuffix: "srt"
-            nameFilters: ["SRT (*.srt)", "WebVTT (*.vtt)"]
-            onAccepted: Actions.invoke("subtitles.export_file",
-                                       { path: String(selectedFile) })
-        }
-
         // ── edit the selected title ───────────────────────────────
         CardGroup {
             visible: root.view === "" && root.textClip !== null
@@ -701,6 +394,502 @@ Item {
                 lineHeight: 1.35
             }
         }
+
+        // ── automatic subtitles ───────────────────────────────────
+        // The speech in the cut's A/V clips becomes editable titles on
+        // the Text lane - one undo step, every line correctable here
+        // like any other title. The model is a state: missing means an
+        // invitation to download (size and licence on show), never an
+        // error. Work runs elsewhere; this card only watches.
+        CardGroup {
+            visible: root.view === ""
+            title: Tr.s["subtitles.group"] || ""
+
+            Text {
+                visible: Subtitles.state === "backend_missing"
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                text: Tr.s["subtitles.backend_missing"] || ""
+                color: Theme.c.textDisabled
+                font.pixelSize: Theme.m.fontSizeXs
+                lineHeight: 1.35
+            }
+
+            // What would be (or was) downloaded: name, size, licence.
+            Text {
+                visible: Subtitles.state !== "backend_missing"
+                Layout.fillWidth: true
+                text: Subtitles.modelName + " · " + Subtitles.modelSizeMb
+                      + " MB · " + Subtitles.modelLicense
+                color: Theme.c.textMuted
+                font.pixelSize: Theme.m.fontSizeXs
+                elide: Text.ElideRight
+            }
+
+            Rectangle {
+                objectName: "subtitles_download_button"
+                visible: Subtitles.state === "model_missing"
+                         && !Subtitles.downloading
+                Layout.fillWidth: true
+                Layout.preferredHeight: Theme.m.controlHeight
+                radius: Theme.m.radiusMd
+                color: dlHover.hovered ? Theme.c.bgHover
+                                       : Qt.alpha(Theme.c.glassOn, 0.08)
+                border.width: 1
+                border.color: Theme.c.border
+                Text {
+                    anchors.centerIn: parent
+                    text: (Tr.s["subtitles.download"] || "")
+                          + " (" + Subtitles.modelSizeMb + " MB)"
+                    color: Theme.c.text
+                    font.pixelSize: Theme.m.fontSizeSm
+                }
+                HoverHandler { id: dlHover
+                               cursorShape: Qt.PointingHandCursor }
+                TapHandler {
+                    onTapped: Actions.invoke("subtitles.download_model", {})
+                }
+            }
+
+            RowLayout {
+                visible: Subtitles.downloading
+                Layout.fillWidth: true
+                spacing: Theme.m.space2
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 3
+                    Text {
+                        text: Tr.s["subtitles.downloading"] || ""
+                        color: Theme.c.textMuted
+                        font.pixelSize: Theme.m.fontSizeXs
+                    }
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 3
+                        radius: 1.5
+                        color: Qt.alpha(Theme.c.glassOn, 0.10)
+                        Rectangle {
+                            width: parent.width * Subtitles.downloadProgress
+                            height: parent.height
+                            radius: 1.5
+                            color: Theme.c.accent
+                        }
+                    }
+                }
+                IconButton {
+                    objectName: "subtitles_download_cancel"
+                    size: 24; iconSize: 12
+                    icon: Icons.close
+                    label: Tr.s["export.cancel"] || ""
+                    onTriggered: Subtitles.cancel_download()
+                }
+            }
+
+            // The spoken language: auto-detect by default, a chip pins
+            // it when the detection guesses wrong on short clips.
+            Flow {
+                visible: Subtitles.state === "ready"
+                Layout.fillWidth: true
+                spacing: Theme.m.space1
+
+                Repeater {
+                    model: [{ code: "", label: Tr.s["subtitles.lang.auto"]
+                                            || "Auto" },
+                            { code: "it", label: "IT" },
+                            { code: "en", label: "EN" },
+                            { code: "pt", label: "PT" },
+                            { code: "es", label: "ES" },
+                            { code: "fr", label: "FR" },
+                            { code: "de", label: "DE" }]
+                    delegate: Rectangle {
+                        id: langChip
+                        required property var modelData
+                        objectName: "subtitles_lang_"
+                                    + (modelData.code || "auto")
+                        readonly property bool current:
+                            Subtitles.language === modelData.code
+                        width: langText.implicitWidth + Theme.m.space3 * 2
+                        height: 24
+                        radius: 999
+                        color: current ? Qt.alpha(Theme.c.accent, 0.2)
+                             : Qt.alpha(Theme.c.glassOn, 0.06)
+                        border.width: 1
+                        border.color: current ? Theme.c.accent
+                                              : Qt.alpha(Theme.c.glassOn, 0.12)
+                        Text {
+                            id: langText
+                            anchors.centerIn: parent
+                            text: langChip.modelData.label
+                            color: langChip.current ? Theme.c.text
+                                                    : Theme.c.textMuted
+                            font.pixelSize: Theme.m.fontSizeXs
+                            font.bold: langChip.current
+                        }
+                        HoverHandler { cursorShape: Qt.PointingHandCursor }
+                        TapHandler {
+                            onTapped: Actions.invoke(
+                                "subtitles.set_language",
+                                { language: langChip.modelData.code })
+                        }
+                    }
+                }
+            }
+
+            Rectangle {
+                objectName: "subtitles_generate_button"
+                visible: Subtitles.state === "ready" && !Subtitles.running
+                Layout.fillWidth: true
+                Layout.preferredHeight: Theme.m.controlHeight + 6
+                radius: Theme.m.radiusMd
+                color: genHover.hovered ? Qt.lighter(Theme.c.accent, 1.1)
+                                        : Theme.c.accent
+                opacity: Project.isOpen ? 1 : 0.4
+                Text {
+                    anchors.centerIn: parent
+                    text: Tr.s["subtitles.generate"] || ""
+                    color: "#FFFFFF"
+                    font.pixelSize: Theme.m.fontSizeSm + 2
+                    font.bold: true
+                }
+                HoverHandler { id: genHover
+                               cursorShape: Qt.PointingHandCursor }
+                TapHandler {
+                    enabled: Project.isOpen
+                    onTapped: Actions.invoke("timeline.auto_subtitles", {})
+                }
+            }
+
+            RowLayout {
+                visible: Subtitles.running
+                Layout.fillWidth: true
+                spacing: Theme.m.space2
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 3
+                    Text {
+                        objectName: "subtitles_progress_label"
+                        text: (Tr.s["subtitles.running"] || "") + " "
+                              + Math.round(Subtitles.progress * 100) + "%"
+                        color: Theme.c.textMuted
+                        font.pixelSize: Theme.m.fontSizeXs
+                    }
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 3
+                        radius: 1.5
+                        color: Qt.alpha(Theme.c.glassOn, 0.10)
+                        Rectangle {
+                            width: parent.width * Subtitles.progress
+                            height: parent.height
+                            radius: 1.5
+                            color: Theme.c.accent
+                        }
+                    }
+                }
+                IconButton {
+                    objectName: "subtitles_cancel"
+                    size: 24; iconSize: 12
+                    icon: Icons.close
+                    label: Tr.s["export.cancel"] || ""
+                    onTriggered: Actions.invoke("subtitles.cancel", {})
+                }
+            }
+
+            // ── translation ───────────────────────────────────
+            // The Text lane into another language: timings stay,
+            // one undo brings the original back. The pairs are
+            // models like the speech one - explicit downloads.
+            RowLayout {
+                visible: Subtitles.state !== "backend_missing"
+                Layout.fillWidth: true
+                spacing: Theme.m.space2
+                Text {
+                    text: Tr.s["subtitles.translate_to"] || ""
+                    color: Theme.c.textMuted
+                    font.pixelSize: Theme.m.fontSizeXs
+                }
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: Theme.m.space1
+                    Repeater {
+                        model: ["en", "it", "pt", "es"]
+                        delegate: Rectangle {
+                            id: targetChip
+                            required property var modelData
+                            objectName: "subtitles_target_" + modelData
+                            readonly property bool current:
+                                Subtitles.translateTarget === modelData
+                            width: targetText.implicitWidth
+                                   + Theme.m.space3 * 2
+                            height: 24
+                            radius: 999
+                            color: current ? Qt.alpha(Theme.c.accent, 0.2)
+                                 : Qt.alpha(Theme.c.glassOn, 0.06)
+                            border.width: 1
+                            border.color: current ? Theme.c.accent
+                                : Qt.alpha(Theme.c.glassOn, 0.12)
+                            Text {
+                                id: targetText
+                                anchors.centerIn: parent
+                                text: targetChip.modelData.toUpperCase()
+                                color: targetChip.current ? Theme.c.text
+                                                          : Theme.c.textMuted
+                                font.pixelSize: Theme.m.fontSizeXs
+                                font.bold: targetChip.current
+                            }
+                            HoverHandler {
+                                cursorShape: Qt.PointingHandCursor }
+                            TapHandler {
+                                onTapped: Actions.invoke(
+                                    "subtitles.set_translate_target",
+                                    { language: targetChip.modelData })
+                            }
+                        }
+                    }
+                }
+            }
+
+            Rectangle {
+                objectName: "subtitles_translate_button"
+                visible: Subtitles.state !== "backend_missing"
+                         && Subtitles.translateState === "ready"
+                         && !Subtitles.translating
+                Layout.fillWidth: true
+                Layout.preferredHeight: Theme.m.controlHeight
+                radius: Theme.m.radiusMd
+                color: trHover.hovered && fileRow.hasTitles
+                       ? Theme.c.bgHover : Qt.alpha(Theme.c.glassOn, 0.08)
+                border.width: 1
+                border.color: Theme.c.border
+                opacity: fileRow.hasTitles ? 1 : 0.4
+                Text {
+                    anchors.centerIn: parent
+                    text: Tr.s["subtitles.translate"] || ""
+                    color: Theme.c.text
+                    font.pixelSize: Theme.m.fontSizeSm
+                }
+                HoverHandler { id: trHover
+                               cursorShape: Qt.PointingHandCursor }
+                TapHandler {
+                    enabled: fileRow.hasTitles
+                    onTapped: Actions.invoke("subtitles.translate", {})
+                }
+            }
+
+            Rectangle {
+                objectName: "subtitles_translate_download"
+                visible: Subtitles.state !== "backend_missing"
+                         && Subtitles.translateState === "model_missing"
+                         && !Subtitles.downloading
+                Layout.fillWidth: true
+                Layout.preferredHeight: Theme.m.controlHeight
+                radius: Theme.m.radiusMd
+                color: trdlHover.hovered ? Theme.c.bgHover
+                                         : Qt.alpha(Theme.c.glassOn, 0.08)
+                border.width: 1
+                border.color: Theme.c.border
+                Text {
+                    anchors.centerIn: parent
+                    text: (Tr.s["subtitles.translate_dl"] || "")
+                          + " (" + Subtitles.translateMissingMb + " MB)"
+                    color: Theme.c.text
+                    font.pixelSize: Theme.m.fontSizeSm
+                }
+                HoverHandler { id: trdlHover
+                               cursorShape: Qt.PointingHandCursor }
+                TapHandler {
+                    onTapped: Actions.invoke(
+                        "subtitles.download_translate_models", {})
+                }
+            }
+
+            Text {
+                visible: Subtitles.state !== "backend_missing"
+                         && Subtitles.translateState === "no_source"
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                text: Tr.s["subtitles.err.no_source"] || ""
+                color: Theme.c.textDisabled
+                font.pixelSize: Theme.m.fontSizeXs
+                lineHeight: 1.35
+            }
+
+            RowLayout {
+                visible: Subtitles.translating
+                Layout.fillWidth: true
+                spacing: Theme.m.space2
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 3
+                    Text {
+                        objectName: "subtitles_translate_progress"
+                        text: (Tr.s["subtitles.translating"] || "") + " "
+                              + Math.round(Subtitles.translateProgress
+                                           * 100) + "%"
+                        color: Theme.c.textMuted
+                        font.pixelSize: Theme.m.fontSizeXs
+                    }
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 3
+                        radius: 1.5
+                        color: Qt.alpha(Theme.c.glassOn, 0.10)
+                        Rectangle {
+                            width: parent.width
+                                   * Subtitles.translateProgress
+                            height: parent.height
+                            radius: 1.5
+                            color: Theme.c.accent
+                        }
+                    }
+                }
+                IconButton {
+                    objectName: "subtitles_translate_cancel"
+                    size: 24; iconSize: 12
+                    icon: Icons.close
+                    label: Tr.s["export.cancel"] || ""
+                    onTriggered: Subtitles.cancel_translate()
+                }
+            }
+
+            Text {
+                objectName: "subtitles_translate_result"
+                visible: !Subtitles.translating
+                         && (Subtitles.lastTranslated > 0
+                             || (Subtitles.translateError !== ""
+                                 && Subtitles.translateError !== "cancelled"))
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                text: {
+                    if (Subtitles.translateError !== ""
+                            && Subtitles.translateError !== "cancelled")
+                        return Tr.s["subtitles.err."
+                                    + Subtitles.translateError]
+                            || (Tr.s["subtitles.err.failed"] || "")
+                                .replace("{e}", Subtitles.translateError);
+                    var note = (Tr.s["subtitles.translated"] || "")
+                        .replace("{n}", Subtitles.lastTranslated);
+                    if (Subtitles.longLines > 0)
+                        note += " " + (Tr.s["subtitles.long_lines"] || "")
+                            .replace("{n}", Subtitles.longLines);
+                    return note;
+                }
+                color: Subtitles.translateError !== ""
+                       && Subtitles.translateError !== "cancelled"
+                       ? Theme.c.danger
+                       : (Subtitles.longLines > 0 ? Theme.c.warning
+                                                  : Theme.c.textMuted)
+                font.pixelSize: Theme.m.fontSizeXs
+                lineHeight: 1.35
+            }
+
+            // The closing note: how many lines landed, or what went
+            // wrong. A cancel says nothing - the user did it.
+            Text {
+                objectName: "subtitles_result"
+                visible: !Subtitles.running
+                         && (Subtitles.lastCount > 0
+                             || (Subtitles.error !== ""
+                                 && Subtitles.error !== "cancelled"))
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                text: Subtitles.error !== ""
+                          && Subtitles.error !== "cancelled"
+                      ? (Tr.s["subtitles.err." + Subtitles.error]
+                         || (Tr.s["subtitles.err.failed"] || "")
+                            .replace("{e}", Subtitles.error))
+                      : (Tr.s["subtitles.done"] || "")
+                            .replace("{n}", Subtitles.lastCount)
+                color: Subtitles.error !== ""
+                       && Subtitles.error !== "cancelled"
+                       ? Theme.c.danger : Theme.c.textMuted
+                font.pixelSize: Theme.m.fontSizeXs
+                lineHeight: 1.35
+            }
+
+            Text {
+                visible: Subtitles.state !== "backend_missing"
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                text: Subtitles.state === "model_missing"
+                      ? (Tr.s["subtitles.missing_hint"] || "")
+                      : (Tr.s["subtitles.hint"] || "")
+                color: Theme.c.textDisabled
+                font.pixelSize: Theme.m.fontSizeXs
+                lineHeight: 1.35
+            }
+
+            // Files: the Text lane in and out as .srt/.vtt. No model
+            // needed - these work even where the speech engine cannot.
+            RowLayout {
+                id: fileRow
+                Layout.fillWidth: true
+                spacing: Theme.m.space2
+
+                readonly property bool hasTitles: {
+                    var clips = Project.timelineClips;
+                    for (var i = 0; i < clips.length; i++)
+                        if (clips[i].track === 3 && clips[i].text)
+                            return true;
+                    return false;
+                }
+
+                Repeater {
+                    model: [{ key: "import", enabled: Project.isOpen },
+                            { key: "export",
+                              enabled: fileRow.hasTitles }]
+                    delegate: Rectangle {
+                        id: fileButton
+                        required property var modelData
+                        objectName: "subtitles_" + modelData.key + "_button"
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: Theme.m.controlHeight - 4
+                        radius: Theme.m.radiusMd
+                        color: fileHover.hovered && modelData.enabled
+                               ? Theme.c.bgHover
+                               : Qt.alpha(Theme.c.glassOn, 0.08)
+                        border.width: 1
+                        border.color: Theme.c.border
+                        opacity: modelData.enabled ? 1 : 0.4
+                        Text {
+                            anchors.centerIn: parent
+                            text: Tr.s["subtitles." + fileButton.modelData.key]
+                                  || ""
+                            color: Theme.c.text
+                            font.pixelSize: Theme.m.fontSizeXs + 1
+                        }
+                        HoverHandler { id: fileHover
+                                       cursorShape: Qt.PointingHandCursor }
+                        TapHandler {
+                            enabled: fileButton.modelData.enabled
+                            onTapped: fileButton.modelData.key === "import"
+                                      ? importDialog.open()
+                                      : exportDialog.open()
+                        }
+                    }
+                }
+            }
+        }
+
+        FileDialog {
+            id: importDialog
+            title: Tr.s["subtitles.import"] || ""
+            fileMode: FileDialog.OpenFile
+            nameFilters: ["SRT / WebVTT (*.srt *.vtt)"]
+            onAccepted: Actions.invoke("subtitles.import_file",
+                                       { path: String(selectedFile) })
+        }
+
+        FileDialog {
+            id: exportDialog
+            title: Tr.s["subtitles.export"] || ""
+            fileMode: FileDialog.SaveFile
+            defaultSuffix: "srt"
+            nameFilters: ["SRT (*.srt)", "WebVTT (*.vtt)"]
+            onAccepted: Actions.invoke("subtitles.export_file",
+                                       { path: String(selectedFile) })
+        }
+
 
         // ── the font list ─────────────────────────────────────────
         CardGroup {

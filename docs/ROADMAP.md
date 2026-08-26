@@ -300,7 +300,13 @@ Nell'ordine, per rapporto valore/rischio:
       SRT e VTT, karaoke per parola (timestamp nel modello, switch per
       clip, pixel-verificato), lingua dalla UI, schermata "Modelli AI"
       nelle impostazioni (download/rimozione per modello). Resta: ASS
-- [ ] **Traduzione** dei sottotitoli
+- [x] **Traduzione** dei sottotitoli (2026-08-26): coppie OPUS-MT di
+      Argos caricate direttamente con ctranslate2+sentencepiece (niente
+      argostranslate/stanza), it/pt/es↔en a catalogo con pivot per
+      l'inglese, sorgente = lingua fissata o rilevata, timing intatti,
+      un undo, righe troppo veloci segnalate; worker in processo
+      separato; UI nella card sottotitoli e coppie nella schermata
+      Modelli AI. Vedi `AI_FEATURES.md` §5
 - [ ] **Rimozione sfondo** — attenzione alle licenze
 - [ ] **Motion tracking** — prima i tracker OpenCV, poi il livello AI
 - [ ] **Frame interpolation** — il piu' costoso, per ultimo

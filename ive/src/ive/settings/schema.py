@@ -140,6 +140,11 @@ SETTINGS: dict[str, Setting] = {
         _s("ai.subtitles_language", "", str,
            doc="Spoken language for the automatic subtitles as an ISO code "
                "('it', 'en', ...); empty means detect it from the audio."),
+        _s("ai.translate_target", "en", str,
+           choices=("en", "it", "pt", "es"),
+           doc="Language the subtitle translation writes. The source is "
+               "the pinned subtitles language, or the one the speech "
+               "model detected. Missing pairs pivot through English."),
 
         # ── stickers and transitions ────────────────────────────────────
         _s("sticker.favorites", [], list,

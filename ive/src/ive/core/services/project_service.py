@@ -521,6 +521,47 @@ class ProjectService(QObject):
         log.info("Subtitles placed: %d lines", len(payload))
         return len(payload)
 
+    @Slot("QVariantList", result=int)
+    def apply_translations(self, changes: list) -> int:
+        """Translated words land on their clips - ONE undo step.
+
+        Each entry is ``{"clip_id", "text"}``. Timings stay exactly as
+        they were (docs/AI_FEATURES.md §5); the WORD timestamps and the
+        karaoke switch are cleared, because they belong to the original
+        language's words and lighting the wrong ones would be worse
+        than lighting none. Ctrl+Z brings the original text (and its
+        karaoke) back whole. Returns how many clips changed.
+        """
+        if self._project is None:
+            return 0
+        payload = []
+        for raw in (changes.toVariant() if hasattr(changes, "toVariant")
+                    else changes) or []:
+            clip_id = str(raw.get("clip_id") or "")
+            text = str(raw.get("text") or "").strip()
+            if clip_id and text:
+                payload.append((clip_id, text))
+        if not payload:
+            return 0
+        applied = 0
+
+        def mutate():
+            nonlocal applied
+            for clip_id, text in payload:
+                clip = self._project.find_clip(clip_id)
+                if clip is None or not clip.text:
+                    continue
+                clip.text = text
+                clip.words = []
+                clip.karaoke = False
+                applied += 1
+            return applied > 0
+
+        if not self._edit("subtitles.translate", mutate):
+            return 0
+        log.info("Translations applied: %d clips", applied)
+        return applied
+
     @Slot(str, bool, result=bool)
     def set_clip_karaoke(self, clip_id: str, enabled: bool) -> bool:
         """Light the words of one subtitle up as they are spoken."""

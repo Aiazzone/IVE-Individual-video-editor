@@ -76,6 +76,8 @@ def main() -> int:
         print(json.dumps({"error": f"unexpected: {exc}"}), flush=True)
         return 5
 
+    if task.last_language:
+        print(json.dumps({"language": task.last_language}), flush=True)
     print(json.dumps({"lines": [
         {"start": round(line.start, 3), "end": round(line.end, 3),
          "text": line.text,

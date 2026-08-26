@@ -133,6 +133,59 @@ def set_language(ctx, language: str = ""):
 
 
 @action(
+    id="subtitles.translate",
+    title_key="subtitles.translate",
+    desc_key="Translate every subtitle on the Text lane into the target "
+             "language (optional 'language' overrides the setting). "
+             "Timings stay; one undo step brings the original back. The "
+             "source is the pinned subtitles language or the detected "
+             "one; missing pairs pivot through English.",
+    category="timeline",
+    params={
+        "language": Param(str, required=False,
+                          doc="Target ISO code; '' = the setting."),
+    },
+)
+def translate(ctx, language: str = ""):
+    service = ctx.require("subtitles")
+    if language:
+        ctx.require("settings").set("ai.translate_target",
+                                    str(language).strip().lower())
+        service.refresh()
+    if not service.translate():
+        state = service.translateState
+        if state != "ready":
+            raise RuntimeError(f"Translation unavailable: {state}")
+        raise RuntimeError(service.translateError or "Nothing to translate")
+
+
+@action(
+    id="subtitles.set_translate_target",
+    title_key="subtitles.translate_to",
+    desc_key="Choose the language the subtitle translation writes "
+             "(en, it, pt, es).",
+    category="ai",
+    params={"language": Param(str, required=True)},
+)
+def set_translate_target(ctx, language: str):
+    ctx.require("settings").set("ai.translate_target",
+                                str(language).strip().lower())
+    ctx.require("subtitles").refresh()
+
+
+@action(
+    id="subtitles.download_translate_models",
+    title_key="subtitles.translate_dl",
+    desc_key="Download the missing translation pair(s) for the current "
+             "source and target languages. Explicit and hash-verified.",
+    category="ai",
+)
+def download_translate_models(ctx):
+    if not ctx.require("subtitles").download_translate_models():
+        raise RuntimeError("Nothing to download, or one is running")
+
+
+@action(
     id="subtitles.cancel",
     title_key="subtitles.cancel",
     desc_key="Stop the running subtitle generation or model download.",
@@ -141,4 +194,5 @@ def set_language(ctx, language: str = ""):
 def cancel(ctx):
     service = ctx.require("subtitles")
     service.cancel()
+    service.cancel_translate()
     service.cancel_download()
