@@ -81,6 +81,24 @@ def set_clip_volume(ctx, clip_id: str, volume: float):
 
 
 @action(
+    id="timeline.set_clip_speed",
+    title_key="timeline.speed",
+    desc_key="Playback pace of one A/V clip: 0.5 is slow motion, 2 twice "
+             "as fast. The clip keeps showing the same footage, so its "
+             "timeline length changes and the track reflows. The pitch "
+             "follows the pace.",
+    category="timeline",
+    params={
+        "clip_id": Param(str, required=True),
+        "speed": Param(float, required=True, doc="0.1 to 8."),
+    },
+)
+def set_clip_speed(ctx, clip_id: str, speed: float):
+    if not ctx.require("project").set_clip_speed(clip_id, speed):
+        raise RuntimeError(f"Clip {clip_id} cannot change pace")
+
+
+@action(
     id="timeline.place_effect",
     title_key="timeline.place_effect",
     desc_key="Put a colour effect on the Color lane, covering a stretch of "

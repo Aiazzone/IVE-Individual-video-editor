@@ -262,6 +262,7 @@ class ProjectService(QObject):
                 "duration": clip.duration,
                 "end": clip.end,
                 "sourceIn": clip.source_in,
+                "speed": clip.speed,
                 "transitionId": clip.transition_id,
                 "transitionDuration": clip.transition_duration,
                 "transitionInId": clip.transition_in_id,
@@ -739,6 +740,13 @@ class ProjectService(QObject):
                           lambda: self._project.trim_clip(
                               clip_id, source_in, duration,
                               start=None if start < 0 else float(start)))
+
+    @Slot(str, float, result=bool)
+    def set_clip_speed(self, clip_id: str, speed: float) -> bool:
+        """Change an A/V clip's pace (0.1-8x); the track reflows."""
+        return self._edit("timeline.speed",
+                          lambda: self._project.set_clip_speed(clip_id,
+                                                               speed))
 
     @Slot(str, bool, result=bool)
     def set_clip_muted(self, clip_id: str, muted: bool) -> bool:

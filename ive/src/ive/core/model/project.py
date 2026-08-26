@@ -116,6 +116,11 @@ class TimelineClip:
     id: str = field(default_factory=_new_id)
     #: Offset into the source file, in seconds. Split sets it; 0 = the head.
     source_in: float = 0.0
+    #: Playback pace: 2.0 shows the material twice as fast (and the clip
+    #: occupies half the timeline), 0.5 is slow motion. One TIMELINE
+    #: second consumes ``speed`` SOURCE seconds - the conversion every
+    #: piece of source_in arithmetic below must apply.
+    speed: float = 1.0
     #: Audio gain of this clip: 1 = as recorded, 0 = silent, up to 2.
     volume: float = 1.0
     #: False = the clip's sound is removed from the sequence. Separate from
@@ -236,6 +241,7 @@ class TimelineClip:
             track=_as_int(data.get("track")),
             id=_as_str(data.get("id")) or _new_id(),
             source_in=max(0.0, _as_float(data.get("source_in"))),
+            speed=min(8.0, max(0.1, _as_float(data.get("speed"), 1.0))),
             volume=min(2.0, max(0.0, _as_float(data.get("volume"), 1.0))),
             audio_enabled=bool(data.get("audio_enabled", True)),
             muted=bool(data.get("muted", False)),
@@ -493,6 +499,26 @@ class Project:
         clip.italic = bool(italic)
         return True
 
+    def set_clip_speed(self, clip_id: str, speed: float) -> bool:
+        """Change an A/V clip's pace; the SOURCE material stays the same.
+
+        CapCut semantics: the clip keeps showing exactly the span of
+        footage it showed, so at 2x it occupies half the timeline and
+        the gapless track reflows around it. Clamped to 0.1-8x and to
+        the tenth-of-a-second minimum every clip has.
+        """
+        clip = self.find_clip(clip_id)
+        if clip is None or not clip.media_id or clip.track != 0:
+            return False
+        speed = min(8.0, max(0.1, float(speed)))
+        if abs(speed - clip.speed) < 1e-6:
+            return True
+        source_span = clip.duration * clip.speed
+        clip.duration = max(0.1, source_span / speed)
+        clip.speed = speed
+        self.reflow(0)
+        return True
+
     def set_clip_karaoke(self, clip_id: str, enabled: bool,
                          color: str = "") -> bool:
         """Turn per-word highlighting on or off for one text clip.
@@ -672,7 +698,10 @@ class Project:
             start=clip.start + offset,
             duration=clip.duration - offset,
             track=clip.track,
-            source_in=clip.source_in + offset,
+            # `offset` is TIMELINE seconds; the source advances at the
+            # clip's own pace.
+            source_in=clip.source_in + offset * clip.speed,
+            speed=clip.speed,
             volume=clip.volume,
             audio_enabled=clip.audio_enabled,
             muted=clip.muted,
@@ -770,7 +799,9 @@ class Project:
         duration = max(0.1, float(duration))
         if limit is not None:
             source_in = min(source_in, max(0.0, limit - 0.1))
-            duration = min(duration, limit - source_in)
+            # `duration` is TIMELINE seconds; the source is consumed at
+            # the clip's pace, so the ceiling scales with the speed.
+            duration = min(duration, (limit - source_in) / clip.speed)
         clip.source_in = source_in
         clip.duration = duration
         if start is not None:

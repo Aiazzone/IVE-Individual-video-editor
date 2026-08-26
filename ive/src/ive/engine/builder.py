@@ -19,7 +19,8 @@ from pathlib import Path
 from ive.engine.filters import AudioEffect, AudioRamp, Gain, Placement
 from ive.engine.frame import AudioFormat, Timebase
 from ive.engine.playlist import Entry, Playlist
-from ive.engine.producer import ClipProducer, ColourProducer, Producer
+from ive.engine.producer import (ClipProducer, ColourProducer, Producer,
+                                 SpeedProducer)
 from ive.engine.tractor import Track, Tractor
 
 log = logging.getLogger(__name__)
@@ -204,10 +205,18 @@ class GraphBuilder:
             if producer is None:
                 continue
             used_keys.add(f"{bucket}|{path}")
+            # Speed: the shared producer gets a cheap per-entry wrapper
+            # that plays it at another pace. In the wrapper's timeline a
+            # media second sits at second/speed, so the head offset is
+            # scaled the same way.
+            speed = float(clip.get("speed") or 1.0)
+            source_in_seconds = float(clip.get("sourceIn") or 0.0)
+            if abs(speed - 1.0) > 1e-3:
+                producer = SpeedProducer(producer, speed)
+                source_in_seconds = source_in_seconds / speed
             entry = Entry(
                 producer=producer,
-                source_in=self.timebase.seconds_to_frames(
-                    float(clip.get("sourceIn") or 0.0)),
+                source_in=self.timebase.seconds_to_frames(source_in_seconds),
                 length=length,
                 clip_id=str(clip.get("id") or ""),
             )

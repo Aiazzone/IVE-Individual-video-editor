@@ -109,6 +109,7 @@ Item {
                            name: c.name, film: false, id: c.id, wave: true,
                            path: c.path, sourceIn: c.sourceIn,
                            mediaDuration: c.mediaDuration,
+                           speed: c.speed || 1,
                            fadeIn: c.fadeIn, fadeOut: c.fadeOut,
                            effect: c.audioEffectId };
               }) }
@@ -620,6 +621,63 @@ Item {
                 font.family: "monospace"
             }
 
+            // The selected VIDEO clip's pace: preset chips, CapCut's
+            // set. Committed at once (a deliberate choice, one undo
+            // each); the clip's timeline length follows the pace, the
+            // track reflows.
+            Text {
+                visible: speedChips.visible
+                text: Tr.s["timeline.speed"] || ""
+                color: Qt.alpha(root.onGlass, 0.72)
+                font.pixelSize: Theme.m.fontSizeXs
+            }
+            Row {
+                id: speedChips
+                visible: root.selectedKind === "video"
+                         && root.selectedClipData !== null
+                spacing: 2
+                Repeater {
+                    model: [0.25, 0.5, 1, 1.5, 2, 4]
+                    delegate: Rectangle {
+                        id: speedChip
+                        required property var modelData
+                        objectName: "timeline_speed_" + modelData
+                        readonly property bool current:
+                            root.selectedClipData !== null
+                            && Math.abs((root.selectedClipData.speed || 1)
+                                        - modelData) < 0.011
+                        width: speedText.implicitWidth + 10
+                        height: 20
+                        radius: 999
+                        color: current ? Qt.alpha(Theme.c.accent, 0.25)
+                             : Qt.alpha(root.onGlass, 0.08)
+                        border.width: 1
+                        border.color: current ? Theme.c.accent
+                            : Qt.alpha(root.onGlass, 0.16)
+                        Text {
+                            id: speedText
+                            anchors.centerIn: parent
+                            text: speedChip.modelData + "x"
+                            color: speedChip.current
+                                ? root.onGlass
+                                : Qt.alpha(root.onGlass, 0.72)
+                            font.pixelSize: Theme.m.fontSizeXs
+                            font.bold: speedChip.current
+                        }
+                        HoverHandler { cursorShape: Qt.PointingHandCursor }
+                        TapHandler {
+                            onTapped: {
+                                if (root.selectedClipData !== null)
+                                    Actions.invoke("timeline.set_clip_speed", {
+                                        clip_id: root.selectedClipData.id,
+                                        speed: speedChip.modelData
+                                    });
+                            }
+                        }
+                    }
+                }
+            }
+
             // The selected TRANSITION's duration. At default zoom a pill
             // can be a handful of pixels wide, far too small to trim by
             // its edges - this slider is the reliable way to stretch it.
@@ -1093,9 +1151,15 @@ Item {
                                     readonly property real clipSeconds:
                                         Math.max(0.001, clip.modelData.to
                                                         - clip.modelData.from)
+                                    // In TIMELINE seconds: a sped-up clip
+                                    // squeezes the whole file into fewer
+                                    // of them, and the strip follows.
+                                    readonly property real paceOf:
+                                        clip.modelData.speed || 1
                                     readonly property real mediaSeconds:
                                         clip.modelData.mediaDuration > 0
                                             ? clip.modelData.mediaDuration
+                                              / paceOf
                                             : clipSeconds
 
                                     // The wave wears the clip's own colour, a
@@ -1116,7 +1180,8 @@ Item {
                                                * waveBox.mediaSeconds
                                                / waveBox.clipSeconds
                                         x: -parent.width
-                                           * (clip.modelData.sourceIn || 0)
+                                           * ((clip.modelData.sourceIn || 0)
+                                              / waveBox.paceOf)
                                            / waveBox.clipSeconds
                                         source: {
                                             Waves.rev;   // re-ask on arrival
@@ -1376,11 +1441,15 @@ Item {
                                             // A clip WITH a source cannot show
                                             // material before its own frame 0;
                                             // one without (sticker, text,
-                                            // effect) grows left freely.
+                                            // effect) grows left freely. The
+                                            // source is consumed at the clip's
+                                            // PACE: at 2x, one second of head
+                                            // room is half a timeline second.
                                             var minStart = clipData
                                                 && clipData.mediaDuration > 0
                                                 ? clip.modelData.from
                                                   - clipData.sourceIn
+                                                    / (clipData.speed || 1)
                                                 : 0;
                                             proposed = Math.max(minStart,
                                                 Math.min(clip.modelData.to - 0.1,
@@ -1406,7 +1475,9 @@ Item {
                                                 return;
                                             Actions.invoke("timeline.trim_clip", {
                                                 clip_id: clipData.id,
-                                                source_in: clipData.sourceIn + delta,
+                                                source_in: clipData.sourceIn
+                                                    + delta * (clipData.speed
+                                                               || 1),
                                                 duration: clipData.duration - delta,
                                                 // The LEFT edge is the one
                                                 // moving: free lanes take the
@@ -1444,11 +1515,14 @@ Item {
                                             var clipData = root.clipDataFor(
                                                 clip.modelData.id);
                                             // The tail cannot outrun the
-                                            // source material.
+                                            // source material - which lasts
+                                            // fewer timeline seconds the
+                                            // faster the clip plays.
                                             var maxEnd = clip.modelData.from
                                                 + (clipData && clipData.mediaDuration > 0
-                                                   ? clipData.mediaDuration
-                                                     - clipData.sourceIn
+                                                   ? (clipData.mediaDuration
+                                                      - clipData.sourceIn)
+                                                     / (clipData.speed || 1)
                                                    : 1e9);
                                             proposed = Math.min(maxEnd,
                                                 Math.max(clip.modelData.from + 0.1,

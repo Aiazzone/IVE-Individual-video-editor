@@ -23,7 +23,7 @@ from ive.engine.frame import AudioFormat, Frame, Timebase
 
 log = logging.getLogger(__name__)
 
-__all__ = ["Producer", "ColourProducer", "ClipProducer"]
+__all__ = ["Producer", "ColourProducer", "ClipProducer", "SpeedProducer"]
 
 
 class Producer(ABC):
@@ -205,6 +205,81 @@ class ClipProducer(Producer):
         if self._audio is not None:
             self._audio.close()
             self._audio = None
+
+
+class SpeedProducer(Producer):
+    """A per-entry view of a :class:`ClipProducer` at another pace.
+
+    ``speed`` 2.0 plays the material twice as fast: one sequence frame
+    consumes two source frames of picture and two frames' worth of
+    sound, resampled down to the frame's own sample count. The pitch
+    follows the pace (the tape-machine behaviour); pitch preservation
+    is a future refinement, not silently faked here.
+
+    The wrapper is cheap and PER ENTRY: the underlying producer stays
+    shared per (roll, file) exactly as before, so two clips cut from
+    the same file at different speeds still read one decoder forward.
+    Video is mapped through TIME - the same rate-conversion door a
+    30 fps clip on a 25 fps timeline already goes through - so VFR and
+    mixed rates keep working at any pace.
+    """
+
+    def __init__(self, clip: ClipProducer, speed: float) -> None:
+        self._clip = clip
+        self._speed = max(0.05, float(speed))
+        self.timebase = clip.timebase
+        self.audio_format = clip.audio_format
+        self.name = f"{clip.name}@{self._speed:g}x"
+        self.length = max(1, int(round(clip.length / self._speed)))
+
+    def frame_at(self, position: int) -> Frame | None:
+        if not (0 <= position < self.length):
+            return None
+        clip = self._clip
+        speed = self._speed
+        media_seconds = self.timebase.frames_to_seconds(position) * speed
+
+        def image():
+            if clip._decoder is None:
+                return None
+            source_index = int(round(media_seconds * clip._native.fps))
+            if source_index >= clip.source_length:
+                return None
+            decoded = clip._decoder.frame_at(source_index)
+            return decoded.array if decoded else None
+
+        def audio():
+            if clip._audio is None:
+                return None
+            start, count = self.audio_format.sample_bounds(position,
+                                                           self.timebase)
+            src_start = int(round(start * speed))
+            src_count = max(1, int(round(count * speed)))
+            block = clip._audio.read(src_start, src_count)
+            if src_count == count:
+                return block
+            # Linear resample to the frame's own sample count. The
+            # occasional one-sample seam between frames (independent
+            # roundings) is far below audibility.
+            base = np.arange(len(block), dtype=np.float32)
+            wanted = np.linspace(0.0, max(0.0, len(block) - 1.0), count,
+                                 dtype=np.float32)
+            out = np.empty((count, block.shape[1]), dtype=np.float32)
+            for channel in range(block.shape[1]):
+                out[:, channel] = np.interp(wanted, base, block[:, channel])
+            return out
+
+        frame = Frame(position, self.timebase, self.audio_format,
+                      image_fn=image,
+                      audio_fn=audio if clip._audio else None)
+        frame.properties["source"] = clip.path
+        return frame
+
+    def close(self) -> None:
+        # The underlying clip belongs to the builder's cache; its own
+        # close is idempotent, so closing through the wrapper is safe
+        # wherever a one-shot graph (the export) owns everything.
+        self._clip.close()
 
 
 class _AudioTrack:

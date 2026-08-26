@@ -80,6 +80,8 @@ class _Segment:
     #: The MODEL's clip id, so a canvas-placement drag can find its
     #: live span; "" for a bare single file.
     clip_id: str = ""
+    #: Playback pace: 1 timeline second consumes `speed` source seconds.
+    speed: float = 1.0
     #: Free placement on the canvas (engine/filters.Placement): off, the
     #: project's canvas fit applies; on, the transform below does.
     placed: bool = False
@@ -444,6 +446,7 @@ class PlaybackService(QObject):
                 fade_in=float(entry.get("fadeIn") or 0.0),
                 fade_out=float(entry.get("fadeOut") or 0.0),
                 clip_id=str(entry.get("id") or ""),
+                speed=float(entry.get("speed", 1.0) or 1.0),
                 placed=bool(entry.get("placed", False)),
                 x=float(entry.get("x", 0.5)),
                 y=float(entry.get("y", 0.5)),
@@ -673,6 +676,7 @@ class PlaybackService(QObject):
              "duration": segment.duration, "sourceIn": segment.source_in,
              "volume": segment.volume,
              "id": segment.clip_id or str(index),
+             "speed": segment.speed,
              "audioOps": [dict(op) for op in segment.audio_ops],
              "fadeIn": segment.fade_in, "fadeOut": segment.fade_out,
              # Canvas placement crosses to the export worker as pure
@@ -777,6 +781,7 @@ class PlaybackService(QObject):
              "duration": segment.duration, "sourceIn": segment.source_in,
              "volume": segment.volume,
              "id": segment.clip_id or str(index),
+             "speed": segment.speed,
              # Canvas placement: the Placement filter keeps a reference
              # to THIS dict, so the live handle drag mutates it and the
              # next pulled frame follows the hand (set_overlay_live).

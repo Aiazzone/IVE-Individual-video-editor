@@ -69,6 +69,7 @@
   "timeline.remove_audio": "Remover o áudio do clipe",
   "timeline.restore_audio": "Restaurar o áudio do clipe",
   "timeline.volume": "Volume do clipe",
+  "timeline.speed": "Velocidade",
   "timeline.trim": "Aparar clipe",
   "timeline.track.hide": "Ocultar faixa",
   "timeline.track.mute": "Silenciar faixa",
