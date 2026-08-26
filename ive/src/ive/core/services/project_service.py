@@ -708,6 +708,24 @@ class ProjectService(QObject):
         return self._edit("video.transform_reset",
                           lambda: self._project.reset_clip_transform(clip_id))
 
+    @Slot(str, result=bool)
+    def clear_lane(self, kind: str) -> bool:
+        """Empty one lane - ONE undo step for the whole sweep.
+
+        "video" removes the A/V clips (A1 empties with them), "audio"
+        only silences them, the overlay lanes drop their clips.
+        """
+        if self._project is None:
+            return False
+
+        def mutate():
+            count = self._project.clear_lane(kind)
+            if count:
+                log.info("Lane %s cleared: %d clip(s)", kind, count)
+            return count > 0
+
+        return self._edit("timeline.clear_lane", mutate)
+
     @Slot(str, float, float, float, float, result=bool)
     def set_clip_crop(self, clip_id: str, left: float, top: float,
                       right: float, bottom: float) -> bool:

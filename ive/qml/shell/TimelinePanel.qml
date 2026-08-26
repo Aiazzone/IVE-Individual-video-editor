@@ -954,17 +954,41 @@ Item {
                         Repeater {
                             model: root.tracks
                             delegate: Item {
+                                id: laneHeader
                                 required property var modelData
                                 width: parent.width
                                 height: modelData.height
 
+                                HoverHandler { id: headerHover }
+
                                 Text {
                                     anchors.verticalCenter: parent.verticalCenter
                                     x: Theme.m.space2
-                                    text: parent.modelData.name
+                                    text: laneHeader.modelData.name
                                     color: Qt.alpha(root.onGlass, 0.72)
                                     font.pixelSize: Theme.m.fontSizeSm
                                     font.letterSpacing: 0.5
+                                }
+
+                                // One gesture empties the whole lane -
+                                // otherwise clearing means selecting and
+                                // deleting the clips one by one. Revealed
+                                // on hover, one undo step brings it back.
+                                IconButton {
+                                    objectName: "lane_clear_"
+                                        + laneHeader.modelData.kind
+                                    visible: laneHeader.modelData.clips.length > 0
+                                             && headerHover.hovered
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    anchors.right: parent.right
+                                    anchors.rightMargin: Theme.m.space2
+                                    size: 22
+                                    iconSize: 13
+                                    icon: Icons.trash
+                                    label: Tr.s["timeline.clear_lane"] || ""
+                                    onTriggered: Actions.invoke(
+                                        "timeline.clear_lane",
+                                        { kind: laneHeader.modelData.kind })
                                 }
                             }
                         }
@@ -1807,16 +1831,16 @@ Item {
                             border.color: pill.selected
                                 ? Theme.c.clipSelected : "#40000000"
                         }
-                        // The diamond inside: the mark for a transition.
-                        Rectangle {
+                        // The mark inside: the SAME icon the tool rail
+                        // uses for transitions, so the pill and the
+                        // panel that edits it read as one thing (the
+                        // old diamond now belongs to the keyframes).
+                        Glyph {
                             anchors.centerIn: parent
-                            width: Math.min(11, parent.height * 0.4)
+                            width: Math.min(13, parent.height * 0.55)
                             height: width
-                            rotation: 45
-                            radius: 1.5
-                            color: "transparent"
-                            border.width: 1.6
-                            border.color: "#59333333"
+                            path: Icons.transition
+                            color: "#66333333"
                         }
 
                         // MouseAreas rather than handlers, DELIBERATELY:

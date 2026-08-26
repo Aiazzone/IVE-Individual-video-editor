@@ -70,6 +70,7 @@
   "timeline.restore_audio": "Restaurar el audio del clip",
   "timeline.volume": "Volumen del clip",
   "timeline.speed": "Velocidad",
+  "timeline.clear_lane": "Vaciar esta pista",
   "timeline.trim": "Recortar clip",
   "timeline.track.hide": "Ocultar pista",
   "timeline.track.mute": "Silenciar pista",

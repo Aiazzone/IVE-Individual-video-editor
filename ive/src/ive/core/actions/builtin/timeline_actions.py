@@ -99,6 +99,23 @@ def set_clip_speed(ctx, clip_id: str, speed: float):
 
 
 @action(
+    id="timeline.clear_lane",
+    title_key="timeline.clear_lane",
+    desc_key="Empty one timeline lane in a single stroke - one undo "
+             "step. Kinds: video (removes the A/V clips, their audio "
+             "lane empties with them), audio (only silences them), "
+             "color, sticker, text, music (drop their clips).",
+    category="timeline",
+    params={"kind": Param(str, required=True,
+                          doc="video | audio | color | sticker | text "
+                              "| music")},
+)
+def clear_lane(ctx, kind: str):
+    if not ctx.require("project").clear_lane(kind):
+        raise RuntimeError(f"Lane {kind!r} is unknown or already empty")
+
+
+@action(
     id="timeline.set_clip_crop",
     title_key="video.crop",
     desc_key="Crop an A/V clip's picture by edge insets, each a fraction "

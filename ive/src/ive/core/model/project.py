@@ -638,6 +638,36 @@ class Project:
             clip.placed = True
         return True
 
+    def clear_lane(self, kind: str) -> int:
+        """Empty one timeline lane in a single stroke.
+
+        ``kind`` is the LANE as the user sees it, not a raw track
+        number, because two lanes share track 0: clearing "video"
+        removes the A/V clips themselves (A1 empties with them);
+        clearing "audio" only silences them - the same asymmetry the
+        per-clip delete has. The overlay lanes ("color", "sticker",
+        "text", "music") drop their clips. Returns how many clips were
+        touched; 0 = nothing to do (the caller can refuse the undo
+        entry).
+        """
+        kind = str(kind)
+        if kind == "audio":
+            touched = [c for c in self.timeline
+                       if c.track == 0 and c.media_id and c.audio_enabled]
+            for clip in touched:
+                clip.audio_enabled = False
+            return len(touched)
+        tracks = {"video": 0, "color": self.COLOR_TRACK,
+                  "sticker": self.STICKER_TRACK, "text": self.TEXT_TRACK,
+                  "music": self.MUSIC_TRACK}
+        if kind not in tracks:
+            return 0
+        track = tracks[kind]
+        touched = [c for c in self.timeline if c.track == track]
+        for clip in touched:
+            self.timeline.remove(clip)
+        return len(touched)
+
     def set_clip_crop(self, clip_id: str, left: float, top: float,
                       right: float, bottom: float) -> bool:
         """Crop an A/V clip's picture by edge insets (source fractions)."""

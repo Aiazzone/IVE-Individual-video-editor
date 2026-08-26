@@ -70,6 +70,7 @@
   "timeline.restore_audio": "Restore the clip's audio",
   "timeline.volume": "Clip volume",
   "timeline.speed": "Speed",
+  "timeline.clear_lane": "Empty this lane",
   "timeline.trim": "Trim clip",
   "timeline.track.hide": "Hide track",
   "timeline.track.mute": "Mute track",
