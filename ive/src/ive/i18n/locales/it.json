@@ -378,6 +378,7 @@
   "export.warn.upscale": "L'immagine verra' ingrandita",
   "export.warn.aspect": "Il formato non corrisponde al canvas",
   "export.warn.too_long": "Piu' lungo di quanto la piattaforma permetta",
+  "export.warn.hdr": "Girato HDR: esportato con tone mapping verso SDR",
   "export.queue": "Coda di export",
   "export.queue.waiting": "in attesa",
   "export.queue.done": "fatto",

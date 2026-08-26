@@ -195,9 +195,14 @@ class ProjectService(QObject):
                 "height": item.height,
                 "fps": item.fps,
                 "hasAudio": item.has_audio,
+                "hdr": item.hdr,
                 "missing": item.missing,
                 "durationLabel": _duration_label(item.duration),
-                "sizeLabel": f"{item.width}x{item.height}" if item.width else "",
+                # The HDR badge rides the size label: the user must know
+                # this clip is being shown tone-mapped to SDR.
+                "sizeLabel": (f"{item.width}x{item.height}"
+                              + (" · HDR→SDR" if item.hdr else ""))
+                             if item.width else "",
             })
         return out
 
@@ -961,6 +966,7 @@ class ProjectService(QObject):
                 name=path.name, duration=info.duration,
                 width=width, height=height, fps=fps,
                 has_audio=info.has_audio,
+                hdr=bool(video is not None and video.is_hdr),
             )
             new_items.append(item)
             line.append(item)
@@ -1363,6 +1369,7 @@ class ProjectService(QObject):
             height=height,
             fps=fps,
             has_audio=info.has_audio,
+            hdr=bool(video is not None and video.is_hdr),
         )
 
     def _check_missing(self) -> None:

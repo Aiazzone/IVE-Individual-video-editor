@@ -239,8 +239,36 @@ RGB→YUV usa la matrice implicata dalla dimensione d'uscita e il file la
 **dichiara** (`colorspace` 1 o 6) — prima convertiva col default 601
 senza dire nulla, e ogni player assumendo 709 sull'HD spostava i
 colori. Round-trip verificato in `tests/test_media_robustness.py`.
-Restano aperti: float lineare, range limited/full esplicito, tone
-mapping HDR→SDR (sotto). Nella stessa passata: **rotazione** dei
+**Stato 2026-08-26 — la Fase A dell'HDR e' fatta, e il range e' chiuso**
+(`tests/test_hdr_range.py`, 25 verifiche sui pixel):
+
+- **Riconoscimento**: la probe legge transfer/primaries/bit depth
+  (`VideoStreamInfo.is_hdr` = PQ 16 o HLG 18 — i due modi in cui i
+  telefoni registrano). Il pool marca il media («HDR→SDR» accanto alla
+  risoluzione) e il preflight dell'export avvisa (`export.warn.hdr`).
+- **Tone mapping in decodifica** (`ive/media/tonemap.py`): swscale
+  applica da solo la matrice BT.2020 taggata sul frame (verificato:
+  serve l'INTERO 9, i nomi stringa non esistono in PyAV 17); poi
+  EOTF PQ/HLG → luce lineare, ginocchio sui soli highlight (sotto
+  ~152 nit la mappa e' identita': comprimere i mezzitoni spegne
+  l'immagine — l'errore del Reinhard puro), bianco di riferimento
+  203 nit → bianco SDR (BT.2408), gamut 2020→709, OETF 709.
+  Misurato: 100 nit → 179, 203 → 225, 1000 → 255, il rosso resta
+  rosso. Costo: **67 ms/frame a 1080p** (due LUT a 65 536 voci fuse +
+  matrice in uint16 saturante; la versione numpy ingenua costava 520).
+- **Il proxy di una sorgente HDR e' SDR BT.709**, tone-mappato UNA
+  volta e taggato (matrice+trc+range): l'editing va in tempo reale via
+  proxy e non c'e' doppia mappatura. Un proxy che portasse il segnale
+  PQ in 8 bit cuocerebbe il look slavato per sempre.
+- **Range**: swscale onora i tag limited/full a livello di frame
+  (verificato con file bit-esatti: nero e bianco identici nei due
+  range); l'export ora dichiara **range limited** oltre a matrice,
+  transfer e primaries — la terna+range completa, niente piu'
+  ambiguita' da risolvere male.
+
+Resta aperto (Fase B, dopo la 1.0): float lineare end-to-end,
+pipeline 10 bit, export HDR nativo. Nella stessa passata di agosto:
+**rotazione** dei
 telefoni (display matrix leggibile SOLO dal frame decodificato in
 PyAV 17 — la probe ne decodifica uno; convenzione ffprobe = gradi
 antiorari, il segno si inverte), **VFR** (fps = average_rate,

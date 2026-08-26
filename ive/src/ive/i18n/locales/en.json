@@ -378,6 +378,7 @@
   "export.warn.upscale": "The picture will be upscaled",
   "export.warn.aspect": "The frame shape does not match the canvas",
   "export.warn.too_long": "Longer than the platform allows",
+  "export.warn.hdr": "HDR footage: exported tone-mapped to SDR",
   "export.queue": "Export queue",
   "export.queue.waiting": "waiting",
   "export.queue.done": "done",

@@ -39,6 +39,20 @@ class VideoStreamInfo:
     sample_aspect_ratio: Fraction = Fraction(1, 1)
     duration: float = 0.0
     frames: int = 0
+    #: FFmpeg AVCOL_* ids as tagged in the file; 2 = unspecified.
+    #: Transfer 16 = PQ (SMPTE 2084), 18 = HLG (ARIB STD-B67) - the two
+    #: ways phones record HDR.
+    color_transfer: int = 2
+    color_primaries: int = 2
+    #: Bits per sample of the stored pixels (8 for classic footage,
+    #: 10 for HDR and most log profiles).
+    bit_depth: int = 8
+
+    @property
+    def is_hdr(self) -> bool:
+        """PQ or HLG transfer: the material needs tone mapping to show
+        correctly on an SDR canvas (docs/MEDIA_FORMATS.md §8)."""
+        return self.color_transfer in (16, 18)
 
     @property
     def display_size(self) -> tuple[int, int]:
@@ -91,7 +105,9 @@ class MediaInfo:
         parts = [f"{self.path.name} {self.container} {self.duration:.2f}s"]
         for v in self.video:
             w, h = v.display_size
-            parts.append(f"video={v.codec} {w}x{h} @{float(v.fps):.3f}fps rot={v.rotation}")
+            parts.append(f"video={v.codec} {w}x{h} @{float(v.fps):.3f}fps "
+                         f"rot={v.rotation}"
+                         + (" HDR" if v.is_hdr else ""))
         for a in self.audio:
             parts.append(f"audio={a.codec} {a.sample_rate}Hz x{a.channels}")
         return " | ".join(parts)
@@ -183,6 +199,10 @@ def probe(path: str | Path) -> MediaInfo:
                 stream_duration = (
                     float(stream.duration * stream.time_base) if stream.duration else duration
                 )
+                ctx = stream.codec_context
+                pix_fmt = str(ctx.pix_fmt) if ctx else ""
+                bit_depth = (12 if "12" in pix_fmt
+                             else 10 if "10" in pix_fmt else 8)
                 videos.append(
                     VideoStreamInfo(
                         index=stream.index,
@@ -197,6 +217,11 @@ def probe(path: str | Path) -> MediaInfo:
                         sample_aspect_ratio=Fraction(stream.sample_aspect_ratio or 1),
                         duration=stream_duration,
                         frames=int(stream.frames or 0),
+                        color_transfer=int(getattr(ctx, "color_trc", 2)
+                                           or 2) if ctx else 2,
+                        color_primaries=int(getattr(ctx, "color_primaries",
+                                                    2) or 2) if ctx else 2,
+                        bit_depth=bit_depth,
                     )
                 )
             elif stream.type == "audio":

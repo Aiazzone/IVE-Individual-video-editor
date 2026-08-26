@@ -83,9 +83,15 @@ Lo step tecnicamente piu' rischioso: farlo presto.
 - [x] **Matrice colore corretta** (2026-08-24): un file taggato e'
       onorato da swscale; un file SENZA tag usa la convenzione per
       dimensione (HD = BT.709, non piu' il default 601); l'export
-      converte con la matrice dell'uscita E la dichiara nel file.
-      Restano (MEDIA_FORMATS.md §8): float lineare, range limited/full
-      esplicito, **tone mapping HDR→SDR**
+      converte con la matrice dell'uscita E la dichiara nel file
+- [x] **HDR gestito e range chiuso** (2026-08-26, MEDIA_FORMATS.md §8):
+      la probe riconosce PQ/HLG/10-bit; la decodifica fa **tone mapping
+      verso SDR** (203 nit → bianco SDR, ginocchio sui soli highlight,
+      gamut 2020→709; 67 ms/frame a 1080p via LUT); il proxy di una
+      sorgente HDR esce SDR 709 taggato (tempo reale via proxy, mai
+      doppia mappatura); l'export dichiara matrice+transfer+primaries+
+      **range**; pool e preflight avvisano. Resta (dopo la 1.0):
+      pipeline float lineare/10 bit ed export HDR nativo
 - [x] Rotazione dai metadati (2026-08-24: la display matrix dei telefoni
       si legge SOLO dal frame decodificato in questo PyAV — la probe ne
       decodifica uno; pixel-verificata fino al motore), frame rate

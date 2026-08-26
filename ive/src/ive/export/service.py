@@ -262,9 +262,17 @@ class _Worker(QObject):
             encode_space = "itu709" if hd_output else "itu601"
             try:
                 # 1 = BT.709, 6 = SMPTE 170M (the 601 the players expect).
-                stream.codec_context.colorspace = 1 if hd_output else 6
+                ctx = stream.codec_context
+                ctx.colorspace = 1 if hd_output else 6
+                # The full triple plus the RANGE: an SDR file is limited
+                # (16-235) by convention, and SAYING so closes the last
+                # ambiguity a player could resolve wrong - washed or
+                # crushed blacks, the most common colour bug of all.
+                ctx.color_trc = 1 if hd_output else 6
+                ctx.color_primaries = 1 if hd_output else 6
+                ctx.color_range = 1
             except Exception:
-                log.debug("Encoder %s takes no colorspace tag", encoder)
+                log.debug("Encoder %s takes no colour tags", encoder)
 
             # Audio only exists when the graph renders: the graph mixes every
             # clip's sound (volume, mute, music tracks) into one stereo
@@ -595,27 +603,44 @@ class ExportService(QObject):
 
     # ── preflight ─────────────────────────────────────────────────────
 
-    _probe_cache: dict[str, tuple[int, int]] = {}
+    _probe_cache: dict[str, tuple[int, int, bool]] = {}
 
-    def _source_size(self) -> tuple[int, int] | None:
-        """Pixel size of the sequence's first clip, cached per path."""
-        segments = getattr(self._playback, "_segments", None) or []
-        if not segments:
-            return None
-        path = segments[0].path
+    def _probed(self, path: str) -> tuple[int, int, bool]:
+        """(display_w, display_h, is_hdr) of one file, cached per path."""
         if path not in self._probe_cache:
             try:
                 from ive.media.probe import probe
 
                 info = probe(path)
                 video = info.primary_video
-                self._probe_cache[path] = (tuple(video.display_size)
-                                           if video else (0, 0))
+                self._probe_cache[path] = (
+                    (*video.display_size, video.is_hdr) if video
+                    else (0, 0, False))
             except Exception:
                 log.debug("Preflight could not probe %s", path, exc_info=True)
-                self._probe_cache[path] = (0, 0)
-        size = self._probe_cache[path]
-        return size if size != (0, 0) else None
+                self._probe_cache[path] = (0, 0, False)
+        return self._probe_cache[path]
+
+    def _source_size(self) -> tuple[int, int] | None:
+        """Pixel size of the sequence's first clip, cached per path."""
+        segments = getattr(self._playback, "_segments", None) or []
+        if not segments:
+            return None
+        width, height, _hdr = self._probed(segments[0].path)
+        return (width, height) if (width, height) != (0, 0) else None
+
+    def _hdr_source(self) -> str:
+        """Name of the first HDR clip in the sequence, or ""."""
+        segments = getattr(self._playback, "_segments", None) or []
+        seen: set[str] = set()
+        for segment in segments:
+            path = segment.path
+            if path in seen:
+                continue
+            seen.add(path)
+            if self._probed(path)[2]:
+                return Path(path).name
+        return ""
 
     @Slot("QVariantMap", result="QVariantMap")
     def preflight(self, options) -> dict[str, Any]:
@@ -673,6 +698,13 @@ class ExportService(QObject):
             warnings.append({"id": "too_long",
                              "detail": f"{int(duration)}s > "
                                        f"{preset.max_duration_sec}s"})
+
+        # HDR footage on an SDR export: correct (tone-mapped), but the
+        # user must know what they are getting - MEDIA_FORMATS.md §8:
+        # the app MANAGES HDR material, it does not produce HDR.
+        hdr_name = self._hdr_source()
+        if hdr_name:
+            warnings.append({"id": "hdr", "detail": hdr_name})
 
         # kbps -> bytes: kbit/8 per second, /1024 twice for MiB.
         size_mb = (vbr + abr) * duration / 8.0 / 1024.0

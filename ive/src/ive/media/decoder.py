@@ -75,6 +75,15 @@ class VideoDecoder:
 
         self._time_base: Fraction = Fraction(self._stream.time_base or Fraction(1, 1000))
         self._start_time: int = int(self._stream.start_time or 0)
+        #: PQ/HLG material is tone-mapped to SDR at decode: without it a
+        #: phone HDR clip lands on the timeline washed out and
+        #: desaturated (docs/MEDIA_FORMATS.md §8). 0 = plain SDR.
+        self._hdr_transfer: int = (video.color_transfer
+                                   if video.is_hdr else 0)
+        if self._hdr_transfer:
+            log.info("HDR source (%s): tone mapping to SDR for %s",
+                     "PQ" if self._hdr_transfer == 16 else "HLG",
+                     self.path.name)
         self._fps: float = float(self.video.fps) or 25.0
         #: Index of the last frame handed out, for cheap sequential reads.
         self._cursor: int = -1
@@ -242,13 +251,26 @@ class VideoDecoder:
 
     def _convert(self, frame, index: int) -> DecodedFrame:
         """FFmpeg frame -> contiguous RGB888 array, rotated for display."""
-        hint = self._colour_hint(frame)
-        if self._output_size is not None:
+        if self._hdr_transfer:
+            # Scale in YUV, widen to 16-bit RGB (swscale applies the
+            # BT.2020 matrix from the frame's own tag), then tone map.
+            from ive.media.tonemap import tonemap_to_sdr
+
+            if self._output_size is not None:
+                width, height = self._output_size
+                wide = frame.reformat(width=width, height=height,
+                                      format="rgb48le")
+            else:
+                wide = frame.reformat(format="rgb48le")
+            array = tonemap_to_sdr(wide.to_ndarray(), self._hdr_transfer)
+        elif self._output_size is not None:
             width, height = self._output_size
             array = frame.reformat(width=width, height=height,
-                                   format="rgb24", **hint).to_ndarray()
+                                   format="rgb24",
+                                   **self._colour_hint(frame)).to_ndarray()
         else:
-            array = frame.reformat(format="rgb24", **hint).to_ndarray()
+            array = frame.reformat(format="rgb24",
+                                   **self._colour_hint(frame)).to_ndarray()
 
         rotation = self.video.rotation
         if rotation == 90:

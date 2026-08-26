@@ -159,14 +159,31 @@ class _Worker(QObject):
                 except Exception:
                     log.warning("Proxy could not carry the rotation of %s",
                                 src.name, exc_info=True)
+            # An HDR source is tone-mapped HERE, once: the proxy comes
+            # out plain SDR BT.709, so preview plays it with zero
+            # per-frame cost (the tone map is ~67 ms a 1080p frame -
+            # that is what the proxy absorbs). Carrying the PQ/HLG
+            # signal into an 8-bit proxy instead would bake the washed
+            # look in, unfixably.
+            hdr_transfer = video.color_transfer if video.is_hdr else 0
+            proxy_hd = target_h > 576 or target_w > 1024
+            proxy_space = 1 if proxy_hd else 6
             # The transcode stays in YUV, so the pixels keep the source
             # matrix - the TAG has to travel too, or the proxy (smaller,
             # often SD-sized) is decoded with the wrong convention.
             try:
-                source_space = int(stream_in.codec_context.colorspace or 0)
-                if source_space in (0, 2):
-                    source_space = 1 if (video.height > 576
-                                         or video.width > 1024) else 6
+                if hdr_transfer:
+                    source_space = proxy_space
+                    ctx_out = stream_out.codec_context
+                    ctx_out.color_trc = 1 if proxy_hd else 6
+                    ctx_out.color_primaries = 1 if proxy_hd else 6
+                    ctx_out.color_range = 1
+                else:
+                    source_space = int(stream_in.codec_context.colorspace
+                                       or 0)
+                    if source_space in (0, 2):
+                        source_space = 1 if (video.height > 576
+                                             or video.width > 1024) else 6
                 stream_out.codec_context.colorspace = source_space
             except Exception:
                 log.debug("Proxy could not tag the colour space",
@@ -185,8 +202,24 @@ class _Worker(QObject):
                     self._cleanup(container_out, tmp)
                     self.failed.emit(source, "cancelled")
                     return
-                reformatted = frame.reformat(width=target_w, height=target_h,
-                                             format="yuv420p")
+                if hdr_transfer:
+                    from ive.media.tonemap import tonemap_to_sdr
+
+                    wide = frame.reformat(width=target_w, height=target_h,
+                                          format="rgb48le")
+                    sdr = tonemap_to_sdr(wide.to_ndarray(), hdr_transfer)
+                    # Back to YUV with the PROXY's declared matrix, not
+                    # swscale's untagged default (the 601-on-HD trap of
+                    # the export path all over again).
+                    reformatted = av.VideoFrame.from_ndarray(
+                        sdr, format="rgb24").reformat(
+                            format="yuv420p",
+                            dst_colorspace="itu709" if proxy_hd
+                            else "itu601")
+                else:
+                    reformatted = frame.reformat(width=target_w,
+                                                 height=target_h,
+                                                 format="yuv420p")
                 for packet in stream_out.encode(reformatted):
                     container_out.mux(packet)
                 done += 1

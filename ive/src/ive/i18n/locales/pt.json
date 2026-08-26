@@ -378,6 +378,7 @@
   "export.warn.upscale": "A imagem será ampliada",
   "export.warn.aspect": "O formato não corresponde à tela",
   "export.warn.too_long": "Mais longo do que a plataforma permite",
+  "export.warn.hdr": "Material HDR: exportado com tone mapping para SDR",
   "export.queue": "Fila de exportação",
   "export.queue.waiting": "em espera",
   "export.queue.done": "feito",

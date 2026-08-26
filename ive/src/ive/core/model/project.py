@@ -64,6 +64,9 @@ class MediaItem:
     height: int = 0
     fps: float = 0.0
     has_audio: bool = False
+    #: PQ/HLG material: shown and exported tone-mapped to SDR
+    #: (docs/MEDIA_FORMATS.md §8) - the user gets told, never surprised.
+    hdr: bool = False
     #: Set when the file could not be found or read at load time.
     missing: bool = False
 
@@ -93,6 +96,7 @@ class MediaItem:
             height=_as_int(data.get("height")),
             fps=_as_float(data.get("fps")),
             has_audio=bool(data.get("has_audio", False)),
+            hdr=bool(data.get("hdr", False)),
         )
 
 
