@@ -244,8 +244,16 @@ l'altro.
 - [x] Transform e **speed** (2026-08-27): riquadro sul canvas per i
       clip A/V (vedi Fase 4) e velocita' 0.1-8x con semantica CapCut
       (`SpeedProducer` per entry: video mappato per tempo, audio
-      ricampionato — il pitch segue il passo; pitch-preserve in
-      seguito). Restano: crop, opacita' per clip, time remap a curve
+      ricampionato — il pitch segue il passo; pitch-preserve in seguito)
+- [x] **Crop, opacita' e keyframe per clip** (2026-08-27): quattro
+      maniglie di bordo ritagliano la sorgente (frazioni, live sul
+      preview), slider di opacita' verso cio' che sta sotto, e
+      fotogrammi chiave su x/y/scala/rotazione/opacita' — bottone rombo
+      al playhead, rombi sulla pillola, interpolazione lineare in tempo
+      CLIP-locale (`utils/keyframes.py`, condiviso da modello e motore
+      via `clip_keyframe_values`); su un clip animato il drag delle
+      maniglie pianta un rombo invece di muovere la trasformazione
+      statica. Restano: easing/editor curve, time remap a curve
 - [x] **Correzione colore manuale** (2026-08-27): nove manopole
       (luminosita', contrasto, saturazione, gamma, temperatura, tinta,
       ombre, luci, vignettatura) su qualunque clip della corsia Colore

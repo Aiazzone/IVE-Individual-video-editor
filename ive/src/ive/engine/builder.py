@@ -245,15 +245,19 @@ class GraphBuilder:
                 entry.filters.append(AudioRamp(
                     start + max(0, length - fade_out), start + length,
                     rising=False))
-            # Free placement on the canvas: the filter reads the CLIP
-            # DICT at process time, so the transport's live handle drag
-            # mutates this very object and the next frame follows the
-            # hand. Attached whenever the key exists - unplaced clips
-            # pass through at zero cost.
-            if "placed" in clip:
+            # The clip's canvas dressing - placement, crop, opacity and
+            # their keyframes: the filter reads the CLIP DICT at process
+            # time, so the transport's live handle drag mutates this
+            # very object and the next frame follows the hand. Attached
+            # whenever any of the keys exists - untouched clips pass
+            # through at zero cost.
+            if any(k in clip for k in ("placed", "crop", "opacity",
+                                       "keyframes")):
                 entry.filters.append(Placement(
                     clip, self.width, self.height,
-                    "blur" if self.canvas_fit == "blur" else "black"))
+                    "blur" if self.canvas_fit == "blur" else "black",
+                    start_frame=start,
+                    fps=float(self.timebase.fps)))
             current.append(entry)
             cursors[id(current)] = start + length
             placed.append((entry, current, start, start + length))

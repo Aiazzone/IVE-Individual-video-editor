@@ -100,6 +100,20 @@ class MediaItem:
         )
 
 
+def _clean_crop(crop: dict) -> dict:
+    """Known edges only, clamped to 0..0.45, zeros dropped."""
+    out: dict[str, float] = {}
+    for edge in ("left", "top", "right", "bottom"):
+        try:
+            value = float((crop or {}).get(edge, 0.0))
+        except (TypeError, ValueError):
+            continue
+        value = min(0.45, max(0.0, value))
+        if value > 1e-4:
+            out[edge] = round(value, 4)
+    return out
+
+
 @dataclass
 class TimelineClip:
     """One media item placed on the timeline.
@@ -196,6 +210,17 @@ class TimelineClip:
     #: with the transform above (CapCut's pinch), False = the project's
     #: canvas fit strategy applies. Overlays ignore it (always placed).
     placed: bool = False
+    #: A/V clips: crop insets as FRACTIONS of the source picture
+    #: (keys left/top/right/bottom, each 0..0.45, zeros dropped - the
+    #: dict says exactly which edges the user pulled).
+    crop: dict = field(default_factory=dict)
+    #: A/V clips: 1 = opaque, towards 0 the picture fades into what is
+    #: underneath (the black track, or the other roll in a window).
+    opacity: float = 1.0
+    #: Transform/opacity keyframes, CLIP-LOCAL seconds
+    #: (utils/keyframes.py): [{"t", "x"?, "y"?, "scale"?, "rotation"?,
+    #: "opacity"?}, ...] sorted. Empty = the static fields above rule.
+    keyframes: list = field(default_factory=list)
 
     @property
     def end(self) -> float:
@@ -266,6 +291,14 @@ class TimelineClip:
             scale=min(2.0, max(0.02, _as_float(data.get("scale"), 0.3))),
             rotation=_as_float(data.get("rotation")),
             placed=bool(data.get("placed", False)),
+            crop=_clean_crop(data.get("crop") or {}),
+            opacity=min(1.0, max(0.0, _as_float(data.get("opacity"), 1.0))),
+            keyframes=[
+                {str(k): float(v) for k, v in entry.items()
+                 if k in ("t", "x", "y", "scale", "rotation", "opacity")}
+                for entry in (data.get("keyframes") or [])
+                if isinstance(entry, dict) and "t" in entry
+            ],
         )
 
 
@@ -602,14 +635,73 @@ class Project:
             clip.placed = True
         return True
 
+    def set_clip_crop(self, clip_id: str, left: float, top: float,
+                      right: float, bottom: float) -> bool:
+        """Crop an A/V clip's picture by edge insets (source fractions)."""
+        clip = self.find_clip(clip_id)
+        if clip is None or not clip.media_id or clip.track != 0:
+            return False
+        clip.crop = _clean_crop({"left": left, "top": top,
+                                 "right": right, "bottom": bottom})
+        return True
+
+    def set_clip_opacity(self, clip_id: str, opacity: float) -> bool:
+        """Fade an A/V clip towards what sits underneath it."""
+        clip = self.find_clip(clip_id)
+        if clip is None or not clip.media_id or clip.track != 0:
+            return False
+        clip.opacity = min(1.0, max(0.0, float(opacity)))
+        return True
+
+    def set_clip_keyframe(self, clip_id: str, t: float,
+                          values: dict) -> bool:
+        """Pin transform/opacity values at clip-local ``t`` seconds.
+
+        A diamond already standing there is replaced. Pinning any
+        TRANSFORM parameter turns free placement on - an animated
+        position only means something on a floating clip.
+        """
+        from ive.utils.keyframes import upsert
+
+        clip = self.find_clip(clip_id)
+        if clip is None or not clip.media_id or clip.track != 0:
+            return False
+        allowed = {k: float(v) for k, v in (values or {}).items()
+                   if k in ("x", "y", "scale", "rotation", "opacity")}
+        if not allowed or not (0.0 <= float(t) <= clip.duration + 1e-6):
+            return False
+        clip.keyframes = upsert(clip.keyframes, float(t), allowed)
+        if any(k in allowed for k in ("x", "y", "scale", "rotation")):
+            clip.placed = True
+        return True
+
+    def remove_clip_keyframe(self, clip_id: str, t: float) -> bool:
+        """Take the diamond at clip-local ``t`` away, values and all."""
+        from ive.utils.keyframes import remove_at
+
+        clip = self.find_clip(clip_id)
+        if clip is None:
+            return False
+        kept = remove_at(clip.keyframes, float(t))
+        if kept is None:
+            return False
+        clip.keyframes = kept
+        return True
+
     def reset_clip_transform(self, clip_id: str) -> bool:
-        """Hand a placed A/V clip back to the project's canvas fit."""
+        """Hand a placed A/V clip back to the project's canvas fit.
+
+        The transform keyframes go with it: an animated position on a
+        clip that no longer floats would just re-place it at the first
+        frame. One Ctrl+Z brings placement and diamonds back together.
+        """
         clip = self.find_clip(clip_id)
         if clip is None or not clip.placed:
             return False
         clip.placed = False
         clip.x, clip.y = 0.5, 0.5
         clip.scale, clip.rotation = 0.3, 0.0
+        clip.keyframes = []
         return True
 
     def set_clip_transition(self, clip_id: str, transition_id: str,

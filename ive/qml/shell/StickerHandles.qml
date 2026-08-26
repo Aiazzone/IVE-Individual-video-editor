@@ -77,18 +77,42 @@ Item {
             readonly property bool isVideo:
                 !modelData.stickerId && !modelData.text
 
+            // Plain mirrors of the delegate's model, for the NESTED
+            // delegates (the crop handles): inside a child Repeater
+            // whose delegate declares its own required modelData, the
+            // parent's model resolves as undefined - these do not.
+            readonly property string clipId: modelData.id
+            readonly property var clipCrop: modelData.crop || ({})
+
+            // A keyframed video clip: the box must sit where the
+            // ANIMATION has it at the paused playhead, and a drag pins
+            // a diamond there instead of moving the static transform.
+            readonly property bool keyed:
+                box.isVideo && (modelData.keyframes || []).length > 0
+            readonly property var evaluated: keyed
+                ? Project.clip_keyframe_values(
+                      modelData.id,
+                      Playback.positionSeconds - modelData.start)
+                : null
+            readonly property real localT:
+                Playback.positionSeconds - modelData.start
+
             // Live values: seeded from the model, driven by the hand
             // during a gesture. The Repeater recreates delegates whenever
             // the timeline changes, so the seeds are always fresh.
-            property real vx: box.isVideo && !modelData.placed
+            property real vx: box.keyed ? box.evaluated.x
+                              : box.isVideo && !modelData.placed
                               ? 0.5 : modelData.x
-            property real vy: box.isVideo && !modelData.placed
+            property real vy: box.keyed ? box.evaluated.y
+                              : box.isVideo && !modelData.placed
                               ? 0.5 : modelData.y
-            property real vs: box.isVideo && !modelData.placed
+            property real vs: box.keyed ? box.evaluated.scale
+                              : box.isVideo && !modelData.placed
                               ? Math.min(1, root.canvasAspect
                                             / box.spriteAspect)
                               : modelData.scale
-            property real vr: box.isVideo && !modelData.placed
+            property real vr: box.keyed ? box.evaluated.rotation
+                              : box.isVideo && !modelData.placed
                               ? 0 : modelData.rotation
 
             readonly property bool selected: root.selectedId === modelData.id
@@ -111,6 +135,16 @@ Item {
                 Playback.set_overlay_live(modelData.id, vx, vy, vs, vr);
             }
             function commit() {
+                if (box.keyed) {
+                    // On an animated clip the drag PINS a diamond at
+                    // the playhead - the gesture edits the animation,
+                    // not the static transform underneath it.
+                    Actions.invoke("timeline.set_clip_keyframe", {
+                        clip_id: modelData.id, t: box.localT,
+                        x: vx, y: vy, scale: vs, rotation: vr
+                    });
+                    return;
+                }
                 Actions.invoke("timeline.set_clip_transform", {
                     clip_id: modelData.id,
                     x: vx, y: vy, scale: vs, rotation: vr
@@ -201,6 +235,96 @@ Item {
                     onClicked: Actions.invoke(
                         "timeline.reset_clip_transform",
                         { clip_id: modelData.id })
+                }
+            }
+
+            // ── crop: pull an edge midpoint inwards (video only) ──
+            // The video under the frame follows live (the Placement
+            // filter reads the span crop); the box itself resizes on
+            // release, when the model commits and the aspect updates.
+            Repeater {
+                model: box.selected && box.isVideo
+                       ? ["left", "right", "top", "bottom"] : []
+                delegate: Rectangle {
+                    id: cropHandle
+                    required property var modelData
+                    objectName: "video_crop_" + modelData + "_"
+                                + box.clipId
+                    readonly property bool horizontal:
+                        modelData === "left" || modelData === "right"
+                    width: 12
+                    height: 12
+                    radius: 2
+                    color: "#FFFFFF"
+                    border.width: 1
+                    border.color: "#59000000"
+                    x: modelData === "left" ? -6
+                     : modelData === "right" ? box.width - 6
+                     : box.width / 2 - 6
+                    y: modelData === "top" ? -6
+                     : modelData === "bottom" ? box.height - 6
+                     : box.height / 2 - 6
+
+                    MouseArea {
+                        anchors.fill: parent
+                        anchors.margins: -6
+                        cursorShape: cropHandle.horizontal
+                            ? Qt.SplitHCursor : Qt.SplitVCursor
+
+                        property var crop0: ({})
+                        property var live: ({})
+                        property point press
+
+                        function clamped(value) {
+                            return Math.min(0.45, Math.max(0, value));
+                        }
+                        onPressed: function (mouse) {
+                            var held = box.clipCrop;
+                            crop0 = { left: held.left || 0,
+                                      top: held.top || 0,
+                                      right: held.right || 0,
+                                      bottom: held.bottom || 0 };
+                            live = crop0;
+                            var p = mapToItem(box, mouse.x, mouse.y);
+                            press = Qt.point(p.x, p.y);
+                        }
+                        onPositionChanged: function (mouse) {
+                            if (!pressed)
+                                return;
+                            var p = mapToItem(box, mouse.x, mouse.y);
+                            var c = { left: crop0.left, top: crop0.top,
+                                      right: crop0.right,
+                                      bottom: crop0.bottom };
+                            // The box shows the VISIBLE span: a pixel
+                            // of drag is a fraction of what remains.
+                            var visW = Math.max(0.1,
+                                1 - crop0.left - crop0.right);
+                            var visH = Math.max(0.1,
+                                1 - crop0.top - crop0.bottom);
+                            var edge = cropHandle.modelData;
+                            if (edge === "left")
+                                c.left = clamped(crop0.left
+                                    + (p.x - press.x) / box.width * visW);
+                            else if (edge === "right")
+                                c.right = clamped(crop0.right
+                                    + (press.x - p.x) / box.width * visW);
+                            else if (edge === "top")
+                                c.top = clamped(crop0.top
+                                    + (p.y - press.y) / box.height * visH);
+                            else
+                                c.bottom = clamped(crop0.bottom
+                                    + (press.y - p.y) / box.height * visH);
+                            live = c;
+                            Playback.set_video_crop_live(
+                                box.clipId,
+                                c.left, c.top, c.right, c.bottom);
+                        }
+                        onReleased: Actions.invoke("timeline.set_clip_crop", {
+                            clip_id: box.clipId,
+                            left: live.left, top: live.top,
+                            right: live.right, bottom: live.bottom
+                        })
+                    }
                 }
             }
 

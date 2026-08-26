@@ -649,53 +649,112 @@ class Overlays(Filter):
 
 
 class Placement(Filter):
-    """A video clip placed FREELY on the canvas - CapCut's pinch gesture.
+    """One A/V clip's canvas dressing: placement, crop, opacity, keys.
 
     ``span`` is the clip dict itself, shared with the transport and read
     at process time, so a handle drag mutates it and the very next
     pulled frame composites at the new place - the same live contract
-    the Overlays filter has. Keys: ``placed`` (False = pass through,
-    the project's canvas fit applies), ``x``/``y`` (centre, canvas
-    fractions), ``scale`` (height as a canvas fraction), ``rotation``
-    (degrees clockwise).
+    the Overlays filter has. Keys read: ``placed`` (float freely with
+    x/y/scale/rotation, or follow the project's canvas fit), ``crop``
+    (edge insets as source fractions, cut BEFORE anything else),
+    ``opacity`` (1 opaque, towards 0 fades into what is underneath),
+    ``keyframes`` (clip-local timed pins over x/y/scale/rotation/
+    opacity - utils/keyframes.py interpolates linearly).
 
-    The composed picture is CANVAS-sized, so the tractor's fit pass
-    recognises it and leaves it alone. The background under the placed
-    box follows the project's canvas strategy: a blurred fill of the
-    clip itself when the project says "blur", black otherwise.
+    With none of those in play the filter passes through at zero cost.
+    A placed picture comes out CANVAS-sized, so the tractor's fit pass
+    leaves it alone; the background under the box follows the project's
+    canvas strategy (blurred fill of the clip itself under "blur",
+    black otherwise).
     """
 
     def __init__(self, span: dict, width: int, height: int,
-                 background: str = "black") -> None:
+                 background: str = "black", start_frame: int = 0,
+                 fps: float = 25.0) -> None:
         self._span = span
         self._width = int(width)
         self._height = int(height)
         self._blur = str(background) == "blur"
+        self._start = int(start_frame)
+        self._fps = float(fps) or 25.0
+
+    def _values_at(self, position: int) -> dict:
+        """The effective transform/opacity at this track position."""
+        span = self._span
+        static = {
+            "x": float(span.get("x", 0.5)),
+            "y": float(span.get("y", 0.5)),
+            "scale": float(span.get("scale", 1.0) or 1.0),
+            "rotation": float(span.get("rotation", 0.0)),
+            "opacity": float(span.get("opacity", 1.0)
+                             if span.get("opacity") is not None else 1.0),
+        }
+        keys = span.get("keyframes") or []
+        if not keys:
+            return static
+        from ive.utils.keyframes import evaluate
+
+        local = (position - self._start) / self._fps
+        return evaluate(keys, local, static)
 
     def process(self, frame: Frame) -> Frame:
-        if not self._span.get("placed"):
+        span = self._span
+        crop = span.get("crop") or {}
+        keys = span.get("keyframes") or []
+        opacity = float(span.get("opacity", 1.0)
+                        if span.get("opacity") is not None else 1.0)
+        if not (span.get("placed") or crop or keys or opacity < 0.999):
             return frame
 
-        def placed():
+        position = frame.position
+
+        def dressed():
             image = frame.image()
             if image is None:
                 return None
-            return self._compose(image)
+            return self._compose(image, position)
 
-        return self._wrap(frame, image_fn=placed)
+        return self._wrap(frame, image_fn=dressed)
 
-    def _compose(self, image: np.ndarray) -> np.ndarray:
+    @staticmethod
+    def _cropped(image: np.ndarray, crop: dict) -> np.ndarray:
+        ih, iw = image.shape[:2]
+        left = int(iw * min(0.45, max(0.0, float(crop.get("left", 0.0)))))
+        right = int(iw * min(0.45, max(0.0, float(crop.get("right", 0.0)))))
+        top = int(ih * min(0.45, max(0.0, float(crop.get("top", 0.0)))))
+        bottom = int(ih * min(0.45, max(0.0,
+                                        float(crop.get("bottom", 0.0)))))
+        if not (left or right or top or bottom):
+            return image
+        return image[top:ih - bottom, left:iw - right]
+
+    def _compose(self, image: np.ndarray,
+                 position: int) -> np.ndarray:
         try:
             import cv2
         except ImportError:
             cv2 = None
-        cw, ch = self._width, self._height
         span = self._span
-        scale = min(2.0, max(0.02, float(span.get("scale", 1.0))))
-        rotation = float(span.get("rotation", 0.0))
+        image = self._cropped(image, span.get("crop") or {})
+        values = self._values_at(position)
+        opacity = min(1.0, max(0.0, values["opacity"]))
+
+        if not span.get("placed"):
+            # Following the canvas fit: crop and fade only. The fade is
+            # towards the black track underneath, which is what shows
+            # through - multiplying is that blend, cheaply.
+            if opacity >= 0.999:
+                return image
+            return (image.astype(np.float32) * opacity).astype(np.uint8)
+
+        cw, ch = self._width, self._height
+        scale = min(2.0, max(0.02, values["scale"]))
+        rotation = values["rotation"]
         ih, iw = image.shape[:2]
 
         canvas = self._background(image, cv2)
+        if opacity <= 0.001:
+            return canvas
 
         box_h = max(2, int(round(scale * ch)))
         box_w = max(2, int(round(box_h * iw / max(1, ih))))
@@ -726,8 +785,9 @@ class Placement(Filter):
 
         _blend_over(canvas,
                     np.ascontiguousarray(sprite),
-                    float(span.get("x", 0.5)) * cw,
-                    float(span.get("y", 0.5)) * ch)
+                    values["x"] * cw,
+                    values["y"] * ch,
+                    opacity)
         return canvas
 
     def _background(self, image: np.ndarray, cv2) -> np.ndarray:

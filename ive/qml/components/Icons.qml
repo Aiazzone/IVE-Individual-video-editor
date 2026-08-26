@@ -26,6 +26,9 @@ QtObject {
         "M2 8a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v1"
         + " M2 8l1.5 10a2 2 0 0 0 2 2h13a2 2 0 0 0 2-1.6L22 11H6.2a2 2 0 0 0-1.9 1.4Z"
     readonly property string check: "M20 6 9 17l-5-5"
+    // The keyframe diamond, exactly as it appears on the clip.
+    readonly property string keyframe:
+        "M12 3.5 20.5 12 12 20.5 3.5 12 Z"
     // An arrow dropping into a tray: fetch something onto this machine.
     readonly property string download:
         "M12 3v12 M12 15l-4-4 M12 15l4-4"

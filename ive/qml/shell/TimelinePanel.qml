@@ -96,7 +96,11 @@ Item {
                   return c.track === 0 && c.hasVideo;
               }).map(function (c) {
                   return { from: c.start, to: c.end, color: Theme.c.clipVideo,
-                           name: c.name, film: true, id: c.id, wave: false };
+                           name: c.name, film: true, id: c.id, wave: false,
+                           // Diamond markers: clip-local pin times.
+                           keys: (c.keyframes || []).map(function (k) {
+                               return k.t;
+                           }) };
               }) },
             { name: "A1", kind: "audio", audio: true,
               height: Theme.m.trackHeightAudio,
@@ -619,6 +623,101 @@ Item {
                 color: Qt.alpha(root.onGlass, 0.72)
                 font.pixelSize: Theme.m.fontSizeXs
                 font.family: "monospace"
+            }
+
+            // The selected VIDEO clip's opacity: 1 opaque, towards 0 it
+            // dissolves into what sits underneath. Committed on release.
+            Text {
+                visible: clipOpacity.visible
+                text: Tr.s["video.opacity"] || ""
+                color: Qt.alpha(root.onGlass, 0.72)
+                font.pixelSize: Theme.m.fontSizeXs
+            }
+            AppSlider {
+                id: clipOpacity
+                objectName: "timeline_opacity_slider"
+                visible: root.selectedKind === "video"
+                         && root.selectedClipData !== null
+                Layout.preferredWidth: 90
+                from: 0
+                to: 1
+                stepSize: 0.05
+                label: Tr.s["video.opacity"] || ""
+                value: root.selectedClipData !== null
+                       && root.selectedClipData.opacity !== undefined
+                    ? root.selectedClipData.opacity : 1
+                onCommitted: function (v) {
+                    if (root.selectedClipData !== null)
+                        Actions.invoke("timeline.set_clip_opacity", {
+                            clip_id: root.selectedClipData.id,
+                            opacity: Math.round(v * 100) / 100
+                        });
+                }
+            }
+            Text {
+                visible: clipOpacity.visible
+                Layout.preferredWidth: 30
+                text: Math.round(clipOpacity.effectiveValue * 100) + "%"
+                color: Qt.alpha(root.onGlass, 0.72)
+                font.pixelSize: Theme.m.fontSizeXs
+                font.family: "monospace"
+            }
+
+            // The keyframe diamond: lit when a pin stands at the
+            // playhead. Tap = pin the clip's current transform and
+            // opacity there; tap again = take the pin away. Between
+            // pins the values run linearly (utils/keyframes.py).
+            IconButton {
+                objectName: "timeline_keyframe_button"
+                visible: root.selectedKind === "video"
+                         && root.selectedClipData !== null
+                         && root.position >= root.selectedClipData.start
+                         && root.position < root.selectedClipData.end
+                size: 26; iconSize: 15
+                icon: Icons.keyframe
+                label: Tr.s["video.keyframe"] || ""
+                readonly property real localT:
+                    root.selectedClipData !== null
+                    ? root.position - root.selectedClipData.start : 0
+                checked: {
+                    if (root.selectedClipData === null)
+                        return false;
+                    var keys = root.selectedClipData.keyframes || [];
+                    for (var i = 0; i < keys.length; i++)
+                        if (Math.abs(keys[i].t - localT) <= 0.05)
+                            return true;
+                    return false;
+                }
+                onTriggered: {
+                    var clip = root.selectedClipData;
+                    if (clip === null)
+                        return;
+                    if (checked) {
+                        Actions.invoke("timeline.remove_clip_keyframe", {
+                            clip_id: clip.id, t: localT });
+                        return;
+                    }
+                    // Capture what is ON SCREEN at the playhead: the
+                    // interpolated values when pins exist, the statics
+                    // otherwise - and for a clip still following the
+                    // canvas fit, the fit's own geometry, so the first
+                    // pin changes nothing until the next one moves.
+                    var v = Project.clip_keyframe_values(clip.id, localT);
+                    if (!clip.placed
+                            && (clip.keyframes || []).length === 0) {
+                        v.x = 0.5;
+                        v.y = 0.5;
+                        v.rotation = 0;
+                        v.scale = Math.min(1, Playback.aspect
+                            / Math.max(0.05,
+                                       Project.overlay_aspect(clip.id)));
+                    }
+                    Actions.invoke("timeline.set_clip_keyframe", {
+                        clip_id: clip.id, t: localT,
+                        x: v.x, y: v.y, scale: v.scale,
+                        rotation: v.rotation, opacity: v.opacity
+                    });
+                }
             }
 
             // The selected VIDEO clip's pace: preset chips, CapCut's
@@ -1327,6 +1426,27 @@ Item {
                                                 radius: 1
                                             }
                                         }
+                                    }
+                                }
+
+                                // Keyframe diamonds, along the pill's foot:
+                                // one per pin, at its clip-local time.
+                                Repeater {
+                                    model: clip.modelData.keys || []
+                                    delegate: Rectangle {
+                                        required property var modelData
+                                        width: 7
+                                        height: 7
+                                        rotation: 45
+                                        z: 4
+                                        color: "#FFFFFF"
+                                        border.width: 1
+                                        border.color: "#59000000"
+                                        x: modelData / Math.max(0.001,
+                                               clip.modelData.to
+                                               - clip.modelData.from)
+                                           * clip.width - 3.5
+                                        y: clip.height - 11
                                     }
                                 }
 

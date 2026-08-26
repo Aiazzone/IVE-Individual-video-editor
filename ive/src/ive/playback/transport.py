@@ -89,6 +89,11 @@ class _Segment:
     y: float = 0.5
     scale: float = 1.0
     rotation: float = 0.0
+    #: Crop insets (source fractions), clip opacity, and the timed pins
+    #: over transform/opacity - all read live by the Placement filter.
+    crop: dict = field(default_factory=dict)
+    opacity: float = 1.0
+    keyframes: list = field(default_factory=list)
 
     @property
     def end(self) -> float:
@@ -458,6 +463,10 @@ class PlaybackService(QObject):
                 y=float(entry.get("y", 0.5)),
                 scale=float(entry.get("scale", 1.0) or 1.0),
                 rotation=float(entry.get("rotation", 0.0)),
+                crop=dict(entry.get("crop") or {}),
+                opacity=float(entry.get("opacity", 1.0)
+                              if entry.get("opacity") is not None else 1.0),
+                keyframes=[dict(k) for k in (entry.get("keyframes") or [])],
             ))
         segments.sort(key=lambda s: s.start)
 
@@ -601,15 +610,42 @@ class PlaybackService(QObject):
             return
         # An A/V clip's canvas placement: same live contract, read by
         # the Placement filter. The first drag flips `placed` on so the
-        # frame under the hand already floats before the commit.
+        # frame under the hand already floats before the commit. On a
+        # KEYFRAMED clip the drag previews by pinning a live diamond at
+        # the playhead - the static fields would be ignored there.
         for span in getattr(self, "_video_spans", []) or []:
             if span.get("id") != clip_id:
                 continue
             span["placed"] = True
-            span["x"] = min(1.0, max(0.0, float(x)))
-            span["y"] = min(1.0, max(0.0, float(y)))
-            span["scale"] = min(2.0, max(0.02, float(scale)))
-            span["rotation"] = float(rotation)
+            values = {"x": min(1.0, max(0.0, float(x))),
+                      "y": min(1.0, max(0.0, float(y))),
+                      "scale": min(2.0, max(0.02, float(scale))),
+                      "rotation": float(rotation)}
+            if span.get("keyframes"):
+                from ive.utils.keyframes import upsert
+
+                local = self._position - float(span.get("start") or 0.0)
+                span["keyframes"] = upsert(span["keyframes"], local, values)
+            else:
+                span.update(values)
+            if not self._playing:
+                self._request_at(self._position)
+            return
+
+    @Slot(str, float, float, float, float)
+    def set_video_crop_live(self, clip_id: str, left: float, top: float,
+                            right: float, bottom: float) -> None:
+        """Crop an A/V clip WHILE an edge handle is dragged - the live
+        half of the gesture, like set_overlay_live."""
+        for span in getattr(self, "_video_spans", []) or []:
+            if span.get("id") != clip_id:
+                continue
+            span["crop"] = {
+                edge: min(0.45, max(0.0, float(value)))
+                for edge, value in (("left", left), ("top", top),
+                                    ("right", right), ("bottom", bottom))
+                if float(value) > 1e-4
+            }
             if not self._playing:
                 self._request_at(self._position)
             return
@@ -689,7 +725,10 @@ class PlaybackService(QObject):
              # data; its builder attaches its own Placement filter.
              "placed": segment.placed,
              "x": segment.x, "y": segment.y,
-             "scale": segment.scale, "rotation": segment.rotation}
+             "scale": segment.scale, "rotation": segment.rotation,
+             "crop": dict(segment.crop),
+             "opacity": segment.opacity,
+             "keyframes": [dict(k) for k in segment.keyframes]}
             for index, segment in enumerate(self._segments)
         ]
 
@@ -793,7 +832,10 @@ class PlaybackService(QObject):
              # next pulled frame follows the hand (set_overlay_live).
              "placed": segment.placed,
              "x": segment.x, "y": segment.y,
-             "scale": segment.scale, "rotation": segment.rotation}
+             "scale": segment.scale, "rotation": segment.rotation,
+             "crop": dict(segment.crop),
+             "opacity": segment.opacity,
+             "keyframes": [dict(k) for k in segment.keyframes]}
             for index, segment in enumerate(self._segments)
         ]
         self._video_spans = clips

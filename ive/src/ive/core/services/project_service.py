@@ -283,6 +283,9 @@ class ProjectService(QObject):
                 "x": clip.x, "y": clip.y,
                 "scale": clip.scale, "rotation": clip.rotation,
                 "placed": clip.placed,
+                "crop": dict(clip.crop),
+                "opacity": clip.opacity,
+                "keyframes": [dict(k) for k in clip.keyframes],
                 "words": list(clip.words),
                 "karaoke": clip.karaoke,
                 "karaokeColor": clip.karaoke_color,
@@ -705,6 +708,55 @@ class ProjectService(QObject):
         return self._edit("video.transform_reset",
                           lambda: self._project.reset_clip_transform(clip_id))
 
+    @Slot(str, float, float, float, float, result=bool)
+    def set_clip_crop(self, clip_id: str, left: float, top: float,
+                      right: float, bottom: float) -> bool:
+        """Crop an A/V clip's picture by edge insets (source fractions)."""
+        return self._edit("video.crop",
+                          lambda: self._project.set_clip_crop(
+                              clip_id, left, top, right, bottom))
+
+    @Slot(str, float, result=bool)
+    def set_clip_opacity(self, clip_id: str, opacity: float) -> bool:
+        """Fade an A/V clip towards what sits underneath it."""
+        return self._edit("video.opacity",
+                          lambda: self._project.set_clip_opacity(clip_id,
+                                                                 opacity))
+
+    @Slot(str, float, "QVariantMap", result=bool)
+    def set_clip_keyframe(self, clip_id: str, t: float,
+                          values) -> bool:
+        """Pin transform/opacity values at clip-local ``t`` seconds."""
+        plain = values.toVariant() if hasattr(values, "toVariant") \
+            else dict(values or {})
+        return self._edit("video.keyframe",
+                          lambda: self._project.set_clip_keyframe(
+                              clip_id, t, plain))
+
+    @Slot(str, float, result="QVariantMap")
+    def clip_keyframe_values(self, clip_id: str, t: float) -> dict:
+        """Transform/opacity at clip-local ``t``: the diamonds
+        interpolated, the static fields where nothing pins. The handles
+        and the toolbar capture read THIS, so what they show and what
+        they pin is always the engine's own arithmetic."""
+        clip = (self._project.find_clip(clip_id)
+                if self._project is not None else None)
+        if clip is None:
+            return {}
+        from ive.utils.keyframes import evaluate
+
+        return evaluate(clip.keyframes, float(t), {
+            "x": clip.x, "y": clip.y, "scale": clip.scale,
+            "rotation": clip.rotation, "opacity": clip.opacity,
+        })
+
+    @Slot(str, float, result=bool)
+    def remove_clip_keyframe(self, clip_id: str, t: float) -> bool:
+        """Take the diamond at clip-local ``t`` away."""
+        return self._edit("video.keyframe_remove",
+                          lambda: self._project.remove_clip_keyframe(
+                              clip_id, t))
+
     @Slot(str, result=float)
     def overlay_aspect(self, clip_id: str) -> float:
         """Width / height of an overlay clip's graphic, for the handles."""
@@ -715,15 +767,22 @@ class ProjectService(QObject):
             return 1.0
         try:
             if clip.media_id and clip.track == 0:
-                # An A/V clip: the picture's DISPLAY aspect, for the
-                # canvas-placement handles.
+                # An A/V clip: the picture's DISPLAY aspect - after the
+                # crop, which is what the handles frame.
                 item = self._project.find_media(clip.media_id) \
                     if hasattr(self._project, "find_media") else None
                 if item is None:
                     item = next((m for m in self._project.media
                                  if m.id == clip.media_id), None)
                 if item is not None and item.height:
-                    return max(0.05, float(item.width) / float(item.height))
+                    crop = clip.crop or {}
+                    width = float(item.width) * max(
+                        0.1, 1.0 - float(crop.get("left", 0.0))
+                        - float(crop.get("right", 0.0)))
+                    height = float(item.height) * max(
+                        0.1, 1.0 - float(crop.get("top", 0.0))
+                        - float(crop.get("bottom", 0.0)))
+                    return max(0.05, width / height)
                 return 16.0 / 9.0
             if clip.text:
                 from ive.text.raster import text_aspect

@@ -99,6 +99,89 @@ def set_clip_speed(ctx, clip_id: str, speed: float):
 
 
 @action(
+    id="timeline.set_clip_crop",
+    title_key="video.crop",
+    desc_key="Crop an A/V clip's picture by edge insets, each a fraction "
+             "of the source (0 to 0.45): left, top, right, bottom. All "
+             "zeros removes the crop.",
+    category="timeline",
+    params={
+        "clip_id": Param(str, required=True),
+        "left": Param(float, required=False),
+        "top": Param(float, required=False),
+        "right": Param(float, required=False),
+        "bottom": Param(float, required=False),
+    },
+)
+def set_clip_crop(ctx, clip_id: str, left: float = 0.0, top: float = 0.0,
+                  right: float = 0.0, bottom: float = 0.0):
+    if not ctx.require("project").set_clip_crop(clip_id, left, top,
+                                                right, bottom):
+        raise RuntimeError(f"Clip {clip_id} cannot be cropped")
+
+
+@action(
+    id="timeline.set_clip_opacity",
+    title_key="video.opacity",
+    desc_key="Fade an A/V clip: 1 is opaque, towards 0 the picture "
+             "dissolves into what sits underneath it.",
+    category="timeline",
+    params={
+        "clip_id": Param(str, required=True),
+        "opacity": Param(float, required=True),
+    },
+)
+def set_clip_opacity(ctx, clip_id: str, opacity: float):
+    if not ctx.require("project").set_clip_opacity(clip_id, opacity):
+        raise RuntimeError(f"Clip {clip_id} has no opacity to set")
+
+
+@action(
+    id="timeline.set_clip_keyframe",
+    title_key="video.keyframe",
+    desc_key="Pin an A/V clip's transform/opacity at a clip-local time "
+             "(seconds): any of x, y, scale, rotation, opacity. Between "
+             "pins the values run linearly; a pin already at that time "
+             "is replaced. Pinning a transform floats the clip.",
+    category="timeline",
+    params={
+        "clip_id": Param(str, required=True),
+        "t": Param(float, required=True, doc="Clip-local seconds."),
+        "x": Param(float, required=False),
+        "y": Param(float, required=False),
+        "scale": Param(float, required=False),
+        "rotation": Param(float, required=False),
+        "opacity": Param(float, required=False),
+    },
+)
+def set_clip_keyframe(ctx, clip_id: str, t: float, x=None, y=None,
+                      scale=None, rotation=None, opacity=None):
+    values = {key: value for key, value in
+              (("x", x), ("y", y), ("scale", scale),
+               ("rotation", rotation), ("opacity", opacity))
+              if value is not None}
+    if not ctx.require("project").set_clip_keyframe(clip_id, t, values):
+        raise RuntimeError(
+            f"No keyframe landed on {clip_id} (no values, or not an A/V "
+            f"clip, or t outside it)")
+
+
+@action(
+    id="timeline.remove_clip_keyframe",
+    title_key="video.keyframe_remove",
+    desc_key="Remove the keyframe standing at a clip-local time.",
+    category="timeline",
+    params={
+        "clip_id": Param(str, required=True),
+        "t": Param(float, required=True, doc="Clip-local seconds."),
+    },
+)
+def remove_clip_keyframe(ctx, clip_id: str, t: float):
+    if not ctx.require("project").remove_clip_keyframe(clip_id, t):
+        raise RuntimeError(f"No keyframe at {t:.2f}s on {clip_id}")
+
+
+@action(
     id="timeline.place_effect",
     title_key="timeline.place_effect",
     desc_key="Put a colour effect on the Color lane, covering a stretch of "
