@@ -178,11 +178,15 @@ class TimelineClip:
     #: Overlay placement (stickers AND text), in CANVAS FRACTIONS so it
     #: survives any export resolution: (x, y) is the centre, scale is the
     #: height as a fraction of the canvas height, rotation in degrees
-    #: clockwise.
+    #: clockwise. A/V clips use the same fields once ``placed`` is on.
     x: float = 0.5
     y: float = 0.5
     scale: float = 0.3
     rotation: float = 0.0
+    #: A/V clips only: True = this clip is placed FREELY on the canvas
+    #: with the transform above (CapCut's pinch), False = the project's
+    #: canvas fit strategy applies. Overlays ignore it (always placed).
+    placed: bool = False
 
     @property
     def end(self) -> float:
@@ -244,6 +248,7 @@ class TimelineClip:
             y=min(1.0, max(0.0, _as_float(data.get("y"), 0.5))),
             scale=min(2.0, max(0.02, _as_float(data.get("scale"), 0.3))),
             rotation=_as_float(data.get("rotation")),
+            placed=bool(data.get("placed", False)),
         )
 
 
@@ -514,14 +519,34 @@ class Project:
 
     def set_clip_transform(self, clip_id: str, x: float, y: float,
                            scale: float, rotation: float) -> bool:
-        """Reposition an overlay clip (sticker or text) on the canvas."""
+        """Reposition a clip on the canvas: overlays, or an A/V clip.
+
+        For an A/V clip the first transform also turns ``placed`` on -
+        from then on the clip floats freely instead of following the
+        project's canvas fit. ``reset_clip_transform`` hands it back.
+        """
         clip = self.find_clip(clip_id)
-        if clip is None or not (clip.sticker_id or clip.text):
+        if clip is None:
+            return False
+        is_video = bool(clip.media_id) and clip.track == 0
+        if not (clip.sticker_id or clip.text or is_video):
             return False
         clip.x = min(1.0, max(0.0, float(x)))
         clip.y = min(1.0, max(0.0, float(y)))
         clip.scale = min(2.0, max(0.02, float(scale)))
         clip.rotation = float(rotation)
+        if is_video:
+            clip.placed = True
+        return True
+
+    def reset_clip_transform(self, clip_id: str) -> bool:
+        """Hand a placed A/V clip back to the project's canvas fit."""
+        clip = self.find_clip(clip_id)
+        if clip is None or not clip.placed:
+            return False
+        clip.placed = False
+        clip.x, clip.y = 0.5, 0.5
+        clip.scale, clip.rotation = 0.3, 0.0
         return True
 
     def set_clip_transition(self, clip_id: str, transition_id: str,

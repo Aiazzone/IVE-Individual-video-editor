@@ -23,7 +23,8 @@ from ive.engine.frame import Frame
 log = logging.getLogger(__name__)
 
 __all__ = ["Filter", "Transition", "Gain", "Grayscale", "Opacity", "Dissolve",
-           "ColorGrade", "TimedColor", "apply_colour_ops", "bake_lut"]
+           "ColorGrade", "TimedColor", "Placement", "apply_colour_ops",
+           "bake_lut"]
 
 #: Rec.601 luma weights, shared by every op that needs "how bright is this".
 _LUMA = np.array([0.299, 0.587, 0.114], dtype=np.float32)
@@ -645,6 +646,111 @@ class Overlays(Filter):
             return out
 
         return self._wrap(frame, image_fn=overlaid)
+
+
+class Placement(Filter):
+    """A video clip placed FREELY on the canvas - CapCut's pinch gesture.
+
+    ``span`` is the clip dict itself, shared with the transport and read
+    at process time, so a handle drag mutates it and the very next
+    pulled frame composites at the new place - the same live contract
+    the Overlays filter has. Keys: ``placed`` (False = pass through,
+    the project's canvas fit applies), ``x``/``y`` (centre, canvas
+    fractions), ``scale`` (height as a canvas fraction), ``rotation``
+    (degrees clockwise).
+
+    The composed picture is CANVAS-sized, so the tractor's fit pass
+    recognises it and leaves it alone. The background under the placed
+    box follows the project's canvas strategy: a blurred fill of the
+    clip itself when the project says "blur", black otherwise.
+    """
+
+    def __init__(self, span: dict, width: int, height: int,
+                 background: str = "black") -> None:
+        self._span = span
+        self._width = int(width)
+        self._height = int(height)
+        self._blur = str(background) == "blur"
+
+    def process(self, frame: Frame) -> Frame:
+        if not self._span.get("placed"):
+            return frame
+
+        def placed():
+            image = frame.image()
+            if image is None:
+                return None
+            return self._compose(image)
+
+        return self._wrap(frame, image_fn=placed)
+
+    def _compose(self, image: np.ndarray) -> np.ndarray:
+        try:
+            import cv2
+        except ImportError:
+            cv2 = None
+        cw, ch = self._width, self._height
+        span = self._span
+        scale = min(2.0, max(0.02, float(span.get("scale", 1.0))))
+        rotation = float(span.get("rotation", 0.0))
+        ih, iw = image.shape[:2]
+
+        canvas = self._background(image, cv2)
+
+        box_h = max(2, int(round(scale * ch)))
+        box_w = max(2, int(round(box_h * iw / max(1, ih))))
+        if cv2 is not None:
+            interp = (cv2.INTER_AREA if box_h < ih else cv2.INTER_LINEAR)
+            resized = cv2.resize(image, (box_w, box_h), interpolation=interp)
+        else:
+            ys = (np.arange(box_h) * ih // box_h).clip(0, ih - 1)
+            xs = (np.arange(box_w) * iw // box_w).clip(0, iw - 1)
+            resized = image[ys][:, xs]
+
+        sprite = np.dstack([resized,
+                            np.full((box_h, box_w, 1), 255, np.uint8)])
+        if abs(rotation) > 0.01 and cv2 is not None:
+            # Rotate the RGBA sprite into its enlarged bounding box; the
+            # interpolated alpha edge is the anti-aliasing.
+            matrix = cv2.getRotationMatrix2D((box_w / 2.0, box_h / 2.0),
+                                             -rotation, 1.0)
+            cos = abs(matrix[0, 0])
+            sin = abs(matrix[0, 1])
+            new_w = int(round(box_w * cos + box_h * sin))
+            new_h = int(round(box_w * sin + box_h * cos))
+            matrix[0, 2] += (new_w - box_w) / 2.0
+            matrix[1, 2] += (new_h - box_h) / 2.0
+            sprite = cv2.warpAffine(sprite, matrix, (new_w, new_h),
+                                    flags=cv2.INTER_LINEAR,
+                                    borderValue=(0, 0, 0, 0))
+
+        _blend_over(canvas,
+                    np.ascontiguousarray(sprite),
+                    float(span.get("x", 0.5)) * cw,
+                    float(span.get("y", 0.5)) * ch)
+        return canvas
+
+    def _background(self, image: np.ndarray, cv2) -> np.ndarray:
+        cw, ch = self._width, self._height
+        if not self._blur or cv2 is None:
+            return np.zeros((ch, cw, 3), dtype=np.uint8)
+        # Blurred fill of the clip itself: cover-crop, then the cheap
+        # heavy blur (shrink hard, stretch back) the tractor uses, with
+        # the same darkening so the sharp box reads on top.
+        ih, iw = image.shape[:2]
+        scale = max(cw / iw, ch / ih)
+        span_w = max(1, int(round(iw * scale)))
+        span_h = max(1, int(round(ih * scale)))
+        xs = (((np.arange(cw) + (span_w - cw) // 2) * iw)
+              // span_w).clip(0, iw - 1)
+        ys = (((np.arange(ch) + (span_h - ch) // 2) * ih)
+              // span_h).clip(0, ih - 1)
+        filled = image[ys][:, xs]
+        small = cv2.resize(filled, (max(2, cw // 24), max(2, ch // 24)),
+                           interpolation=cv2.INTER_AREA)
+        background = cv2.resize(small, (cw, ch),
+                                interpolation=cv2.INTER_LINEAR)
+        return (background.astype(np.uint16) * 3 // 4).astype(np.uint8)
 
 
 def _blend_over(image: np.ndarray, sprite: np.ndarray,

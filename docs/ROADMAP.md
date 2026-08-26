@@ -174,9 +174,13 @@ Vedi `docs/EXPORT_PRESETS.md` e `docs/MEDIA_FORMATS.md`.
 - [x] Canvas di progetto (auto/16:9/9:16/4:3/1:1/21:9, gia' dal 2026-08) +
       **strategie fit/fill/blur** (2026-08-23): scelta globale in
       Impostazioni → Layout, ricompone la sequenza aperta all'istante,
-      anteprima ed export identici. Restano le varianti per clip
-      (riquadro riposizionabile) per quando il modello avra' le
-      trasformazioni per clip
+      anteprima ed export identici. **Varianti per clip fatte il
+      2026-08-27**: un clip A/V selezionato mostra le stesse maniglie
+      degli sticker e si pizzica sul canvas (centro/scala/rotazione,
+      campo `placed` nel modello, filtro `Placement` per entry con
+      contratto live sul dict, sfondo nero o blur del clip stesso,
+      bottone ↺ per tornare al fit); azioni
+      timeline.set_clip_transform (estesa) e reset_clip_transform
 - [x] `export/presets.py` — preset dichiarativi JSON, codec **logici**
       (2026-08, factory + user + pack)
 - [x] Encoder via PyAV, dentro `export/service.py` (muxer per contenitore,

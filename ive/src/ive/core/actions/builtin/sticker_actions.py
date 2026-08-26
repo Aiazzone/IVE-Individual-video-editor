@@ -67,9 +67,12 @@ def set_clip_motion(ctx, clip_id: str, motion_id: str):
 @action(
     id="timeline.set_clip_transform",
     title_key="sticker.transform",
-    desc_key="Reposition a sticker on the canvas: centre (x, y) in canvas "
-             "fractions, scale as a fraction of the canvas height, rotation "
-             "in degrees.",
+    desc_key="Reposition a clip on the canvas - a sticker, a title, or an "
+             "A/V clip (which then floats freely instead of following the "
+             "project's canvas fit): centre (x, y) in canvas fractions, "
+             "scale as a fraction of the canvas height, rotation in "
+             "degrees. timeline.reset_clip_transform hands an A/V clip "
+             "back to the canvas fit.",
     category="timeline",
     params={
         "clip_id": Param(str, required=True),
@@ -83,4 +86,17 @@ def set_clip_transform(ctx, clip_id: str, x: float, y: float, scale: float,
                        rotation: float = 0.0):
     if not ctx.require("project").set_clip_transform(clip_id, x, y, scale,
                                                      rotation):
-        raise RuntimeError(f"Unknown sticker clip {clip_id}")
+        raise RuntimeError(f"Clip {clip_id} cannot be transformed")
+
+
+@action(
+    id="timeline.reset_clip_transform",
+    title_key="video.reset_transform",
+    desc_key="Hand a freely placed A/V clip back to the project's canvas "
+             "fit (fit / fill / blur).",
+    category="timeline",
+    params={"clip_id": Param(str, required=True)},
+)
+def reset_clip_transform(ctx, clip_id: str):
+    if not ctx.require("project").reset_clip_transform(clip_id):
+        raise RuntimeError(f"Clip {clip_id} is not placed")

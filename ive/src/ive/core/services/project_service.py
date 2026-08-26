@@ -277,6 +277,7 @@ class ProjectService(QObject):
                 "duckDb": clip.duck_db,
                 "x": clip.x, "y": clip.y,
                 "scale": clip.scale, "rotation": clip.rotation,
+                "placed": clip.placed,
                 "words": list(clip.words),
                 "karaoke": clip.karaoke,
                 "karaokeColor": clip.karaoke_color,
@@ -655,10 +656,17 @@ class ProjectService(QObject):
         clip = (self._project.find_clip(clip_id)
                 if self._project is not None else None)
         label = ("text.transform" if clip is not None and clip.text
-                 else "sticker.transform")
+                 else "video.transform" if clip is not None
+                 and clip.media_id else "sticker.transform")
         return self._edit(label,
                           lambda: self._project.set_clip_transform(
                               clip_id, x, y, scale, rotation))
+
+    @Slot(str, result=bool)
+    def reset_clip_transform(self, clip_id: str) -> bool:
+        """Hand a placed A/V clip back to the project's canvas fit."""
+        return self._edit("video.transform_reset",
+                          lambda: self._project.reset_clip_transform(clip_id))
 
     @Slot(str, result=float)
     def overlay_aspect(self, clip_id: str) -> float:
@@ -669,6 +677,17 @@ class ProjectService(QObject):
         if clip is None:
             return 1.0
         try:
+            if clip.media_id and clip.track == 0:
+                # An A/V clip: the picture's DISPLAY aspect, for the
+                # canvas-placement handles.
+                item = self._project.find_media(clip.media_id) \
+                    if hasattr(self._project, "find_media") else None
+                if item is None:
+                    item = next((m for m in self._project.media
+                                 if m.id == clip.media_id), None)
+                if item is not None and item.height:
+                    return max(0.05, float(item.width) / float(item.height))
+                return 16.0 / 9.0
             if clip.text:
                 from ive.text.raster import text_aspect
 

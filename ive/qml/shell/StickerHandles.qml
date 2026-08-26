@@ -52,6 +52,13 @@ Item {
             var c = all[i];
             if ((c.stickerId || c.text) && c.start <= pos && pos < c.end)
                 out.push(c);
+            // The A/V clip under the playhead gets handles too - but
+            // only when SELECTED: a frame around the whole video at
+            // every pause would be noise, the overlays' frames are not.
+            else if (c.track === 0 && c.hasVideo
+                     && c.id === root.selectedId
+                     && c.start <= pos && pos < c.end)
+                out.push(c);
         }
         return out;
     }
@@ -63,13 +70,26 @@ Item {
             id: box
             objectName: "sticker_handle_" + modelData.id
 
+            // An A/V clip, as opposed to a sticker or a title. Unplaced,
+            // its EFFECTIVE geometry is the canvas fit: centred, height
+            // = min(1, canvas/clip aspect) - the seeds reproduce it so
+            // the first drag starts from exactly what is on screen.
+            readonly property bool isVideo:
+                !modelData.stickerId && !modelData.text
+
             // Live values: seeded from the model, driven by the hand
             // during a gesture. The Repeater recreates delegates whenever
             // the timeline changes, so the seeds are always fresh.
-            property real vx: modelData.x
-            property real vy: modelData.y
-            property real vs: modelData.scale
-            property real vr: modelData.rotation
+            property real vx: box.isVideo && !modelData.placed
+                              ? 0.5 : modelData.x
+            property real vy: box.isVideo && !modelData.placed
+                              ? 0.5 : modelData.y
+            property real vs: box.isVideo && !modelData.placed
+                              ? Math.min(1, root.canvasAspect
+                                            / box.spriteAspect)
+                              : modelData.scale
+            property real vr: box.isVideo && !modelData.placed
+                              ? 0 : modelData.rotation
 
             readonly property bool selected: root.selectedId === modelData.id
             // One slot for both kinds: the sticker file's ratio, or the
@@ -135,7 +155,8 @@ Item {
 
                 onPressed: function (mouse) {
                     Shell.set_selected_clip(modelData.id,
-                        modelData.stickerId ? "sticker" : "text");
+                        modelData.stickerId ? "sticker"
+                        : modelData.text ? "text" : "video");
                     var p = mapToItem(root, mouse.x, mouse.y);
                     press = Qt.point(p.x, p.y);
                     x0 = box.vx;
@@ -152,6 +173,35 @@ Item {
                     box.pushLive();
                 }
                 onReleased: box.commit()
+            }
+
+            // ── reset: a placed video back to the canvas fit ──────
+            Rectangle {
+                objectName: "video_reset_" + modelData.id
+                visible: box.selected && box.isVideo
+                         && modelData.placed === true
+                width: 20
+                height: 20
+                radius: 10
+                color: "#FFFFFF"
+                border.width: 1
+                border.color: "#59000000"
+                anchors.horizontalCenter: parent.left
+                anchors.verticalCenter: parent.top
+                Text {
+                    anchors.centerIn: parent
+                    text: "↺"
+                    color: "#111111"
+                    font.pixelSize: 13
+                }
+                MouseArea {
+                    anchors.fill: parent
+                    anchors.margins: -6
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: Actions.invoke(
+                        "timeline.reset_clip_transform",
+                        { clip_id: modelData.id })
+                }
             }
 
             // ── scale: the bottom-right corner ────────────────────

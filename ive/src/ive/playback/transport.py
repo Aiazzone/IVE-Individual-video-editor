@@ -77,6 +77,16 @@ class _Segment:
     audio_ops: list = field(default_factory=list)
     fade_in: float = 0.0
     fade_out: float = 0.0
+    #: The MODEL's clip id, so a canvas-placement drag can find its
+    #: live span; "" for a bare single file.
+    clip_id: str = ""
+    #: Free placement on the canvas (engine/filters.Placement): off, the
+    #: project's canvas fit applies; on, the transform below does.
+    placed: bool = False
+    x: float = 0.5
+    y: float = 0.5
+    scale: float = 1.0
+    rotation: float = 0.0
 
     @property
     def end(self) -> float:
@@ -125,6 +135,7 @@ class PlaybackService(QObject):
         #: Title stretches (seconds + words/style/transform) from the
         #: Text lane; same pure-data rule.
         self._text_spans: list[dict] = []
+        self._video_spans: list[dict] = []
         #: Transition windows (seconds + recipe payload) where adjacent
         #: video clips overlap; blenders attach at graph build.
         self._transition_spans: list[dict] = []
@@ -432,6 +443,12 @@ class PlaybackService(QObject):
                 audio_ops=audio_ops_for(str(entry.get("audioEffectId") or "")),
                 fade_in=float(entry.get("fadeIn") or 0.0),
                 fade_out=float(entry.get("fadeOut") or 0.0),
+                clip_id=str(entry.get("id") or ""),
+                placed=bool(entry.get("placed", False)),
+                x=float(entry.get("x", 0.5)),
+                y=float(entry.get("y", 0.5)),
+                scale=float(entry.get("scale", 1.0) or 1.0),
+                rotation=float(entry.get("rotation", 0.0)),
             ))
         segments.sort(key=lambda s: s.start)
 
@@ -573,6 +590,20 @@ class PlaybackService(QObject):
             if not self._playing:
                 self._request_at(self._position)
             return
+        # An A/V clip's canvas placement: same live contract, read by
+        # the Placement filter. The first drag flips `placed` on so the
+        # frame under the hand already floats before the commit.
+        for span in getattr(self, "_video_spans", []) or []:
+            if span.get("id") != clip_id:
+                continue
+            span["placed"] = True
+            span["x"] = min(1.0, max(0.0, float(x)))
+            span["y"] = min(1.0, max(0.0, float(y)))
+            span["scale"] = min(2.0, max(0.02, float(scale)))
+            span["rotation"] = float(rotation)
+            if not self._playing:
+                self._request_at(self._position)
+            return
 
     @Slot(str, str, str, str, str, bool, bool)
     def set_text_live(self, clip_id: str, text: str, font: str, color: str,
@@ -640,9 +671,15 @@ class PlaybackService(QObject):
         return [
             {"path": segment.path, "start": segment.start,
              "duration": segment.duration, "sourceIn": segment.source_in,
-             "volume": segment.volume, "id": str(index),
+             "volume": segment.volume,
+             "id": segment.clip_id or str(index),
              "audioOps": [dict(op) for op in segment.audio_ops],
-             "fadeIn": segment.fade_in, "fadeOut": segment.fade_out}
+             "fadeIn": segment.fade_in, "fadeOut": segment.fade_out,
+             # Canvas placement crosses to the export worker as pure
+             # data; its builder attaches its own Placement filter.
+             "placed": segment.placed,
+             "x": segment.x, "y": segment.y,
+             "scale": segment.scale, "rotation": segment.rotation}
             for index, segment in enumerate(self._segments)
         ]
 
@@ -738,9 +775,17 @@ class PlaybackService(QObject):
         clips = [
             {"path": segment.path, "start": segment.start,
              "duration": segment.duration, "sourceIn": segment.source_in,
-             "volume": segment.volume, "id": str(index)}
+             "volume": segment.volume,
+             "id": segment.clip_id or str(index),
+             # Canvas placement: the Placement filter keeps a reference
+             # to THIS dict, so the live handle drag mutates it and the
+             # next pulled frame follows the hand (set_overlay_live).
+             "placed": segment.placed,
+             "x": segment.x, "y": segment.y,
+             "scale": segment.scale, "rotation": segment.rotation}
             for index, segment in enumerate(self._segments)
         ]
+        self._video_spans = clips
         sticker_spans = self._sticker_spans
         if sticker_spans:
             from ive.motion.runtime import attach_motion

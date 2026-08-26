@@ -16,7 +16,7 @@ import logging
 from fractions import Fraction
 from pathlib import Path
 
-from ive.engine.filters import AudioEffect, AudioRamp, Gain
+from ive.engine.filters import AudioEffect, AudioRamp, Gain, Placement
 from ive.engine.frame import AudioFormat, Timebase
 from ive.engine.playlist import Entry, Playlist
 from ive.engine.producer import ClipProducer, ColourProducer, Producer
@@ -236,6 +236,15 @@ class GraphBuilder:
                 entry.filters.append(AudioRamp(
                     start + max(0, length - fade_out), start + length,
                     rising=False))
+            # Free placement on the canvas: the filter reads the CLIP
+            # DICT at process time, so the transport's live handle drag
+            # mutates this very object and the next frame follows the
+            # hand. Attached whenever the key exists - unplaced clips
+            # pass through at zero cost.
+            if "placed" in clip:
+                entry.filters.append(Placement(
+                    clip, self.width, self.height,
+                    "blur" if self.canvas_fit == "blur" else "black"))
             current.append(entry)
             cursors[id(current)] = start + length
             placed.append((entry, current, start, start + length))
