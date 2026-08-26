@@ -1,13 +1,24 @@
-"""The QML item that shows the decoded frame.
+"""The QML item that shows the decoded frame - as a GPU texture.
 
-Implemented with ``QQuickPaintedItem`` for now: correct, simple, and fast
-enough at 1080p. When the render graph lands it is replaced by a texture-based
-item that uploads straight to the GPU - the QML API stays the same, so nothing
-in the shell has to change.
+The frame goes straight onto the scene graph: ``updatePaintNode``
+uploads the QImage as a texture and draws two nodes, a background
+rectangle and the fitted picture. The previous ``QQuickPaintedItem``
+rasterised every frame through QPainter into an FBO first - one full
+extra copy plus a raster pass, per frame, on the render thread's time.
 
-The frame is always fitted, never cropped and never stretched: an editor that
-lies about framing is useless. Letterbox bars are painted in the project's
-canvas colour.
+Threading, because it is the whole point of the scene-graph API:
+``set_image`` runs on the GUI thread and only stores the image and
+calls ``update()``; ``updatePaintNode`` runs on the RENDER thread while
+the GUI thread is blocked by the sync phase - the one moment both may
+touch the same state, which is why the image can be read there without
+a lock. Textures are created and destroyed only inside
+``updatePaintNode`` (``QSGSimpleTextureNode`` owns them and frees the
+old one when a new one is set).
+
+The frame is always fitted, never stretched: an editor that lies about
+framing is useless. "cover" exists for the shell's shaped viewport -
+see ``fillMode`` below. The QML API is unchanged from the painted
+implementation, exactly as docs/ROADMAP.md promised.
 """
 
 from __future__ import annotations
@@ -15,15 +26,16 @@ from __future__ import annotations
 import logging
 
 from PySide6.QtCore import Property, QObject, QRectF, Signal, Slot
-from PySide6.QtGui import QColor, QImage, QPainter
-from PySide6.QtQuick import QQuickPaintedItem
+from PySide6.QtGui import QColor, QImage
+from PySide6.QtQuick import (QQuickItem, QSGNode, QSGSimpleTextureNode,
+                             QSGTexture)
 
 log = logging.getLogger(__name__)
 
 __all__ = ["PreviewItem"]
 
 
-class PreviewItem(QQuickPaintedItem):
+class PreviewItem(QQuickItem):
     """Displays one frame at a time, fitted inside its own bounds."""
 
     frameChanged = Signal()
@@ -34,13 +46,12 @@ class PreviewItem(QQuickPaintedItem):
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
         self._image = QImage()
+        self._image_serial = 0
+        self._uploaded_serial = -1
         self._source = None
         self._background = QColor("#000000")
         self._fill_mode = "fit"
-        self.setAntialiasing(True)
-        # The frame changes rarely relative to the compositor; repainting only
-        # when it does keeps the item off the per-frame budget.
-        self.setRenderTarget(QQuickPaintedItem.RenderTarget.FramebufferObject)
+        self.setFlag(QQuickItem.Flag.ItemHasContents, True)
 
     # ── QML API ───────────────────────────────────────────────────────
 
@@ -122,6 +133,7 @@ class PreviewItem(QQuickPaintedItem):
         )
         was_empty = self._image.isNull()
         self._image = image
+        self._image_serial += 1
         if changed_size:
             self.sourceSizeChanged.emit()
         if was_empty != image.isNull():
@@ -133,18 +145,14 @@ class PreviewItem(QQuickPaintedItem):
         if self._image.isNull():
             return
         self._image = QImage()
+        self._image_serial += 1
         self.frameChanged.emit()
         self.sourceSizeChanged.emit()
         self.update()
 
-    # ── painting ──────────────────────────────────────────────────────
+    # ── the scene graph ───────────────────────────────────────────────
 
-    def paint(self, painter: QPainter) -> None:
-        bounds = QRectF(0, 0, self.width(), self.height())
-        painter.fillRect(bounds, self._background)
-        if self._image.isNull() or bounds.isEmpty():
-            return
-
+    def _target_rect(self, bounds: QRectF) -> QRectF:
         pick = max if self._fill_mode == "cover" else min
         scale = pick(
             bounds.width() / self._image.width(),
@@ -152,12 +160,50 @@ class PreviewItem(QQuickPaintedItem):
         )
         width = self._image.width() * scale
         height = self._image.height() * scale
-        target = QRectF(
+        return QRectF(
             bounds.x() + (bounds.width() - width) / 2,
             bounds.y() + (bounds.height() - height) / 2,
             width,
             height,
         )
 
-        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
-        painter.drawImage(target, self._image)
+    def updatePaintNode(self, node, _data):  # noqa: N802 - Qt naming
+        from PySide6.QtQuick import QSGSimpleRectNode
+
+        bounds = QRectF(0, 0, self.width(), self.height())
+        window = self.window()
+        if bounds.isEmpty() or window is None:
+            return node
+
+        background = node
+        if background is None or not isinstance(background,
+                                                QSGSimpleRectNode):
+            background = QSGSimpleRectNode()
+        background.setRect(bounds)
+        background.setColor(self._background)
+
+        picture = (background.firstChild()
+                   if background.childCount() else None)
+        if self._image.isNull():
+            if picture is not None:
+                background.removeAllChildNodes()
+            return background
+
+        if picture is None:
+            picture = QSGSimpleTextureNode()
+            # The node deletes its texture when a new one lands and when
+            # the node itself goes - the whole lifecycle stays on the
+            # render thread, where it must be.
+            picture.setOwnsTexture(True)
+            picture.setFiltering(QSGTexture.Filtering.Linear)
+            background.appendChildNode(picture)
+        # Hold Python references: the C++ side owns the nodes, but a
+        # garbage-collected WRAPPER of a Python-created node would take
+        # the C++ object with it mid-scene.
+        self._nodes = (background, picture)
+        if self._uploaded_serial != self._image_serial:
+            picture.setTexture(window.createTextureFromImage(self._image))
+            self._uploaded_serial = self._image_serial
+        picture.setRect(self._target_rect(bounds))
+        background.markDirty(QSGNode.DirtyState.DirtyGeometry)
+        return background

@@ -35,9 +35,13 @@ Item {
     // Hidden until the pointer reaches the strip that belongs to it. In bottom
     // mode there is no "always visible while paused" exception: the strip sits
     // right above the timeline, which is where the hand already goes.
-    // Space always works, visible or not.
+    // Space always works, visible or not. WHILE PLAYING the discoverable
+    // exception is off too: the pill fades and the picture is alone -
+    // the auto-hide of docs/UI_SHELL.md; any pointer in the zone brings
+    // it straight back.
     readonly property bool shown:
-        pointerInZone || hover.hovered || (discoverable && !bottomMode)
+        pointerInZone || hover.hovered
+        || (discoverable && !bottomMode && !playing)
 
     implicitWidth: row.implicitWidth + Theme.m.space2 * 2
     implicitHeight: row.implicitHeight + Theme.m.space2 * 2

@@ -70,7 +70,9 @@ identico, e ogni operazione e' annullabile. Ancora nessuna UI.
 
 ---
 
-## Fase 2 — Media I/O e preview  ·  XL  ·  **IN CORSO**
+## Fase 2 — Media I/O e preview  ·  XL  ·  **COMPLETATA su Windows**
+   (resta la verifica Linux/macOS della regola d'oro, e il float
+   lineare/HDR nativo dichiarato post-1.0)
 
 Lo step tecnicamente piu' rischioso: farlo presto.
 
@@ -78,8 +80,11 @@ Lo step tecnicamente piu' rischioso: farlo presto.
 - [x] `media/decoder.py` — **seek frame-accurate verificato** (18 posizioni,
       avanti/indietro/sequenziale, contro numero di frame impresso nel video)
 - [x] `media/reader.py` — decodifica su worker thread con coalescing delle richieste
-- [ ] `media/cache.py`
-- [ ] `media/thumbnails.py`, `waveform.py` — asincroni
+- [x] Cache dei media: ASSORBITA da decoder (cursor+frame cache),
+      read-ahead (30 frame) e proxy — un `media/cache.py` separato non
+      e' mai servito; se un giorno serve, questa riga e' il promemoria
+- [x] Thumbnail e waveform asincroni (`ui/thumbnails.py`,
+      `ui/waveforms.py`: worker thread, PNG cache in user_data)
 - [x] **Matrice colore corretta** (2026-08-24): un file taggato e'
       onorato da swscale; un file SENZA tag usa la convenzione per
       dimensione (HD = BT.709, non piu' il default 601); l'export
@@ -102,7 +107,11 @@ Lo step tecnicamente piu' rischioso: farlo presto.
 - [x] `audio_engine/`: mixer e resample in `engine/`, uscita in
       `playback/audio_output.py` (QAudioSink push-mode)
 - [x] `playback/`: transport, clock, A/V sync, prefetch
-- [x] `ui/preview_item.py` (QQuickPaintedItem; upload texture da fare)
+- [x] `ui/preview_item.py` — **a texture dal 2026-08-27**: il frame va
+      dritto sullo scene graph (QSGSimpleTextureNode via
+      updatePaintNode, upload sul render thread), niente piu' passaggio
+      QPainter+FBO per frame; API QML invariata, pixel-verificato dai
+      test visivi (HDR, canvas fit, riquadro)
 - [x] `playback/transport.py` — play/pausa/seek/step; **il clock e' l'audio**
       (campioni processati dal device), timer solo come fallback senza device
 - [x] Apertura file da tool rail e Ctrl+O; timeline legata al media aperto
@@ -110,11 +119,14 @@ Lo step tecnicamente piu' rischioso: farlo presto.
 - [x] **Audio e sincronizzazione A/V** — tono 440/880 Hz verificato DOPO il
       sink (`tests/test_audio_output.py`); conteggio campioni per frame
       drift-free ai rate frazionari (confini cumulativi, non round() costante)
-- [ ] Proxy, cache di thumbnail e waveform
-- [ ] Upload a texture nel PreviewItem (ora QQuickPaintedItem)
-- [ ] Ambient backdrop alimentato dallo stesso frame decodificato, area
-      libera e riscalatura animata del video (`UI_SHELL.md` §3)
-- [ ] Transport HUD con auto-hide in riproduzione
+- [x] Proxy (con tone-map HDR incorporato) e cache di thumbnail e
+      waveform in user_data/cache
+- [x] Ambient backdrop alimentato dallo stesso frame decodificato:
+      `AmbientBackdrop.qml` campiona il PreviewItem via
+      ShaderEffectSource a 10 Hz — zero decodifiche extra
+- [x] Transport HUD con auto-hide in riproduzione (2026-08-27: durante
+      il play la pillola sfuma anche in modalita' centro; il puntatore
+      nella zona la riporta)
 
 **Fatto quando:** si apre un file, si riproduce con audio sincronizzato, si
 fa seek preciso, e lo scrubbing e' fluido. Su tutte e tre le piattaforme.
