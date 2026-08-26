@@ -330,12 +330,24 @@ Il 4K e l'AV1 non si montano fluidi su una macchina normale. Il proxy e' la
 soluzione standard: si lavora su una copia leggera, si esporta
 dall'originale.
 
-- Generazione su richiesta o automatica sopra una soglia di risoluzione.
-- Formato: ProRes Proxy o H.264 a bassa risoluzione (540p o 720p), da
-  valutare per velocita' di decode.
-- Salvati in `user_data/cache/proxies/`, chiave = hash di path + dimensione +
-  mtime del sorgente.
-- Toggle globale proxy on/off, con indicazione visibile dello stato.
+- Generazione automatica sopra una soglia di risoluzione
+  (`media.proxy_threshold`, **default 720**: misurato su una macchina
+  8-core modesta, anche il 1080p liscio sfora il budget di 33 ms appena
+  una clip gira a 4x — ~50 ms a frame di solo decode, col threading
+  FFmpeg gia' al meglio). Una macchina potente puo' alzarla a 1440 dal
+  tab **Media** dei Settings e montare i 1080p originali.
+- Formato: H.264 all'altezza `media.proxy_height` (default 540p),
+  anch'essa nei Settings (360-1080p).
+- Salvati in `user_data/cache/proxies/`, nome = hash di path + dimensione +
+  mtime del sorgente **+ l'altezza della policy**: alzare la risoluzione
+  di lavoro non deve continuare a servire le copie vecchie piu' piccole.
+  Le copie ad altre altezze diventano orfane; le spazza il bottone
+  "Elimina proxy".
+- Toggle globale proxy on/off nei Settings, con dimensione della cache.
+  Al cambio di QUALUNQUE setting proxy l'app reagisce subito: accoda le
+  build mancanti e ricostruisce il grafo (non si aspetta il prossimo
+  import). Svuotare la cache riaccoda da solo le build del progetto
+  aperto.
 - **L'export usa sempre i file originali**, mai i proxy. Questa e' la regola
   che non si viola mai: un export fatto dai proxy e' lavoro perso.
 
