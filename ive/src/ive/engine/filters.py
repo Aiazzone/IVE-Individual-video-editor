@@ -29,6 +29,88 @@ __all__ = ["Filter", "Transition", "Gain", "Grayscale", "Opacity", "Dissolve",
 #: Rec.601 luma weights, shared by every op that needs "how bright is this".
 _LUMA = np.array([0.299, 0.587, 0.114], dtype=np.float32)
 
+#: Ops that look at NEIGHBOURING pixels, so they can never live inside a
+#: LUT or a colour matrix: the vignette and the artistic stylizations.
+_SPATIAL_OPS = frozenset({"vignette", "sketch", "cartoon", "paint"})
+
+
+# ── the artistic (spatial) ops ───────────────────────────────────────
+#
+# All three run on the uint8 RGB frame with OpenCV; without cv2 they
+# degrade to a warned pass-through, like an unknown op. The expensive
+# neighbourhood work happens on a PYRAMID-REDUCED copy - cv2.stylization
+# at full 720p costs 1.2 s a frame, these stay at 12-50 ms (measured),
+# which the read-ahead absorbs and the proxy halves again.
+
+def _op_sketch(cv2, image: np.ndarray, params: dict) -> np.ndarray:
+    """Pencil drawing by the classic dodge blend: gray / blurred-inverse.
+
+    ``shade`` (0..1) widens the shading stroke; ``mode`` "color" lays the
+    softened colours back over the strokes - coloured pencils on paper.
+    """
+    shade = min(1.0, max(0.0, float(params.get("shade", 0.5))))
+    sigma = 2.0 + 10.0 * shade  # at HALF resolution
+    gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+    inv_small = cv2.pyrDown(255 - gray)
+    blur = cv2.pyrUp(cv2.GaussianBlur(inv_small, (0, 0), sigma),
+                     dstsize=(image.shape[1], image.shape[0]))
+    strokes = cv2.divide(gray, 255 - blur, scale=256)
+    # Pencil outlines: without them a low-texture scene dodges to near
+    # white and the drawing has no drawing in it. Adaptive-threshold ink,
+    # median-cleaned of noise speckles, capped at a soft graphite grey.
+    smooth = cv2.medianBlur(gray, 5)
+    ink = cv2.adaptiveThreshold(smooth, 255, cv2.ADAPTIVE_THRESH_MEAN_C,
+                                cv2.THRESH_BINARY, 9, 4)
+    ink = cv2.max(cv2.medianBlur(ink, 3), 90)
+    strokes = cv2.min(strokes, cv2.GaussianBlur(ink, (0, 0), 0.8))
+    strokes = cv2.cvtColor(strokes, cv2.COLOR_GRAY2RGB)
+    if str(params.get("mode") or "gray") != "color":
+        return strokes
+    soft = cv2.pyrUp(cv2.pyrDown(image),
+                     dstsize=(image.shape[1], image.shape[0]))
+    return cv2.multiply(soft, strokes, scale=1.0 / 255.0)
+
+
+def _op_cartoon(cv2, image: np.ndarray, params: dict) -> np.ndarray:
+    """Flat bilateral colours plus adaptive-threshold ink lines.
+
+    ``smooth`` (0..1) adds bilateral passes over the quarter-res copy;
+    ``lines`` (0..1) thickens the ink (adaptive block size).
+    """
+    smooth = min(1.0, max(0.0, float(params.get("smooth", 0.6))))
+    lines = min(1.0, max(0.0, float(params.get("lines", 0.5))))
+    small = cv2.pyrDown(cv2.pyrDown(image))
+    for _ in range(1 + int(round(3 * smooth))):
+        small = cv2.bilateralFilter(small, 9, 60, 7)
+    flat = cv2.pyrUp(cv2.pyrUp(small),
+                     dstsize=(image.shape[1], image.shape[0]))
+    gray = cv2.medianBlur(cv2.cvtColor(image, cv2.COLOR_RGB2GRAY), 5)
+    block = 2 * int(round(3 + 4 * lines)) + 1  # odd, 7..15
+    edges = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_MEAN_C,
+                                  cv2.THRESH_BINARY, block, 4)
+    # Camera noise reads as pepper dots to the threshold; a median pass
+    # over the MASK erases isolated dots and keeps connected lines.
+    edges = cv2.medianBlur(edges, 3)
+    return cv2.bitwise_and(flat, flat, mask=edges)
+
+
+def _op_paint(cv2, image: np.ndarray, params: dict) -> np.ndarray:
+    """Painterly smoothing: iterated bilateral over a quarter-res copy,
+    stretched back - brush-like colour patches, no ink lines.
+
+    ``strength`` (0..1) is how far the paint melts detail away.
+    """
+    strength = min(1.0, max(0.0, float(params.get("strength", 0.6))))
+    small = cv2.pyrDown(cv2.pyrDown(image))
+    for _ in range(1 + int(round(3 * strength))):
+        small = cv2.bilateralFilter(small, 9, 40 + 60 * strength, 7)
+    return cv2.pyrUp(cv2.pyrUp(small),
+                     dstsize=(image.shape[1], image.shape[0]))
+
+
+_ARTISTIC_OPS = {"sketch": _op_sketch, "cartoon": _op_cartoon,
+                 "paint": _op_paint}
+
 
 def apply_colour_ops(array: np.ndarray, ops: list[dict],
                      vignette_cache: dict | None = None) -> np.ndarray:
@@ -55,8 +137,13 @@ def apply_colour_ops(array: np.ndarray, ops: list[dict],
                            frame: 0 = original, 1 = full effect. Put it
                            last (and before any vignette) for the "overall
                            strength" dial of a whole recipe.
-    Unknown ops are skipped with a warning: a recipe written by a NEWER
-    version must degrade, not blow up the timeline.
+      sketch(mode?, shade?)      pencil drawing (dodge blend); "color"
+                                 lays soft colours over the strokes
+      cartoon(smooth?, lines?)   flat bilateral colours + ink lines
+      paint(strength?)           painterly bilateral smoothing
+    The last three are SPATIAL and need OpenCV; without it they degrade
+    to a warned pass-through, like unknown ops - a recipe written by a
+    NEWER version must degrade, not blow up the timeline.
     """
     work = array.astype(np.float32) / 255.0
     # The pristine input, kept only when an intensity op will need it.
@@ -119,6 +206,16 @@ def apply_colour_ops(array: np.ndarray, ops: list[dict],
             m = np.array(entry.get("m") or np.eye(3), dtype=np.float32)
             offset = np.array(entry.get("offset") or (0, 0, 0), dtype=np.float32)
             work = work @ m.T + offset
+        elif op in _ARTISTIC_OPS:
+            try:
+                import cv2
+            except ImportError:
+                log.warning("Artistic op %r needs OpenCV; skipped", op)
+            else:
+                np.clip(work, 0.0, 1.0, out=work)
+                frame_u8 = (work * 255.0).astype(np.uint8)
+                work = (_ARTISTIC_OPS[op](cv2, frame_u8, entry)
+                        .astype(np.float32) / 255.0)
         else:
             log.warning("Unknown colour op %r skipped", op)
         # EVERY op sees clipped input. This is the uint8-pipeline semantic
@@ -336,13 +433,14 @@ def bake_lut(ops: list[dict], size: int = _LUT_SIZE) -> np.ndarray:
     several times over - which is exactly the stutter it produced. The
     standard trick (FFmpeg's lut3d, every grading tool): evaluate the chain
     ONCE over a small lattice of colours, then each frame is a single
-    vectorised table lookup. Spatial ops (vignette) cannot live in a LUT
-    and are applied separately.
+    vectorised table lookup. Spatial ops (vignette, the artistic ones)
+    cannot live in a LUT and are applied separately.
     """
     ramp = np.linspace(0, 255, size).round().astype(np.uint8)
     r, g, b = np.meshgrid(ramp, ramp, ramp, indexing="ij")
     lattice = np.stack([r, g, b], axis=-1).reshape(size * size, size, 3)
-    colour_only = [op for op in ops or [] if op.get("op") != "vignette"]
+    colour_only = [op for op in ops or []
+                   if op.get("op") not in _SPATIAL_OPS]
     graded = apply_colour_ops(lattice, colour_only, None)
     return np.ascontiguousarray(graded.reshape(size, size, size, 3))
 
@@ -372,7 +470,8 @@ class ColorGrade(Filter):
             float(op.get("strength", 0.5))
             for op in self.ops if op.get("op") == "vignette"
         ]
-        self._has_colour = any(op.get("op") != "vignette" for op in self.ops)
+        self._has_colour = any(op.get("op") not in _SPATIAL_OPS
+                               for op in self.ops)
         #: Compiled cv2 step list; None = not compiled yet, False = no cv2.
         self._cv2 = None
         self._steps: list | None | bool = None
@@ -446,6 +545,10 @@ class ColorGrade(Filter):
                 flush_pending()
                 flush_matrix()
                 steps.append(("vignette", float(op.get("strength", 0.5))))
+            elif name in _ARTISTIC_OPS:
+                flush_pending()
+                flush_matrix()
+                steps.append(("artistic", (_ARTISTIC_OPS[name], dict(op))))
             elif name == "intensity":
                 flush_pending()
                 flush_matrix()
@@ -505,6 +608,9 @@ class ColorGrade(Filter):
                     # `image` is never written in place (every cv2 call
                     # above returns a new array), so it IS the original.
                     out = cv2.addWeighted(image, 1.0 - payload, out, payload, 0)
+                elif kind == "artistic":
+                    fn, params = payload
+                    out = fn(cv2, np.ascontiguousarray(out), params)
                 else:
                     height, width = out.shape[:2]
                     out = cv2.multiply(out, self._mask_u8(width, height, payload),
@@ -513,7 +619,8 @@ class ColorGrade(Filter):
         return self._apply_numpy(image)
 
     def _apply_numpy(self, image: np.ndarray) -> np.ndarray:
-        """No-OpenCV fallback: one baked-LUT gather plus the vignette."""
+        """No-OpenCV fallback: one baked-LUT gather plus the vignette.
+        The artistic ops need OpenCV and degrade to nothing here."""
         out = image
         if self._has_colour:
             if self._flat_lut is None:

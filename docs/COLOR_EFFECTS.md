@@ -22,10 +22,10 @@ sicuro, quindi un effetto DICHIARA una ricetta e non esegue nulla.
 ```
 
 - **Di fabbrica**: `ive/config/defaults/color_effects/*.json` (un file per
-  sezione, contiene una lista). 29 effetti in 8 sezioni: nostalgia, film
-  (pellicola), cinema, cyberpunk, summer (estate), nordic, bw (bianco e
-  nero), base. Una sezione nuova richiede la chiave
-  `color.section.<id>` nei 4 locale.
+  sezione, contiene una lista). 35 effetti in 9 sezioni: artistic
+  (artistici — matita, fumetto, pittura), nostalgia, film (pellicola),
+  cinema, cyberpunk, summer (estate), nordic, bw (bianco e nero), base.
+  Una sezione nuova richiede la chiave `color.section.<id>` nei 4 locale.
 - **Dell'utente**: `user_data/effects/color/*.json` — copiare li' un file
   ricevuto da chiunque E' l'installazione. Un id gia' esistente viene
   ignorato con warning (mai override silenzioso dei builtin).
@@ -52,6 +52,18 @@ ognuna il risultato e' clippato a [0,1]. Implementazione di riferimento in
 | `vignette` | `strength` | 0 … 1 | 0 | angoli scuri, caduta quadratica |
 | `matrix` | `m` 3×3, `offset?` | — | identita' | matrice colore arbitraria (seppia, duotone, b/n virati) |
 | `intensity` | `amount` | 0 … 1 | 1 | fonde TUTTO cio' che la precede con il frame originale: il "dosaggio" dell'intera ricetta |
+| `sketch` | `mode?` gray/color, `shade?` 0…1 | — | — | disegno a matita (dodge blend + inchiostro adattivo); `color` = matite colorate |
+| `cartoon` | `smooth?` 0…1, `lines?` 0…1 | — | — | colori appiattiti (bilateral su piramide) + linee a china |
+| `paint` | `strength?` 0…1 | — | — | pittura: bilateral iterato a quarto di risoluzione |
+
+Le ultime tre sono op **SPAZIALI** (guardano i pixel vicini, sezione
+"artistic" del catalogo, 2026-08-28): richiedono OpenCV — senza, degradano
+a pass-through con warning come le op sconosciute — e restano FUORI dalla
+3D LUT cotta (un reticolo di colori non e' una scena) e dal fallback numpy.
+Il lavoro pesante gira su copia ridotta in piramide: 12–50 ms a 720p
+misurati (cv2.stylization pieno costava 1,2 s), 19–42 ms sul proxy 540p.
+Il read-ahead li assorbe e l'audio-first garantisce che sotto carico
+degradi il video, mai il suono.
 
 Regole per `intensity`: metterla **ultima** e comunque **prima di una
 vignette finale** — nella via compilata fonderebbe anche la vignette gia'
@@ -159,5 +171,6 @@ serve, valutare un'approssimazione o il futuro backend GPU).
    prossimo avvio.
 
 Test: `tests/test_color_effects.py` (ops, catalogo, TimedColor, grafo),
+`tests/test_artistic_effects.py` (op spaziali, esclusione LUT, catalogo),
 `tests/visual/test_color_panel.py` (pannello, corsia, anteprima davvero
 colorata, delete).

@@ -1,0 +1,67 @@
+[
+  {
+    "schema_version": 1,
+    "id": "pencil_sketch",
+    "name": {"en": "Pencil sketch", "it": "Schizzo a matita", "es": "Boceto a lápiz", "pt": "Esboço a lápis"},
+    "section": "artistic",
+    "ops": [
+      {"op": "sketch", "mode": "gray", "shade": 0.5},
+      {"op": "contrast", "amount": 1.05}
+    ]
+  },
+  {
+    "schema_version": 1,
+    "id": "pencil_color",
+    "name": {"en": "Coloured pencils", "it": "Matite colorate", "es": "Lápices de colores", "pt": "Lápis de cor"},
+    "section": "artistic",
+    "ops": [
+      {"op": "sketch", "mode": "color", "shade": 0.5},
+      {"op": "saturation", "amount": 1.15}
+    ]
+  },
+  {
+    "schema_version": 1,
+    "id": "cartoon_flat",
+    "name": {"en": "Cartoon", "it": "Cartone animato", "es": "Dibujo animado", "pt": "Desenho animado"},
+    "section": "artistic",
+    "ops": [
+      {"op": "cartoon", "smooth": 0.6, "lines": 0.5},
+      {"op": "saturation", "amount": 1.2}
+    ]
+  },
+  {
+    "schema_version": 1,
+    "id": "comic_pop",
+    "name": {"en": "Pop comic", "it": "Fumetto pop", "es": "Cómic pop", "pt": "Quadrinho pop"},
+    "section": "artistic",
+    "ops": [
+      {"op": "cartoon", "smooth": 0.7, "lines": 0.8},
+      {"op": "saturation", "amount": 1.45},
+      {"op": "contrast", "amount": 1.12}
+    ]
+  },
+  {
+    "schema_version": 1,
+    "id": "watercolor",
+    "name": {"en": "Watercolour", "it": "Acquerello", "es": "Acuarela", "pt": "Aquarela"},
+    "section": "artistic",
+    "ops": [
+      {"op": "paint", "strength": 0.5},
+      {"op": "fade", "amount": 0.18},
+      {"op": "brightness", "amount": 0.04},
+      {"op": "saturation", "amount": 0.92}
+    ]
+  },
+  {
+    "schema_version": 1,
+    "id": "oil_paint",
+    "name": {"en": "Oil painting", "it": "Dipinto a olio", "es": "Pintura al óleo", "pt": "Pintura a óleo"},
+    "section": "artistic",
+    "ops": [
+      {"op": "paint", "strength": 1.0},
+      {"op": "saturation", "amount": 1.25},
+      {"op": "contrast", "amount": 1.08},
+      {"op": "vignette", "strength": 0.18}
+    ]
+  }
+]

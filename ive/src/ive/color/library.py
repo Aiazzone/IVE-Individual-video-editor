@@ -38,7 +38,7 @@ __all__ = ["list_effects", "effect_by_id", "ops_for", "sections", "reload"]
 
 #: Display order of the factory sections; user sections follow, in the
 #: order they are first seen.
-_SECTION_ORDER = ("nostalgia", "film", "cinema", "cyberpunk",
+_SECTION_ORDER = ("artistic", "nostalgia", "film", "cinema", "cyberpunk",
                   "summer", "nordic", "bw", "base")
 
 _cache: list[dict[str, Any]] | None = None
