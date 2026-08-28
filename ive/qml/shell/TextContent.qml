@@ -38,14 +38,67 @@ Item {
         return null;
     }
 
+    /*! The clip the words field was last seeded from - kept so a
+        selection change can still commit a pending edit to it. */
+    property var seenClip: null
+
+    /*! Commit pending words to ``target``. The field commits itself on
+        focus LOSS, but tapping the video or the timeline moves the
+        SELECTION first (those handlers never take keyboard focus), so
+        the focus-loss path saw no selected clip and dropped the edit:
+        the preview rebuilt from the model and the old words came back.
+        Self-guarded, so callers may fire it liberally. */
+    function commitWords(target) {
+        if (target === null || target === undefined)
+            return;
+        var words = wordsField.text;
+        if (words.trim() === "")
+            return;
+        // Resolve the LIVE clip: the snapshot may be stale - an undo may
+        // have rewound the words (compare against what the model holds
+        // NOW) or removed the clip entirely (nothing left to commit to).
+        var clips = Project.timelineClips;
+        var live = null;
+        for (var i = 0; i < clips.length; i++)
+            if (clips[i].id === target.id && clips[i].text) {
+                live = clips[i];
+                break;
+            }
+        if (live === null || words === live.text)
+            return;
+        Actions.invoke("timeline.set_clip_text", {
+            clip_id: live.id, text: words,
+            font: live.font, color: live.color,
+            outline: live.outline,
+            bold: live.bold, italic: live.italic
+        });
+    }
+
+    // The panel auto-hides and sections switch; neither takes the
+    // field's focus away, so this is a commit point too.
+    onVisibleChanged: {
+        if (!visible)
+            root.commitWords(root.textClip);
+    }
+
     // Re-seed the words field when the selection (or an undo) changes it
     // under us - but never while the user is typing in it.
     onTextClipChanged: {
+        var prev = root.seenClip;
+        root.seenClip = textClip;
+        var moved = textClip === null || prev === null
+            || textClip.id !== prev.id;
+        if (moved)
+            root.commitWords(prev);
         if (textClip === null) {
             root.view = "";
             return;
         }
-        if (!wordsField.activeFocus && wordsField.text !== textClip.text)
+        // A DIFFERENT clip re-seeds even while the field has focus (the
+        // user's attention moved with the selection); a same-clip
+        // refresh (undo, translation) never overwrites live typing.
+        if ((moved || !wordsField.activeFocus)
+                && wordsField.text !== textClip.text)
             wordsField.text = textClip.text;
     }
 
