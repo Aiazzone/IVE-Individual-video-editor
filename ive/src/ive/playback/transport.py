@@ -304,7 +304,7 @@ class PlaybackService(QObject):
         music_spans: list[dict] = []
         #: (start, end, transition id) of every A/V clip, for the cuts.
         video_meta: list[dict] = []
-        for entry in clips or []:
+        for order, entry in enumerate(clips or []):
             text = str(entry.get("text") or "")
             if text:
                 # A Text-lane clip: not a segment, an overlaid title. The
@@ -376,12 +376,15 @@ class PlaybackService(QObject):
                     "rotation": float(entry.get("rotation", 0.0)),
                 })
                 continue
-            if int(entry.get("track") or 0) == 1:
-                # A Color-lane clip: not a segment, a graded stretch.
-                # The recipe is resolved HERE so the graph (and the
-                # export, which shares it) never has to know the
+            if int(entry.get("track") or 0) in (1, 5):
+                # A Color- or Effects-lane clip: not a segment, a graded
+                # stretch. The recipe is resolved HERE so the graph (and
+                # the export, which shares it) never has to know the
                 # catalogue; the MANUAL grade compiles to the same op
-                # vocabulary and layers after the recipe.
+                # vocabulary and layers after the recipe. `order` is the
+                # clip's position in the timeline list - the engine
+                # applies only the LATEST-inserted span where several
+                # overlap (docs/COLOR_EFFECTS.md §3-ter).
                 from ive.color.grade import ops_from_grade
                 from ive.color.library import ops_for
 
@@ -393,6 +396,7 @@ class PlaybackService(QObject):
                         "start": float(entry.get("start") or 0.0),
                         "end": float(entry.get("end") or 0.0),
                         "ops": ops,
+                        "order": order,
                     })
                 continue
             path = str(entry.get("path") or "")

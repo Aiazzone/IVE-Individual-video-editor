@@ -466,14 +466,33 @@ class Project:
     #: Track 1 is the Color lane. Unlike track 0 it is NOT gapless: an
     #: effect sits exactly over the stretch of timeline the user gave it.
     COLOR_TRACK = 1
+    #: Track 5 is the Effects lane (the fx catalogue: AI subject looks,
+    #: artistic stylizations) - free-form like the Color lane. Where a
+    #: Color-lane and an Effects-lane clip overlap in time, the LAST
+    #: INSERTED one wins for that stretch (the engine picks by the
+    #: clip's position in the timeline list); side by side, each rules
+    #: its own stretch.
+    FX_TRACK = 5
 
     def add_effect(self, effect_id: str, at: float,
                    duration: float) -> "TimelineClip":
-        """Place a colour effect over ``[at, at+duration)`` on the Color lane."""
+        """Place an effect over ``[at, at+duration)``.
+
+        The lane follows the CATALOGUE: grading recipes go to the Color
+        lane, fx recipes (subject, artistic) to the Effects lane -
+        docs/COLOR_EFFECTS.md §3-bis. Appended last, so it wins where
+        it overlaps older effects.
+        """
+        from ive.color.library import catalog_of, effect_by_id
+
+        entry = effect_by_id(str(effect_id))
+        section = str(entry["section"]) if entry else ""
+        track = (self.FX_TRACK if catalog_of(section) == "fx"
+                 else self.COLOR_TRACK)
         clip = TimelineClip(media_id="", effect_id=str(effect_id),
                             start=max(0.0, float(at)),
                             duration=max(0.1, float(duration)),
-                            track=self.COLOR_TRACK)
+                            track=track)
         self.timeline.append(clip)
         return clip
 
@@ -658,6 +677,7 @@ class Project:
                 clip.audio_enabled = False
             return len(touched)
         tracks = {"video": 0, "color": self.COLOR_TRACK,
+                  "fx": self.FX_TRACK,
                   "sticker": self.STICKER_TRACK, "text": self.TEXT_TRACK,
                   "music": self.MUSIC_TRACK}
         if kind not in tracks:
@@ -798,9 +818,15 @@ class Project:
         if clip is None:
             return False
         if clip.track != 0:
-            # The Color lane is free-form: a moved effect goes exactly
-            # where the hand left it, nothing reorders around it.
+            # The overlay lanes are free-form: a moved clip goes exactly
+            # where the hand left it, nothing reorders around it. An
+            # effect MOVED over another must also win the overlap - the
+            # "last inserted rules" contract reads insertion as the last
+            # deliberate placement, so the move re-appends it.
             clip.start = max(0.0, float(to))
+            if clip.track in (self.COLOR_TRACK, self.FX_TRACK):
+                self.timeline.remove(clip)
+                self.timeline.append(clip)
             return True
         others = [c for c in self.ordered_clips(clip.track) if c is not clip]
         to = max(0.0, to)

@@ -104,11 +104,11 @@ def set_clip_speed(ctx, clip_id: str, speed: float):
     desc_key="Empty one timeline lane in a single stroke - one undo "
              "step. Kinds: video (removes the A/V clips, their audio "
              "lane empties with them), audio (only silences them), "
-             "color, sticker, text, music (drop their clips).",
+             "color, fx, sticker, text, music (drop their clips).",
     category="timeline",
     params={"kind": Param(str, required=True,
-                          doc="video | audio | color | sticker | text "
-                              "| music")},
+                          doc="video | audio | color | fx | sticker "
+                              "| text | music")},
 )
 def clear_lane(ctx, kind: str):
     if not ctx.require("project").clear_lane(kind):

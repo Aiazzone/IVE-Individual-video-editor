@@ -805,24 +805,37 @@ class ColorGrade(Filter):
 class TimedColor(Filter):
     """Colour clips as a filter over the composite.
 
-    ``spans`` is ``[{"start": frame, "end": frame, "ops": [...]}, ...]`` in
-    SEQUENCE frames. A frame inside a span is graded, one outside passes
-    untouched - which is how a pink rectangle on the Color lane colours
-    exactly the stretch of timeline it covers, in preview and in export,
-    because both pull the same graph.
+    ``spans`` is ``[{"start": frame, "end": frame, "ops": [...],
+    "order"?: n}, ...]`` in SEQUENCE frames. A frame inside a span is
+    graded, one outside passes untouched - which is how a pink rectangle
+    on the Color lane colours exactly the stretch of timeline it covers,
+    in preview and in export, because both pull the same graph.
+
+    Where several spans cover the SAME frame, only the one with the
+    highest ``order`` (the clip inserted last) applies: a pencil look
+    dropped over a black-and-white stretch REPLACES it there, instead
+    of stacking - side by side, each rules its own stretch. ``order``
+    defaults to list position, so older callers keep a deterministic
+    "last in the list wins".
     """
 
     def __init__(self, spans: list[dict]) -> None:
         self._spans = [
             (int(span.get("start", 0)), int(span.get("end", 0)),
+             int(span.get("order", index)),
              ColorGrade(span.get("ops") or []))
-            for span in spans or []
+            for index, span in enumerate(spans or [])
         ]
 
     def process(self, frame: Frame) -> Frame:
-        for start, end, grade in self._spans:
-            if start <= frame.position < end:
-                frame = grade.process(frame)
+        chosen = None
+        top = -1
+        for start, end, order, grade in self._spans:
+            if start <= frame.position < end and order > top:
+                top = order
+                chosen = grade
+        if chosen is not None:
+            frame = chosen.process(frame)
         return frame
 
 

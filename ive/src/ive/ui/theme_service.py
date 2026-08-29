@@ -93,6 +93,7 @@ _FALLBACK_COLORS: dict[str, str] = {
     "clipVideo": "#2D6BD4", "clipAudio": "#1F8A5C", "clipText": "#8B5CF6",
     "clipMusic": "#B8741A",
     "clipEffect": "#D6408B", "clipSticker": "#0F8B96",
+    "clipFx": "#7C3AED",
     "clipText": "#6E56C8",
     "clipImage": "#D97706", "clipAdjustment": "#6B7280", "clipSelected": "#FFFFFF",
     "playhead": "#FF4D4F", "trackHeaderBg": "#131318", "rulerBg": "#101014",

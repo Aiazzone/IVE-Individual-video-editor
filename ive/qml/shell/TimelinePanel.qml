@@ -65,6 +65,7 @@ Item {
         catalogue and animation, a colour look, the media bin. */
     readonly property var panelForKind: ({
         video: "project", audio: "audio", music: "audio", color: "color",
+        fx: "effects",
         sticker: "stickers", text: "text", transition: "transitions"
     })
     function openPanelFor(kind) {
@@ -120,13 +121,26 @@ Item {
         ];
         // The Color and Sticker lanes exist only while something sits on
         // them: an empty permanent lane would just be chrome.
-        var fx = clips.filter(function (c) { return c.track === 1; });
-        if (fx.length > 0)
+        var col = clips.filter(function (c) { return c.track === 1; });
+        if (col.length > 0)
             lanes.push({ name: "Color", kind: "color", audio: false,
                          height: Theme.m.trackHeightAudio,
-                         clips: fx.map(function (c) {
+                         clips: col.map(function (c) {
                              return { from: c.start, to: c.end,
                                       color: Theme.c.clipEffect,
+                                      name: c.name, film: false,
+                                      id: c.id, wave: false };
+                         }) });
+        // Track 5 is the Effects lane (fx catalogue: subject, artistic).
+        // Where it overlaps the Color lane, the LAST-inserted clip wins.
+        var sfx = clips.filter(function (c) { return c.track === 5; });
+        if (sfx.length > 0)
+            lanes.push({ name: "Effects", kind: "fx", audio: false,
+                         height: Theme.m.trackHeightAudio,
+                         clips: sfx.map(function (c) {
+                             return { from: c.start, to: c.end,
+                                      color: Theme.c.clipFx
+                                             || Theme.c.clipEffect,
                                       name: c.name, film: false,
                                       id: c.id, wave: false };
                          }) });

@@ -151,6 +151,28 @@ effetto piazzato e' lo stesso clip della corsia Color da qualunque
 pannello arrivi: i progetti non sanno nulla dei pannelli. I preferiti
 sono una lista sola, ma ogni pannello mostra i suoi.
 
+## 3-ter. La corsia Effects e la regola "vince l'ultimo" (2026-08-28)
+
+- **Track 5 = corsia "Effects"** (pillole VIOLA, `clipFx` nel tema),
+  libera come la Color. `Project.add_effect` smista per catalogo:
+  ricette di grading → Color (track 1), ricette fx (subject/artistic) →
+  Effects (track 5). `clear_lane("fx")`, tap → apre il pannello Effetti.
+- **Dove piu' clip colore/effetto si SOVRAPPONGONO nel tempo (stessa
+  corsia o corsie diverse), si applica SOLO l'ultimo inserito**: una
+  matita sopra un bianco-e-nero lo SOSTITUISCE nel tratto comune, non
+  si sommano; affiancati, ognuno governa il suo tratto. Implementazione:
+  ogni span porta `order` = posizione del clip nella lista del progetto
+  (transport), e `TimedColor` applica solo lo span attivo con l'`order`
+  massimo. Spostare un clip effetto lo ri-appende in coda alla lista:
+  "l'ultimo inserito" legge come "l'ultimo gesto deliberato".
+- Le regolazioni MANUALI restano parte del clip che le porta (si
+  compilano nello stesso span), quindi la regola vale anche per loro.
+- L'audio segue gia' la stessa filosofia da sempre: un clip ha UN
+  `audio_effect_id` — applicarne un altro sostituisce il precedente.
+- Test: `tests/test_fx_lane.py` (smistamento, last-wins, move re-append)
+  e `tests/visual/test_fx_lane_ui.py` (lo scenario dell'utente a pixel:
+  noir 0-10 + matita 0-5 → carta bianca nel tratto comune, grigio dopo).
+
 ## 4. Nel pannello (icona Colore della rail)
 
 Due livelli: card delle **sezioni** → griglia di **thumbnail dello stesso
