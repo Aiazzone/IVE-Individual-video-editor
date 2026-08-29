@@ -91,19 +91,29 @@ class GraphBuilder:
         each reading forward, is the whole fix.
         """
         key = f"{bucket}|{path}"
-        existing = self._producers.get(key)
-        if existing is not None:
-            return existing
-        if not Path(str(path)).is_file():
-            log.warning("Media missing, skipped: %s", path)
-            return None
-
         source = str(path)
         proxy = None
         if self.use_proxies and self.proxies is not None:
             resolved = self.proxies.resolve(source)
             if resolved != source:
                 proxy = resolved
+        existing = self._producers.get(key)
+        if existing is not None:
+            # The proxy decision is baked into the producer at open time,
+            # so reuse is only valid while that decision stands. A changed
+            # working resolution, a flipped enable switch or a build that
+            # just finished all resolve to a different file - without this
+            # check the rebuild returned the old producer and the preview
+            # kept reading yesterday's resolution until the next restart.
+            if getattr(existing, "proxy_path", "") == (proxy or ""):
+                return existing
+            log.info("Proxy for %s changed: reopening the producer",
+                     Path(source).name)
+            self._producers.pop(key).close()
+        if not Path(source).is_file():
+            log.warning("Media missing, skipped: %s", path)
+            return None
+
         try:
             producer = ClipProducer(source, self.timebase, self.audio_format,
                                     proxy, canvas=(self.width, self.height))
