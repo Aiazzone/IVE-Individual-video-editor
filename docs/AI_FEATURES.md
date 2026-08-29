@@ -284,6 +284,11 @@ sessione (~3-4 s una tantum) e il watchdog registra uno stallo GUI —
 miglioria futura: preriscaldare la sessione quando un effetto subject
 entra in timeline.
 
+**Fase C (2026-08-28)**: il pannello **Effetti** (icona della rail,
+tasto 3) sfoglia le sezioni `subject` e `artistic`; il pannello Colore
+tiene solo il grading. Stesso browser (`ColorContent` con `catalog:
+"fx"`), stesso catalogo, stessa corsia — vedi COLOR_EFFECTS.md §3-bis.
+
 ---
 
 ## 7. Motion tracking

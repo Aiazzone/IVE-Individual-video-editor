@@ -213,6 +213,8 @@
   "timeline.place_effect": "Aplicar efecto de color",
   "color.count": "{n} efectos",
   "color.tab.colors": "Colores",
+  "fx.tab.effects": "Efectos",
+  "fx.sections": "Familias de efectos",
   "color.tab.favorites": "Favoritos",
   "color.fav_empty": "Aún no hay favoritos: abre una familia y toca la estrella de un efecto.",
   "color.favorite": "Favorito",

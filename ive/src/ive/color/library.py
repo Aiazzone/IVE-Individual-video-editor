@@ -34,7 +34,19 @@ from ive.utils.paths import get_data_path, get_defaults_path
 
 log = logging.getLogger(__name__)
 
-__all__ = ["list_effects", "effect_by_id", "ops_for", "sections", "reload"]
+__all__ = ["list_effects", "effect_by_id", "ops_for", "sections", "reload",
+           "catalog_of", "FX_SECTIONS"]
+
+#: Sections the EFFECTS panel browses (the showpieces: AI subject
+#: effects, artistic stylizations); everything else belongs to the
+#: Color panel. One catalogue underneath - a project referencing an
+#: effect never cares which panel it was picked from.
+FX_SECTIONS = frozenset({"subject", "artistic"})
+
+
+def catalog_of(section: str) -> str:
+    """"fx" for the Effects panel's sections, "color" for the rest."""
+    return "fx" if section in FX_SECTIONS else "color"
 
 #: Display order of the factory sections; user sections follow, in the
 #: order they are first seen.

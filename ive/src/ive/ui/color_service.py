@@ -12,7 +12,7 @@ from typing import Any
 
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
-from ive.color.library import list_effects, reload, sections
+from ive.color.library import catalog_of, list_effects, reload, sections
 
 log = logging.getLogger(__name__)
 
@@ -64,6 +64,8 @@ class ColorLibraryService(QObject):
             out.append({
                 "id": section,
                 "count": len(inside),
+                # Which panel browses it: "fx" (Effects) or "color".
+                "catalog": catalog_of(section),
                 # The first effect stands in as the section's cover.
                 "coverEffect": inside[0]["id"] if inside else "",
             })
@@ -76,6 +78,7 @@ class ColorLibraryService(QObject):
             {
                 "id": effect["id"],
                 "section": effect["section"],
+                "catalog": catalog_of(effect["section"]),
                 "name": effect["names"].get(lang)
                         or effect["names"].get("en") or effect["id"],
                 "builtin": effect["builtin"],

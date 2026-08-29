@@ -258,6 +258,7 @@ Item {
                     case "project":  return "ProjectContent.qml";
                     case "export":   return "ExportContent.qml";
                     case "color":    return "ColorContent.qml";
+                    case "effects":  return "EffectsContent.qml";
                     case "audio":    return "AudioContent.qml";
                     case "stickers": return "StickersContent.qml";
                     case "text":     return "TextContent.qml";

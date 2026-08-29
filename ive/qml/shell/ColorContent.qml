@@ -20,9 +20,23 @@ Item {
 
     implicitHeight: column.implicitHeight + Theme.m.space3 * 2
 
+    /*! Which half of the catalogue this instance browses: "color"
+        (grading families + the manual dials) or "fx" (the Effects
+        panel: AI subject looks, artistic stylizations). One catalogue
+        underneath - only the browsing is split. */
+    property string catalog: "color"
+
     property string tab: "colors"
     /*! "" = the family grid; a section id = the looks inside it. */
     property string section: ""
+
+    /*! The sections THIS panel browses. */
+    readonly property var catalogSections: {
+        var all = ColorFx.sections;
+        return all.filter(function (s) {
+            return s.catalog === root.catalog;
+        });
+    }
 
     /*! The effect being dragged towards the timeline, "" when none. Read
         by FloatingPanel as `interacting`: the panel must not retract and
@@ -33,7 +47,9 @@ Item {
 
     /*! What the grid shows: a family's looks, or the starred ones. */
     readonly property var gridEffects: {
-        var all = ColorFx.effects;
+        var all = ColorFx.effects.filter(function (e) {
+            return e.catalog === root.catalog;
+        });
         if (tab === "favorites") {
             var favs = ColorFx.favorites;
             return all.filter(function (e) { return favs.indexOf(e.id) >= 0; });
@@ -122,7 +138,10 @@ Item {
             Layout.fillWidth: true
             value: root.tab
             model: [
-                { value: "colors", text: Tr.s["color.tab.colors"] || "" },
+                { value: "colors",
+                  text: (root.catalog === "fx"
+                         ? Tr.s["fx.tab.effects"]
+                         : Tr.s["color.tab.colors"]) || "" },
                 { value: "favorites", text: Tr.s["color.tab.favorites"] || "" }
             ]
             onPicked: function (v) { root.tab = v; }
@@ -135,7 +154,8 @@ Item {
         // the default value removes the dial from the grade.
         CardGroup {
             id: adjustCard
-            visible: root.tab === "colors" && root.section === ""
+            visible: root.catalog === "color"
+                     && root.tab === "colors" && root.section === ""
             title: Tr.s["color.adjust_group"] || ""
 
             readonly property var gradeClip: {
@@ -266,10 +286,11 @@ Item {
         // ── the families (no previews here) ───────────────────────
         CardGroup {
             visible: root.tab === "colors" && root.section === ""
-            title: Tr.s["color.sections"] || ""
+            title: (root.catalog === "fx" ? Tr.s["fx.sections"]
+                                          : Tr.s["color.sections"]) || ""
 
             Repeater {
-                model: ColorFx.sections
+                model: root.catalogSections
                 delegate: Item {
                     required property var modelData
                     Layout.fillWidth: true

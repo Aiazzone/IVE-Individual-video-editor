@@ -138,6 +138,19 @@ non decodifica nulla.
 - Un progetto che referenzia un effetto non piu' installato CARICA
   comunque: quel tratto suona/mostra senza colorazione (ops vuote).
 
+## 3-bis. Due pannelli, un catalogo (2026-08-28, Fase C effetti)
+
+Il catalogo e' UNO, ma si sfoglia da due pannelli: l'icona **Effetti**
+della rail (tasto 3, `EffectsContent.qml` = `ColorContent { catalog:
+"fx" }`) mostra le sezioni "spettacolari" — `subject` (IA) e `artistic`
+— mentre l'icona **Colore** tiene le famiglie di grading e le nove
+manopole manuali. La spartizione vive in UN punto:
+`ive/color/library.py::FX_SECTIONS` / `catalog_of()`; il bridge QML
+espone `catalog` su sezioni ed effetti e `ColorContent` filtra. Un
+effetto piazzato e' lo stesso clip della corsia Color da qualunque
+pannello arrivi: i progetti non sanno nulla dei pannelli. I preferiti
+sono una lista sola, ma ogni pannello mostra i suoi.
+
 ## 4. Nel pannello (icona Colore della rail)
 
 Due livelli: card delle **sezioni** → griglia di **thumbnail dello stesso
