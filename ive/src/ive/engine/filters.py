@@ -24,14 +24,53 @@ log = logging.getLogger(__name__)
 
 __all__ = ["Filter", "Transition", "Gain", "Grayscale", "Opacity", "Dissolve",
            "ColorGrade", "TimedColor", "Placement", "apply_colour_ops",
-           "bake_lut"]
+           "bake_lut", "set_mask_provider"]
 
 #: Rec.601 luma weights, shared by every op that needs "how bright is this".
 _LUMA = np.array([0.299, 0.587, 0.114], dtype=np.float32)
 
 #: Ops that look at NEIGHBOURING pixels, so they can never live inside a
-#: LUT or a colour matrix: the vignette and the artistic stylizations.
-_SPATIAL_OPS = frozenset({"vignette", "sketch", "cartoon", "paint"})
+#: LUT or a colour matrix: the vignette, the artistic stylizations and
+#: the subject-masked ops.
+_SPATIAL_OPS = frozenset({"vignette", "sketch", "cartoon", "paint",
+                          "aura", "bg_blur", "bg_gray"})
+
+
+# ── the subject mask ─────────────────────────────────────────────────
+#
+# Masked ops need to know which pixels are THE SUBJECT. The engine must
+# not know how that answer is produced (an AI model, ive/ai/segmentation),
+# so the app INJECTS a provider at startup: ``fn(rgb) -> uint8 mask``
+# (0 scene, 255 subject, frame-sized) or None when it cannot answer.
+# Without a provider - or with one that declines - masked ops degrade to
+# a warned pass-through, the same contract artistic ops have without cv2.
+
+_mask_provider = None
+_mask_warned = False
+
+
+def set_mask_provider(provider) -> None:
+    """Install (or clear, with None) the subject-mask provider."""
+    global _mask_provider, _mask_warned
+    _mask_provider = provider
+    _mask_warned = False
+
+
+def _subject_mask(image: np.ndarray) -> np.ndarray | None:
+    global _mask_warned
+    provider = _mask_provider
+    mask = None
+    if provider is not None:
+        try:
+            mask = provider(image)
+        except Exception:
+            log.exception("Subject-mask provider failed; op skipped")
+            return None
+    if mask is None and not _mask_warned:
+        _mask_warned = True
+        log.warning("A masked op ran with no subject mask available; "
+                    "these stretches play unfiltered")
+    return mask
 
 
 # ── the artistic (spatial) ops ───────────────────────────────────────
@@ -112,6 +151,88 @@ _ARTISTIC_OPS = {"sketch": _op_sketch, "cartoon": _op_cartoon,
                  "paint": _op_paint}
 
 
+# ── the masked (subject) ops ─────────────────────────────────────────
+#
+# Same execution rules as the artistic ops (cv2, uint8 RGB, pyramid
+# reduction for the heavy work) plus the subject mask from the injected
+# provider. Each takes (cv2, image, mask, params) with the mask already
+# frame-sized.
+
+def _hex_rgb(value, fallback=(102, 204, 255)) -> np.ndarray:
+    text = str(value or "").lstrip("#")
+    if len(text) == 6:
+        try:
+            return np.array([int(text[i:i + 2], 16) for i in (0, 2, 4)],
+                            dtype=np.float32)
+        except ValueError:
+            pass
+    return np.array(fallback, dtype=np.float32)
+
+
+def _feathered(cv2, mask: np.ndarray, sigma: float = 3.0) -> np.ndarray:
+    """The mask as float32 0..1 with soft edges - hard cuts halo."""
+    soft = cv2.GaussianBlur(mask, (0, 0), sigma)
+    return soft.astype(np.float32)[..., None] / 255.0
+
+
+def _op_aura(cv2, image: np.ndarray, mask: np.ndarray,
+             params: dict) -> np.ndarray:
+    """A glowing outline AROUND the subject, additive like light.
+
+    ``color`` is the glow's hex colour, ``width`` (0..1) how far it
+    reaches, ``strength`` (0..1) how bright it burns. The ring is the
+    dilated mask minus the mask - it never covers the subject itself.
+    """
+    width = min(1.0, max(0.0, float(params.get("width", 0.4))))
+    strength = min(1.0, max(0.0, float(params.get("strength", 0.8))))
+    colour = _hex_rgb(params.get("color"))
+    radius = max(2, int(round(image.shape[0] * (0.015 + 0.06 * width))))
+    kernel = cv2.getStructuringElement(
+        cv2.MORPH_ELLIPSE, (radius * 2 + 1, radius * 2 + 1))
+    ring = cv2.subtract(cv2.dilate(mask, kernel), mask)
+    ring = cv2.GaussianBlur(ring, (0, 0), max(1.0, radius * 0.6))
+    glow = ring.astype(np.float32)[..., None] * (strength / 255.0)
+    out = image.astype(np.float32) + glow * colour[None, None, :]
+    return np.clip(out, 0.0, 255.0).astype(np.uint8)
+
+
+def _op_bg_blur(cv2, image: np.ndarray, mask: np.ndarray,
+                params: dict) -> np.ndarray:
+    """The portrait look: the subject sharp, the scene melted away.
+
+    ``amount`` (0..1) is how far the background blurs. The blur runs on
+    a quarter-resolution copy (the shrink IS most of the blur), then the
+    feathered mask lays the sharp subject back on top.
+    """
+    amount = min(1.0, max(0.0, float(params.get("amount", 0.7))))
+    small = cv2.pyrDown(cv2.pyrDown(image))
+    small = cv2.GaussianBlur(small, (0, 0), 1.0 + 5.0 * amount)
+    background = cv2.pyrUp(cv2.pyrUp(small),
+                           dstsize=(image.shape[1], image.shape[0]))
+    m = _feathered(cv2, mask)
+    out = image.astype(np.float32) * m \
+        + background.astype(np.float32) * (1.0 - m)
+    return out.astype(np.uint8)
+
+
+def _op_bg_gray(cv2, image: np.ndarray, mask: np.ndarray,
+                params: dict) -> np.ndarray:
+    """Selective colour: the subject keeps its colours, the scene
+    drops to grey by ``amount`` (0..1)."""
+    amount = min(1.0, max(0.0, float(params.get("amount", 1.0))))
+    gray = cv2.cvtColor(cv2.cvtColor(image, cv2.COLOR_RGB2GRAY),
+                        cv2.COLOR_GRAY2RGB).astype(np.float32)
+    base = image.astype(np.float32)
+    background = base + (gray - base) * amount
+    m = _feathered(cv2, mask)
+    out = image.astype(np.float32) * m + background * (1.0 - m)
+    return out.astype(np.uint8)
+
+
+_MASKED_OPS = {"aura": _op_aura, "bg_blur": _op_bg_blur,
+               "bg_gray": _op_bg_gray}
+
+
 def apply_colour_ops(array: np.ndarray, ops: list[dict],
                      vignette_cache: dict | None = None) -> np.ndarray:
     """Run a declarative colour recipe over one RGB888 frame.
@@ -141,9 +262,14 @@ def apply_colour_ops(array: np.ndarray, ops: list[dict],
                                  lays soft colours over the strokes
       cartoon(smooth?, lines?)   flat bilateral colours + ink lines
       paint(strength?)           painterly bilateral smoothing
-    The last three are SPATIAL and need OpenCV; without it they degrade
-    to a warned pass-through, like unknown ops - a recipe written by a
-    NEWER version must degrade, not blow up the timeline.
+      aura(color?, width?, strength?)  glow around the SUBJECT
+      bg_blur(amount?)           background blurred, subject sharp
+      bg_gray(amount?)           background grey, subject in colour
+    sketch/cartoon/paint are SPATIAL and need OpenCV; the last three
+    also need the injected subject-mask provider (set_mask_provider).
+    Whatever is missing, they degrade to a warned pass-through, like
+    unknown ops - a recipe written by a NEWER version must degrade,
+    not blow up the timeline.
     """
     work = array.astype(np.float32) / 255.0
     # The pristine input, kept only when an intensity op will need it.
@@ -216,6 +342,21 @@ def apply_colour_ops(array: np.ndarray, ops: list[dict],
                 frame_u8 = (work * 255.0).astype(np.uint8)
                 work = (_ARTISTIC_OPS[op](cv2, frame_u8, entry)
                         .astype(np.float32) / 255.0)
+        elif op in _MASKED_OPS:
+            try:
+                import cv2
+            except ImportError:
+                log.warning("Masked op %r needs OpenCV; skipped", op)
+            else:
+                np.clip(work, 0.0, 1.0, out=work)
+                frame_u8 = (work * 255.0).astype(np.uint8)
+                mask = _subject_mask(frame_u8)
+                if mask is not None:
+                    if mask.shape[:2] != frame_u8.shape[:2]:
+                        mask = cv2.resize(mask, (frame_u8.shape[1],
+                                                 frame_u8.shape[0]))
+                    work = (_MASKED_OPS[op](cv2, frame_u8, mask, entry)
+                            .astype(np.float32) / 255.0)
         else:
             log.warning("Unknown colour op %r skipped", op)
         # EVERY op sees clipped input. This is the uint8-pipeline semantic
@@ -549,6 +690,10 @@ class ColorGrade(Filter):
                 flush_pending()
                 flush_matrix()
                 steps.append(("artistic", (_ARTISTIC_OPS[name], dict(op))))
+            elif name in _MASKED_OPS:
+                flush_pending()
+                flush_matrix()
+                steps.append(("masked", (_MASKED_OPS[name], dict(op))))
             elif name == "intensity":
                 flush_pending()
                 flush_matrix()
@@ -611,6 +756,15 @@ class ColorGrade(Filter):
                 elif kind == "artistic":
                     fn, params = payload
                     out = fn(cv2, np.ascontiguousarray(out), params)
+                elif kind == "masked":
+                    fn, params = payload
+                    frame_u8 = np.ascontiguousarray(out)
+                    mask = _subject_mask(frame_u8)
+                    if mask is not None:
+                        if mask.shape[:2] != frame_u8.shape[:2]:
+                            mask = cv2.resize(mask, (frame_u8.shape[1],
+                                                     frame_u8.shape[0]))
+                        out = fn(cv2, frame_u8, mask, params)
                 else:
                     height, width = out.shape[:2]
                     out = cv2.multiply(out, self._mask_u8(width, height, payload),

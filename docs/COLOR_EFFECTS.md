@@ -22,9 +22,10 @@ sicuro, quindi un effetto DICHIARA una ricetta e non esegue nulla.
 ```
 
 - **Di fabbrica**: `ive/config/defaults/color_effects/*.json` (un file per
-  sezione, contiene una lista). 35 effetti in 9 sezioni: artistic
-  (artistici — matita, fumetto, pittura), nostalgia, film (pellicola),
-  cinema, cyberpunk, summer (estate), nordic, bw (bianco e nero), base.
+  sezione, contiene una lista). 41 effetti in 10 sezioni: subject
+  (soggetto IA — aura, ritratto, colore selettivo), artistic (artistici —
+  matita, fumetto, pittura), nostalgia, film (pellicola), cinema,
+  cyberpunk, summer (estate), nordic, bw (bianco e nero), base.
   Una sezione nuova richiede la chiave `color.section.<id>` nei 4 locale.
 - **Dell'utente**: `user_data/effects/color/*.json` — copiare li' un file
   ricevuto da chiunque E' l'installazione. Un id gia' esistente viene
@@ -56,14 +57,29 @@ ognuna il risultato e' clippato a [0,1]. Implementazione di riferimento in
 | `cartoon` | `smooth?` 0…1, `lines?` 0…1 | — | — | colori appiattiti (bilateral su piramide) + linee a china |
 | `paint` | `strength?` 0…1 | — | — | pittura: bilateral iterato a quarto di risoluzione |
 
-Le ultime tre sono op **SPAZIALI** (guardano i pixel vicini, sezione
-"artistic" del catalogo, 2026-08-28): richiedono OpenCV — senza, degradano
-a pass-through con warning come le op sconosciute — e restano FUORI dalla
-3D LUT cotta (un reticolo di colori non e' una scena) e dal fallback numpy.
-Il lavoro pesante gira su copia ridotta in piramide: 12–50 ms a 720p
-misurati (cv2.stylization pieno costava 1,2 s), 19–42 ms sul proxy 540p.
-Il read-ahead li assorbe e l'audio-first garantisce che sotto carico
-degradi il video, mai il suono.
+| `aura` | `color?`, `width?` 0…1, `strength?` 0…1 | — | — | bagliore additivo ATTORNO al soggetto (maschera IA), mai sopra |
+| `bg_blur` | `amount?` 0…1 | — | — | sfondo sfocato (piramide), soggetto nitido |
+| `bg_gray` | `amount?` 0…1 | — | — | sfondo in grigio, soggetto a colori |
+
+`sketch`/`cartoon`/`paint` sono op **SPAZIALI** (guardano i pixel vicini,
+sezione "artistic" del catalogo, 2026-08-28): richiedono OpenCV — senza,
+degradano a pass-through con warning come le op sconosciute — e restano
+FUORI dalla 3D LUT cotta (un reticolo di colori non e' una scena) e dal
+fallback numpy. Il lavoro pesante gira su copia ridotta in piramide:
+12–50 ms a 720p misurati (cv2.stylization pieno costava 1,2 s), 19–42 ms
+sul proxy 540p. Il read-ahead li assorbe e l'audio-first garantisce che
+sotto carico degradi il video, mai il suono.
+
+`aura`/`bg_blur`/`bg_gray` (sezione "subject", 2026-08-28) sono spaziali
+E **a maschera**: chiedono al motore "quali pixel sono il soggetto" via
+il provider iniettato con `filters.set_mask_provider` (l'app lo cabla a
+`ive/ai/segmentation.mask_provider()` in `app.py`; il motore NON importa
+l'AI). Senza provider, o senza modello installato, degradano a
+pass-through con un warning una-tantum. Costo: ~34 ms a maschera su
+DirectML (446 su CPU nuda — vedi AI_FEATURES §6-bis) + pochi ms per l'op;
+la primissima maschera carica la sessione ONNX (~3-4 s, una volta per
+processo): il frame in pausa puo' restare quello vecchio finche' non si
+tocca il playhead.
 
 Regole per `intensity`: metterla **ultima** e comunque **prima di una
 vignette finale** — nella via compilata fonderebbe anche la vignette gia'

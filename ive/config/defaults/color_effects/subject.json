@@ -1,0 +1,59 @@
+[
+  {
+    "schema_version": 1,
+    "id": "aura_blue",
+    "name": {"en": "Blue aura", "it": "Aura blu", "es": "Aura azul", "pt": "Aura azul"},
+    "section": "subject",
+    "ops": [
+      {"op": "aura", "color": "#55BBFF", "width": 0.4, "strength": 0.85}
+    ]
+  },
+  {
+    "schema_version": 1,
+    "id": "aura_gold",
+    "name": {"en": "Golden aura", "it": "Aura dorata", "es": "Aura dorada", "pt": "Aura dourada"},
+    "section": "subject",
+    "ops": [
+      {"op": "aura", "color": "#FFC53D", "width": 0.35, "strength": 0.9}
+    ]
+  },
+  {
+    "schema_version": 1,
+    "id": "aura_neon",
+    "name": {"en": "Neon outline", "it": "Contorno neon", "es": "Contorno neón", "pt": "Contorno néon"},
+    "section": "subject",
+    "ops": [
+      {"op": "aura", "color": "#FF3DAE", "width": 0.15, "strength": 1.0},
+      {"op": "bg_gray", "amount": 0.55}
+    ]
+  },
+  {
+    "schema_version": 1,
+    "id": "portrait_blur",
+    "name": {"en": "Portrait", "it": "Ritratto", "es": "Retrato", "pt": "Retrato"},
+    "section": "subject",
+    "ops": [
+      {"op": "bg_blur", "amount": 0.75}
+    ]
+  },
+  {
+    "schema_version": 1,
+    "id": "selective_color",
+    "name": {"en": "Selective colour", "it": "Colore selettivo", "es": "Color selectivo", "pt": "Cor seletiva"},
+    "section": "subject",
+    "ops": [
+      {"op": "bg_gray", "amount": 1.0}
+    ]
+  },
+  {
+    "schema_version": 1,
+    "id": "dreamy_subject",
+    "name": {"en": "Dreamy", "it": "Sognante", "es": "De ensueño", "pt": "Sonhador"},
+    "section": "subject",
+    "ops": [
+      {"op": "bg_blur", "amount": 0.6},
+      {"op": "aura", "color": "#FFFFFF", "width": 0.5, "strength": 0.5},
+      {"op": "fade", "amount": 0.12}
+    ]
+  }
+]

@@ -270,6 +270,20 @@ animale od oggetto, senza classi.
   thread-safe per contratto ONNX Runtime.
 - Test: `tests/test_segmentation.py`.
 
+**Fase B (2026-08-28, stessa giornata)**: le op a maschera nel motore —
+`aura`, `bg_blur`, `bg_gray` nel vocabolario colore (COLOR_EFFECTS.md) —
+e la sezione di fabbrica "subject" con 6 ricette (aure, Ritratto, Colore
+selettivo, Sognante). Il ponte: `filters.set_mask_provider(fn)` iniettato
+da `app.py` con `segmentation.mask_provider()` (disponibilita' verificata
+per chiamata: un modello scaricato a meta' sessione inizia a rispondere
+senza riavvio; LRU su fingerprint 8x8 per i frame ripetuti). Verificato
+end-to-end nell'app (`tests/visual/test_subject_effects.py`: aura dorata
+sui pixel dell'anteprima) e a motore nudo con provider stub
+(`tests/test_masked_effects.py`). Nota: la prima maschera carica la
+sessione (~3-4 s una tantum) e il watchdog registra uno stallo GUI —
+miglioria futura: preriscaldare la sessione quando un effetto subject
+entra in timeline.
+
 ---
 
 ## 7. Motion tracking

@@ -66,6 +66,13 @@ class Application:
         self.project = ProjectService(self.settings, history=self.history)
         self.playback = PlaybackService(proxies=self.proxies, settings=self.settings)
         self.export = ExportService(playback=self.playback)
+        # Masked colour ops (aura, background looks) ask the engine for
+        # a subject mask; the engine must not know about AI, so the
+        # provider is injected here. Per-call availability means a model
+        # downloaded mid-session starts answering without a restart.
+        from ive.ai.segmentation import mask_provider
+        from ive.engine.filters import set_mask_provider
+        set_mask_provider(mask_provider())
         # The project timeline IS what plays. Rebuilding the sequence on every
         # edit keeps the preview and the timeline from ever disagreeing.
         self.project.timelineChanged.connect(self._sync_sequence)

@@ -28,7 +28,8 @@ from ive.ai.model_registry import is_installed, model_dir
 
 log = logging.getLogger(__name__)
 
-__all__ = ["SubjectSegmenter", "availability", "MODEL_ID"]
+__all__ = ["SubjectSegmenter", "availability", "MODEL_ID",
+           "mask_provider"]
 
 #: The one catalogued segmentation model (universal, class-free).
 MODEL_ID = "u2netp"
@@ -149,3 +150,43 @@ class SubjectSegmenter:
         with self._lock:
             self._session = None
             self._provider = ""
+
+
+def mask_provider(cache_size: int = 32):
+    """The callable the engine's ``set_mask_provider`` wants.
+
+    ``fn(rgb) -> uint8 mask | None`` - None while the model is not
+    installed (checked per call, so a download taken mid-session starts
+    answering without a restart). One shared segmenter, created on the
+    first ready call.
+
+    A small LRU keyed by a cheap frame fingerprint (the bytes of an 8x8
+    average) absorbs the common repeats - the paused frame re-composited
+    during a drag, a thumbnail asked twice - without hashing megabytes.
+    """
+    segmenter: dict = {}
+    cache: dict[bytes, np.ndarray] = {}
+
+    def fingerprint(image: np.ndarray) -> bytes:
+        h, w = image.shape[:2]
+        ys = (np.arange(8) * h // 8).clip(0, h - 1)
+        xs = (np.arange(8) * w // 8).clip(0, w - 1)
+        return image[ys][:, xs].tobytes() + bytes([h % 251, w % 251])
+
+    def provide(image: np.ndarray):
+        if availability() != "ready":
+            return None
+        key = fingerprint(image)
+        hit = cache.get(key)
+        if hit is not None:
+            return hit
+        instance = segmenter.get("s")
+        if instance is None:
+            instance = segmenter["s"] = SubjectSegmenter()
+        mask = instance.mask(image)
+        if len(cache) >= cache_size:
+            cache.clear()
+        cache[key] = mask
+        return mask
+
+    return provide
