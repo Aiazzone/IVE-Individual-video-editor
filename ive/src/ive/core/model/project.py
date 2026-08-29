@@ -494,7 +494,53 @@ class Project:
                             duration=max(0.1, float(duration)),
                             track=track)
         self.timeline.append(clip)
+        self.carve_effect_lanes(clip)
         return clip
+
+    #: Slivers below this are noise a carve leaves behind; drop them.
+    _CARVE_MIN = 0.05
+
+    def carve_effect_lanes(self, winner: "TimelineClip") -> int:
+        """Subtract ``winner``'s stretch from every OTHER Color/Effects
+        clip - the timeline must never lie about "the last one rules".
+
+        The engine's last-inserted-wins already decides who applies, but
+        the OLD pill kept standing whole under the new one, showing an
+        effect that no longer plays there. So placing, moving or
+        trimming an effect clip physically carves the others: covered
+        entirely -> removed; covered at the head or tail -> trimmed;
+        covered in the middle -> split in two around the winner.
+        Returns how many clips were touched.
+        """
+        a, b = winner.start, winner.end
+        touched = 0
+        for other in list(self.timeline):
+            if other is winner or other.track not in (self.COLOR_TRACK,
+                                                      self.FX_TRACK):
+                continue
+            s, e = other.start, other.end
+            if e <= a + 1e-6 or s >= b - 1e-6:
+                continue
+            touched += 1
+            head = a - s
+            tail = e - b
+            if head < self._CARVE_MIN and tail < self._CARVE_MIN:
+                self.timeline.remove(other)
+            elif head >= self._CARVE_MIN and tail >= self._CARVE_MIN:
+                # The winner sits inside: the old clip splits around it.
+                other.duration = head
+                rest = TimelineClip(media_id="",
+                                    effect_id=other.effect_id,
+                                    start=b, duration=tail,
+                                    track=other.track)
+                rest.grade = dict(other.grade)
+                self.timeline.append(rest)
+            elif head >= self._CARVE_MIN:
+                other.duration = head
+            else:
+                other.start = b
+                other.duration = tail
+        return touched
 
     def add_grade(self, at: float, duration: float) -> "TimelineClip":
         """An "Adjust" clip: a manual grade with no recipe underneath."""
@@ -503,6 +549,7 @@ class Project:
                             duration=max(0.1, float(duration)),
                             track=self.COLOR_TRACK)
         self.timeline.append(clip)
+        self.carve_effect_lanes(clip)
         return clip
 
     def set_clip_grade(self, clip_id: str, key: str, value: float) -> bool:
@@ -827,6 +874,7 @@ class Project:
             if clip.track in (self.COLOR_TRACK, self.FX_TRACK):
                 self.timeline.remove(clip)
                 self.timeline.append(clip)
+                self.carve_effect_lanes(clip)
             return True
         others = [c for c in self.ordered_clips(clip.track) if c is not clip]
         to = max(0.0, to)
@@ -1021,6 +1069,12 @@ class Project:
         if clip.track == 0:
             # Only the A/V track is gapless; a resized effect stays put.
             self.reflow(0)
+        elif clip.track in (self.COLOR_TRACK, self.FX_TRACK):
+            # An effect stretched over another must carve it, like a
+            # fresh placement would: the last hand rules, visibly.
+            self.timeline.remove(clip)
+            self.timeline.append(clip)
+            self.carve_effect_lanes(clip)
         return True
 
     def set_clip_muted(self, clip_id: str, muted: bool) -> bool:

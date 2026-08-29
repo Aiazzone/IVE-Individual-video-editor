@@ -169,6 +169,15 @@ sono una lista sola, ma ogni pannello mostra i suoi.
   (transport), e `TimedColor` applica solo lo span attivo con l'`order`
   massimo. Spostare un clip effetto lo ri-appende in coda alla lista:
   "l'ultimo inserito" legge come "l'ultimo gesto deliberato".
+- **La timeline non mente** (sera): piazzare, spostare o allungare un
+  clip effetto RITAGLIA fisicamente gli altri clip Color/Effects che
+  copre (`Project.carve_effect_lanes`): coperto intero → rimosso; testa
+  o coda → accorciato; in mezzo → spezzato in due attorno al nuovo.
+  Cosi' il rettangolo vecchio non resta mai sotto quello nuovo a
+  mostrare un effetto che li' non suona piu'. La priorita' `order` nel
+  motore resta come cintura per i progetti salvati con sovrapposizioni.
+  Tutto dentro lo stesso passo di undo (il carve avviene nella stessa
+  mutazione catturata da `_edit`).
 - Le regolazioni MANUALI restano parte del clip che le porta (si
   compilano nello stesso span), quindi la regola vale anche per loro.
 - L'audio segue gia' la stessa filosofia da sempre: un clip ha UN
