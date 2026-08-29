@@ -62,6 +62,22 @@ MODELS: dict[str, dict[str, Any]] = {
             "a73a28cdfe1c43ccc7202fa333d1f89c202477271407ae9a7f19afa52039cac8",
             2249),
     },
+    "u2netp": {
+        "task": "segmentation",
+        "name": "U²-Net Small",
+        "description_key": "ai.model.u2netp",
+        "code_license": "Apache-2.0 (U-2-Net)",
+        "weights_license": "Apache-2.0 (U-2-Net); ONNX by rembg (MIT)",
+        "commercial_use_allowed": True,
+        "files": [{
+            "name": "u2netp.onnx",
+            "url": "https://github.com/danielgatis/rembg/releases/"
+                   "download/v0.0.0/u2netp.onnx",
+            "size": 4574861,
+            "sha256": "309c8469258dda742793dce0ebea8e6dd393174f"
+                      "89934733ecc8b14c76f4ddd8",
+        }],
+    },
     "whisper-small": {
         "task": "subtitles",
         "name": "Whisper Small",

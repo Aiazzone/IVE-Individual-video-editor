@@ -90,7 +90,8 @@ della prima release pubblica.
 | **rlottie-python** | LGPL (bundla rlottie: MIT + parti FTL/BSD-3/MPL-1.1) | Rendering degli sticker animati Lottie. Aggiunto 2026-08-11; LGPL compatibile col nostro GPL-3. |
 | **Sticker demo Lottie** (`config/defaults/stickers/demo/`: gatin, happy2016, navidad) | MIT (airbnb/lottie-web, cartella demo) | Tre animazioni di fabbrica nella famiglia «Dimostrazioni». LICENSE.txt accanto ai file. Promossi da user_data il 2026-08-21. |
 | **Pillow** | MIT-CMU (HPND) | |
-| **ONNX Runtime** | MIT | Provider CPU/CUDA/DirectML. |
+| **ONNX Runtime** (`onnxruntime-directml`) | MIT | Provider scelti a runtime: DirectML quando c'e' una GPU DX12 (misurato 13x sulla segmentazione), CPU altrimenti. Dal 2026-08-28 il venv monta il wheel `onnxruntime-directml` (soprainsieme del wheel CPU: il VAD Silero continua a girare identico). |
+| **U²-Net small** (pesi, `models/segmentation/u2netp/u2netp.onnx`) | Apache-2.0 (xuebinqin/U-2-Net, codice e pesi); conversione ONNX da danielgatis/rembg (MIT) | Segmentazione del soggetto per gli effetti a maschera (aura, sfondo). ~4,6 MB. Scaricato su richiesta dal tab Modelli AI, URL+SHA-256 in `ive/ai/model_registry.py`, mai nel repo. Uso commerciale consentito. Aggiunto 2026-08-28. |
 | **Silero VAD** (pesi, `models/vad/silero_vad.onnx`) | MIT (snakers4/silero-vad) | Rilevamento voce per il ducking «Intelligente». ~2 MB, CPU. In `models/`, mai nel repo; se manca l'app ricade sul rilevatore a livello. Aggiunto 2026-08-23. |
 | **faster-whisper** | MIT | Sottotitoli automatici (speech-to-text con timestamp per parola). Gira SOLO nel processo worker (`ive/ai/subtitles/worker.py`), mai nel processo dell'app. Aggiunto 2026-08-25, verificato su PyPI. |
 | **CTranslate2** | MIT | Runtime di inferenza di faster-whisper. Porta il suo `libiomp5md.dll`: e' il motivo del processo separato. |

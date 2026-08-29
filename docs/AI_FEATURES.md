@@ -245,6 +245,31 @@ Punti importanti:
 non-commercial. Questa e' l'area con i vincoli piu' stretti — vedi §4 di
 `docs/LICENSING.md`.
 
+### 6-bis. Segmentazione del soggetto (IMPLEMENTATA, 2026-08-28 — Fase A)
+
+L'ingrediente comune degli effetti a maschera del pannello Effetti
+(aura attorno al soggetto, sfondo sfocato/b\&n/in movimento): una
+maschera soft per frame di "cio' che e' in evidenza" — persona,
+animale od oggetto, senza classi.
+
+- **Modulo**: `ive/ai/segmentation/` — `SubjectSegmenter.mask(frame_rgb,
+  size=None) -> uint8` (0 = scena, 255 = soggetto, bordi morbidi);
+  `availability()` = ready / model_missing / backend_missing (stato,
+  mai errore). Qt-free; il motore non lo importa — il builder
+  attacchera' una closure maschera come fa con gli sprite (Fase B).
+- **Modello**: `u2netp` (U²-Net small, ~4,6 MB, Apache-2.0; ONNX di
+  rembg, MIT) nel registry con URL+SHA-256; input fisso 320x320,
+  normalizzazione ImageNet, output min-max normalizzato (post-process
+  di riferimento U²-Net). Compare da solo nel tab Modelli AI.
+- **Provider a runtime**: DirectML quando disponibile, CPU altrimenti.
+  Misurato sul dev PC (NVIDIA T500 / Iris Xe): **34 ms** a maschera su
+  DirectML, **446 ms** su CPU — su CPU nuda serviranno cache/stride
+  delle maschere (stile proxy) prima dell'uso live; su GPU e' gia'
+  vicino al budget frame.
+- Una sola istanza per processo (la sessione costa); `run` e'
+  thread-safe per contratto ONNX Runtime.
+- Test: `tests/test_segmentation.py`.
+
 ---
 
 ## 7. Motion tracking
