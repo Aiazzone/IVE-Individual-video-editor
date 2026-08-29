@@ -47,6 +47,15 @@
   },
   {
     "schema_version": 1,
+    "id": "parallax_zoom",
+    "name": {"en": "Parallax", "it": "Parallasse", "es": "Paralaje", "pt": "Paralaxe"},
+    "section": "subject",
+    "ops": [
+      {"op": "bg_zoom", "amount": 0.6}
+    ]
+  },
+  {
+    "schema_version": 1,
     "id": "dreamy_subject",
     "name": {"en": "Dreamy", "it": "Sognante", "es": "De ensueño", "pt": "Sonhador"},
     "section": "subject",

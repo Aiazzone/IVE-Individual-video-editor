@@ -33,7 +33,7 @@ _LUMA = np.array([0.299, 0.587, 0.114], dtype=np.float32)
 #: LUT or a colour matrix: the vignette, the artistic stylizations and
 #: the subject-masked ops.
 _SPATIAL_OPS = frozenset({"vignette", "sketch", "cartoon", "paint",
-                          "aura", "bg_blur", "bg_gray"})
+                          "aura", "bg_blur", "bg_gray", "bg_zoom"})
 
 
 # ── the subject mask ─────────────────────────────────────────────────
@@ -229,8 +229,40 @@ def _op_bg_gray(cv2, image: np.ndarray, mask: np.ndarray,
     return out.astype(np.uint8)
 
 
+def _op_bg_zoom(cv2, image: np.ndarray, mask: np.ndarray,
+                params: dict) -> np.ndarray:
+    """The 2.5D parallax: the SCENE slowly zooms, the subject stands.
+
+    ``amount`` (0..1) is how far the background has grown by the end of
+    the clip. The clip-local progress rides in ``_t`` (0..1, injected by
+    the caller; thumbnails and the reference chain use the midpoint).
+    The background is the frame scaled up and centre-cropped; the
+    subject's own pixels go back on top through the feathered mask, so
+    it appears to stand still while the world breathes behind it.
+    """
+    amount = min(1.0, max(0.0, float(params.get("amount", 0.5))))
+    t = min(1.0, max(0.0, float(params.get("_t", 0.5))))
+    scale = 1.0 + (0.04 + 0.22 * amount) * t
+    h, w = image.shape[:2]
+    zw, zh = int(round(w * scale)), int(round(h * scale))
+    grown = cv2.resize(image, (zw, zh), interpolation=cv2.INTER_LINEAR)
+    x0, y0 = (zw - w) // 2, (zh - h) // 2
+    background = grown[y0:y0 + h, x0:x0 + w]
+    # A light blur that grows with the zoom: it reads as depth of field
+    # and hides the subject's own enlarged copy peeking out behind it
+    # (there is no inpainting; this is the honest 2.5D trick).
+    sigma = 12.0 * (scale - 1.0)
+    if sigma > 0.3:
+        background = cv2.GaussianBlur(np.ascontiguousarray(background),
+                                      (0, 0), sigma)
+    m = _feathered(cv2, mask)
+    out = image.astype(np.float32) * m \
+        + background.astype(np.float32) * (1.0 - m)
+    return out.astype(np.uint8)
+
+
 _MASKED_OPS = {"aura": _op_aura, "bg_blur": _op_bg_blur,
-               "bg_gray": _op_bg_gray}
+               "bg_gray": _op_bg_gray, "bg_zoom": _op_bg_zoom}
 
 
 def apply_colour_ops(array: np.ndarray, ops: list[dict],
@@ -265,6 +297,8 @@ def apply_colour_ops(array: np.ndarray, ops: list[dict],
       aura(color?, width?, strength?)  glow around the SUBJECT
       bg_blur(amount?)           background blurred, subject sharp
       bg_gray(amount?)           background grey, subject in colour
+      bg_zoom(amount?)           parallax: the scene zooms with clip
+                                 time, the subject stands still
     sketch/cartoon/paint are SPATIAL and need OpenCV; the last three
     also need the injected subject-mask provider (set_mask_provider).
     Whatever is missing, they degrade to a warned pass-through, like
@@ -737,8 +771,12 @@ class ColorGrade(Filter):
         self._stride_g = index * _LUT_SIZE
         self._stride_b = index
 
-    def apply(self, image: np.ndarray) -> np.ndarray:
-        """The fast path, exposed for thumbnails and tests."""
+    def apply(self, image: np.ndarray, progress: float = 0.5) -> np.ndarray:
+        """The fast path, exposed for thumbnails and tests.
+
+        ``progress`` is the clip-local position 0..1, consumed by the
+        time-aware masked ops (bg_zoom); the midpoint default gives
+        thumbnails a representative look."""
         if self._steps is None:
             self._compile()
         if self._steps is not False:
@@ -764,7 +802,8 @@ class ColorGrade(Filter):
                         if mask.shape[:2] != frame_u8.shape[:2]:
                             mask = cv2.resize(mask, (frame_u8.shape[1],
                                                      frame_u8.shape[0]))
-                        out = fn(cv2, frame_u8, mask, params)
+                        out = fn(cv2, frame_u8, mask,
+                                 {**params, "_t": float(progress)})
                 else:
                     height, width = out.shape[:2]
                     out = cv2.multiply(out, self._mask_u8(width, height, payload),
@@ -789,7 +828,7 @@ class ColorGrade(Filter):
             out = ((out.astype(np.uint16) * mask) >> 8).astype(np.uint8)
         return out
 
-    def process(self, frame: Frame) -> Frame:
+    def process(self, frame: Frame, progress: float = 0.5) -> Frame:
         if not self.ops:
             return frame
 
@@ -797,7 +836,7 @@ class ColorGrade(Filter):
             image = frame.image()
             if image is None:
                 return None
-            return self.apply(image)
+            return self.apply(image, progress)
 
         return self._wrap(frame, image_fn=graded)
 
@@ -830,12 +869,17 @@ class TimedColor(Filter):
     def process(self, frame: Frame) -> Frame:
         chosen = None
         top = -1
+        span_start, span_end = 0, 1
         for start, end, order, grade in self._spans:
             if start <= frame.position < end and order > top:
                 top = order
                 chosen = grade
+                span_start, span_end = start, end
         if chosen is not None:
-            frame = chosen.process(frame)
+            # Clip-local progress 0..1 for the time-aware ops (bg_zoom).
+            progress = ((frame.position - span_start)
+                        / max(1, span_end - 1 - span_start))
+            frame = chosen.process(frame, progress)
         return frame
 
 

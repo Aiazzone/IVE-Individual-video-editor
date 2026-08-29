@@ -60,6 +60,7 @@ ognuna il risultato e' clippato a [0,1]. Implementazione di riferimento in
 | `aura` | `color?`, `width?` 0…1, `strength?` 0…1 | — | — | bagliore additivo ATTORNO al soggetto (maschera IA), mai sopra |
 | `bg_blur` | `amount?` 0…1 | — | — | sfondo sfocato (piramide), soggetto nitido |
 | `bg_gray` | `amount?` 0…1 | — | — | sfondo in grigio, soggetto a colori |
+| `bg_zoom` | `amount?` 0…1 | — | — | parallasse 2.5D: la scena zooma col tempo del clip (progress `_t` iniettato da TimedColor), il soggetto sta fermo; blur crescente maschera il bordo doppio |
 
 `sketch`/`cartoon`/`paint` sono op **SPAZIALI** (guardano i pixel vicini,
 sezione "artistic" del catalogo, 2026-08-28): richiedono OpenCV — senza,
@@ -78,8 +79,11 @@ l'AI). Senza provider, o senza modello installato, degradano a
 pass-through con un warning una-tantum. Costo: ~34 ms a maschera su
 DirectML (446 su CPU nuda — vedi AI_FEATURES §6-bis) + pochi ms per l'op;
 la primissima maschera carica la sessione ONNX (~3-4 s, una volta per
-processo): il frame in pausa puo' restare quello vecchio finche' non si
-tocca il playhead.
+processo) — dal 2026-08-28 sera `app._warm_masks` la PRERISCALDA in un
+thread appena un effetto a maschera entra in timeline
+(`segmentation.warm_up()`), quindi nell'uso normale l'attesa non si
+vede; resta possibile sul primissimo drop a sessione fredda (il frame
+in pausa puo' restare vecchio finche' non si tocca il playhead).
 
 Regole per `intensity`: metterla **ultima** e comunque **prima di una
 vignette finale** — nella via compilata fonderebbe anche la vignette gia'

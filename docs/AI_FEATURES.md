@@ -287,7 +287,16 @@ entra in timeline.
 **Fase C (2026-08-28)**: il pannello **Effetti** (icona della rail,
 tasto 3) sfoglia le sezioni `subject` e `artistic`; il pannello Colore
 tiene solo il grading. Stesso browser (`ColorContent` con `catalog:
-"fx"`), stesso catalogo, stessa corsia — vedi COLOR_EFFECTS.md §3-bis.
+"fx"`), stesso catalogo — vedi COLOR_EFFECTS.md §3-bis. Corsia
+"Effects" (track 5) e regola "vince l'ultimo inserito": §3-ter.
+
+**Fase D (2026-08-28, sera)**: op `bg_zoom` (parallasse 2.5D, ricetta
+"Parallasse"; progress `_t` iniettato da TimedColor, blur crescente a
+mascherare il bordo doppio — non c'e' inpainting) e **warm-up della
+sessione**: `segmentation.warm_up()` (thread daemon sul segmenter
+condiviso `shared_segmenter()`) chiamato da `app._warm_masks` appena un
+effetto a maschera entra in timeline. Rinviato: cache delle maschere su
+disco stile proxy (utile solo per macchine senza GPU DX12).
 
 ---
 

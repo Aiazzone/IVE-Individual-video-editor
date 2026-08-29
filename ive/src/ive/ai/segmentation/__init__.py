@@ -29,7 +29,7 @@ from ive.ai.model_registry import is_installed, model_dir
 log = logging.getLogger(__name__)
 
 __all__ = ["SubjectSegmenter", "availability", "MODEL_ID",
-           "mask_provider"]
+           "mask_provider", "shared_segmenter", "warm_up"]
 
 #: The one catalogued segmentation model (universal, class-free).
 MODEL_ID = "u2netp"
@@ -152,6 +152,41 @@ class SubjectSegmenter:
             self._provider = ""
 
 
+#: The one segmenter of the process (sessions are expensive; ONNX
+#: Runtime's ``run`` is thread-safe, so sharing is the right shape).
+_shared: SubjectSegmenter | None = None
+_shared_lock = threading.Lock()
+
+
+def shared_segmenter() -> SubjectSegmenter:
+    global _shared
+    with _shared_lock:
+        if _shared is None:
+            _shared = SubjectSegmenter()
+        return _shared
+
+
+def warm_up() -> None:
+    """Load the session in the background, so the first real mask does
+    not stall the read-ahead for seconds (measured ~3-4 s on DirectML).
+
+    Fire-and-forget: called when a subject effect enters the timeline.
+    Not ready (model missing) or already warm both cost nothing.
+    """
+    if availability() != "ready":
+        return
+
+    def load() -> None:
+        try:
+            shared_segmenter()._ensure_session()
+        except Exception:
+            log.exception("Segmentation warm-up failed (masks will "
+                          "retry on demand)")
+
+    threading.Thread(target=load, name="segmentation-warmup",
+                     daemon=True).start()
+
+
 def mask_provider(cache_size: int = 32):
     """The callable the engine's ``set_mask_provider`` wants.
 
@@ -163,8 +198,9 @@ def mask_provider(cache_size: int = 32):
     A small LRU keyed by a cheap frame fingerprint (the bytes of an 8x8
     average) absorbs the common repeats - the paused frame re-composited
     during a drag, a thumbnail asked twice - without hashing megabytes.
+    Uses the process-wide shared segmenter, so a warm_up() call has
+    already paid the session load by the time frames arrive.
     """
-    segmenter: dict = {}
     cache: dict[bytes, np.ndarray] = {}
 
     def fingerprint(image: np.ndarray) -> bytes:
@@ -180,10 +216,7 @@ def mask_provider(cache_size: int = 32):
         hit = cache.get(key)
         if hit is not None:
             return hit
-        instance = segmenter.get("s")
-        if instance is None:
-            instance = segmenter["s"] = SubjectSegmenter()
-        mask = instance.mask(image)
+        mask = shared_segmenter().mask(image)
         if len(cache) >= cache_size:
             cache.clear()
         cache[key] = mask

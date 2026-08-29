@@ -342,10 +342,33 @@ class Application:
         """Hand the current timeline to the transport."""
         clips = self.project.timelineClips
         if clips:
+            self._warm_masks(clips)
             self.playback.open_sequence(clips)
         elif self.playback.isSequence:
             # The timeline emptied out; stop pretending there is something.
             self.playback.close()
+
+    #: Ops that will ask for a subject mask - their first call loads the
+    #: ONNX session (~3-4 s): warming it in the background as soon as
+    #: such an effect enters the timeline spares the read-ahead the wait.
+    _MASKED_OP_NAMES = frozenset({"aura", "bg_blur", "bg_gray", "bg_zoom"})
+
+    def _warm_masks(self, clips) -> None:
+        if getattr(self, "_masks_warmed", False):
+            return
+        from ive.color.library import ops_for
+
+        for clip in clips:
+            if int(clip.get("track") or 0) not in (1, 5):
+                continue
+            ops = ops_for(str(clip.get("effectId") or ""))
+            if any(str(op.get("op") or "") in self._MASKED_OP_NAMES
+                   for op in ops):
+                from ive.ai.segmentation import warm_up
+
+                warm_up()
+                self._masks_warmed = True
+                return
 
     def _on_setting_changed(self, key: str, value) -> None:
         if key == "app.language":

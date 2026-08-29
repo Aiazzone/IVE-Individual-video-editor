@@ -418,8 +418,11 @@ class GraphBuilder:
         graded = [
             {"start": self.timebase.seconds_to_frames(float(s.get("start") or 0.0)),
              "end": self.timebase.seconds_to_frames(float(s.get("end") or 0.0)),
-             "ops": s.get("ops") or []}
-            for s in (color_spans or []) if s.get("ops")
+             "ops": s.get("ops") or [],
+             # Insertion order decides who rules an overlap (TimedColor
+             # applies only the latest); list position is the fallback.
+             "order": int(s.get("order", index))}
+            for index, s in enumerate(color_spans or []) if s.get("ops")
         ]
         if graded:
             from ive.engine.filters import TimedColor
