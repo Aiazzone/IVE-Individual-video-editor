@@ -48,7 +48,7 @@ KINDS = ("static", "animated")
 #: in the order they are first seen.
 _SECTION_ORDER: dict[str, tuple[str, ...]] = {
     "static": ("shapes", "goodmorning", "greetings", "birthday"),
-    "animated": ("demo",),
+    "animated": ("shapes", "demo"),
 }
 
 _cache: list[dict[str, Any]] | None = None

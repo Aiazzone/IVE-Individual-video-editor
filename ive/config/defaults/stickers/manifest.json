@@ -31,6 +31,12 @@
   },
   {
     "schema_version": 1,
+    "id": "shape_tap",
+    "name": {"en": "Tap", "it": "Tocco", "es": "Toque", "pt": "Toque"},
+    "section": "shapes", "kind": "animated", "file": "animated/tap.json"
+  },
+  {
+    "schema_version": 1,
     "id": "gm_sun",
     "name": {"en": "Good morning sun", "it": "Sole Buongiorno", "es": "Sol Buenos días", "pt": "Sol Bom dia"},
     "section": "goodmorning", "kind": "static", "file": "goodmorning/sun.svg"
