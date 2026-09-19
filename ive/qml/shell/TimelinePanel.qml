@@ -2029,18 +2029,60 @@ Item {
                     height: lanes.rulerH
                     clip: true
 
+                    // The scale ADAPTS to what a label needs to stay
+                    // readable: one tick a second with a label every five
+                    // is right for a 30 s clip and a solid smear for an
+                    // hour-long one. Each rung is [seconds between labels,
+                    // minor ticks per label]; the first rung whose labels
+                    // land at least minLabelPx apart wins, so zooming in
+                    // walks down the ladder and zooming out climbs it.
+                    readonly property real minLabelPx: 110
+                    readonly property var ladder: [
+                        [1, 2], [2, 2], [5, 5], [10, 5], [15, 3], [30, 6],
+                        [60, 6], [120, 4], [300, 5], [600, 5], [900, 3],
+                        [1800, 6], [3600, 6], [7200, 4], [14400, 4],
+                        [21600, 6], [43200, 6], [86400, 6]]
+                    readonly property var rung: {
+                        for (var i = 0; i < ladder.length; i++)
+                            if (ladder[i][0] * lanes.pps >= minLabelPx)
+                                return ladder[i];
+                        return ladder[ladder.length - 1];
+                    }
+                    readonly property real majorStep: rung[0]
+                    readonly property int minorPerMajor: rung[1]
+                    readonly property real minorStep: majorStep / minorPerMajor
+                    // Only the ticks under the viewport exist (plus one
+                    // label's worth on the left, so a label whose tick has
+                    // scrolled out still shows): the delegate count follows
+                    // the WIDTH, never the duration.
+                    readonly property int firstTick: Math.max(0, Math.floor(
+                        scroller.contentX / lanes.pps / minorStep) - minorPerMajor)
+                    readonly property int tickCount: Math.ceil(
+                        scroller.width / lanes.pps / minorStep) + minorPerMajor + 2
+
+                    function label(seconds) {
+                        var s = Math.round(seconds);
+                        return "%1:%2:%3"
+                            .arg(String(Math.floor(s / 3600)).padStart(2, "0"))
+                            .arg(String(Math.floor(s / 60) % 60).padStart(2, "0"))
+                            .arg(String(s % 60).padStart(2, "0"));
+                    }
+
                     Item {
                         width: scroller.contentWidth
                         height: parent.height
                         x: -scroller.contentX
 
                         Repeater {
-                            model: Math.floor(root.duration) + 1
+                            model: ruler.tickCount
                             delegate: Item {
                                 id: tick
                                 required property int index
-                                readonly property bool major: index % 5 === 0
-                                x: index * lanes.pps
+                                readonly property int n: ruler.firstTick + index
+                                readonly property real seconds: n * ruler.minorStep
+                                readonly property bool major: n % ruler.minorPerMajor === 0
+                                visible: seconds <= root.duration
+                                x: seconds * lanes.pps
                                 y: 0
                                 width: 1
                                 height: ruler.height
@@ -2052,13 +2094,11 @@ Item {
                                     color: Qt.alpha(root.onGlass, tick.major ? 0.45 : 0.18)
                                 }
                                 Text {
-                                    visible: tick.major && tick.index < root.duration
+                                    visible: tick.major && tick.seconds < root.duration
                                     x: 5
                                     anchors.bottom: parent.bottom
                                     anchors.bottomMargin: 3
-                                    text: "00:%1:%2"
-                                        .arg(String(Math.floor(tick.index / 60)).padStart(2, "0"))
-                                        .arg(String(tick.index % 60).padStart(2, "0"))
+                                    text: ruler.label(tick.seconds)
                                     color: root.onGlass
                                     font.pixelSize: Theme.m.fontSizeXs
                                     font.family: "monospace"

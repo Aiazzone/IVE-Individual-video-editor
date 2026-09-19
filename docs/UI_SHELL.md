@@ -373,6 +373,19 @@ righello: punta assottigliata in alto che continua nella linea, corpo
 arrotondato chiuso in basso (Shape 12x16, stroke 1.6, fill trasparente).
 La linea NON attraversa la goccia: dentro e' vuota di proposito.
 
+**Scala adattiva (2026-09-19).** Una tacca al secondo e un'etichetta ogni
+cinque andavano bene per un clip di 30 s e diventavano una macchia illeggibile
+(e 3600 delegate) su un video di un'ora. Ora il righello sceglie il passo da
+una **scala di gradini** `[secondi fra etichette, tacche minori per etichetta]`
+— 1, 2, 5, 10, 15, 30 s, 1, 2, 5, 10, 15, 30 min, 1, 2, 4, 6, 12, 24 h — e
+vince il primo gradino le cui etichette distano almeno `minLabelPx` = 110px.
+Lo zoom scende e sale la scala da solo: 1 h a zoom 1 = etichetta ogni 5 min,
+a zoom 8 ogni minuto, a zoom 64 ogni 5 s. Un montaggio corto si vede
+esattamente come prima. Esistono **solo le tacche sotto il viewport** (piu'
+un'etichetta di margine a sinistra): il numero di delegate segue la larghezza,
+mai la durata. Le etichette sono `HH:MM:SS` con le ore vere (prima il campo
+ore era uno `00` fisso e i minuti superavano 59).
+
 Le **intestazioni tracce** (colonna sinistra, `trackHeaderWidth` = 64)
 portano solo il NOME (V1, A1). I bottoni occhio/lucchetto/muto che c'erano
 erano segnaposto senza comportamento e sono stati tolti: torneranno uno a
