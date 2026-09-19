@@ -5,6 +5,14 @@ testato e documentato**, e non rompe gli step precedenti.
 
 Le stime sono relative fra loro (S/M/L/XL), non calendarizzate.
 
+> **Audit sul codice del 2026-09-19.** Ogni casella di questo file e' stata
+> riconfrontata con il sorgente (moduli, azioni registrate, cataloghi di
+> fabbrica, test). Le voci che il codice aveva superato sono state spuntate,
+> quelle fatte in modo diverso dal piano lo dicono, e cio' che resta e'
+> scritto accanto a ogni voce. Il riepilogo e' in fondo: «Cosa manca alla 1.0».
+> Numeri al momento dell'audit: ~23 000 righe Python, oltre 100 azioni registrate,
+> 53 suite di test + 55 test visivi, 449 chiavi di traduzione in 4 lingue.
+
 ---
 
 ## Principio di ordinamento
@@ -36,9 +44,14 @@ Nessuna feature visibile, ma determina tutto quello che viene dopo.
       se il ripiego a tinta piena si rendesse necessario, e' meglio saperlo
       prima di costruirci sopra.
 - [x] `requirements.txt`
-- [ ] `ruff`, `pytest`, CI su Win/Linux/macOS
+- [ ] `ruff`, `pytest`, CI su Win/Linux/macOS — audit 2026-09-19: nessuna
+      configurazione di lint, nessun `pyproject.toml`/`conftest.py`, nessuna
+      CI. Le 53 suite in `tests/` sono **script** (`__main__`, guidano l'app
+      vera); solo 5 hanno anche funzioni `test_*`. Decidere: o un runner che
+      le raccoglie tutte, o la migrazione a pytest
 - [x] `.gitignore`
-- [ ] `LICENSE` — bloccato sulla decisione di `LICENSING.md` §1
+- [x] `LICENSE` — **GPL-3.0-or-later** (file alla radice dal primo commit,
+      dichiarata nel README; `LICENSING.md` §1 aggiornato il 2026-09-19)
 
 **Fatto quando:** l'app si avvia, mostra una finestra vuota tematizzata, ha
 log funzionanti su tutte e tre le piattaforme, e un'Action di prova e'
@@ -51,11 +64,26 @@ PySide6/QML incontrate qui sono documentate in `CODING_STANDARDS.md` §3-bis.
 
 ---
 
-## Fase 1 — Modello di progetto e persistenza  ·  M
+## Fase 1 — Modello di progetto e persistenza  ·  M  ·  **FATTA in forma diversa dal piano**
 
-- [ ] `core/model/`: Project, Sequence, Track, Clip, EffectInstance, Keyframe
-- [ ] `utils/timecode.py` con test esaustivi (incluso drop-frame)
-- [ ] `project_io/`: serializer JSON versionato + migrations + autosave
+- [x] `core/model/project.py` — fatto, ma **piu' piatto del piano**:
+      `Project`, `MediaItem`, `TimelineClip` (niente classi Sequence/Track/
+      EffectInstance/Keyframe). Le tracce sono numeri fissi con un ruolo
+      (0 video+musica, 1 Colore, 2 Sticker, 3 Testo, 5 Effetti); effetti,
+      grade, motion e keyframe sono campi del clip. Una sola sequenza per
+      progetto. Tracce video multiple / picture-in-picture: **da fare**, ed
+      e' il punto in cui il modello piatto andra' ripensato
+- [ ] `utils/timecode.py` con test esaustivi (incluso drop-frame) — non
+      esiste; il tempo e' in secondi float ovunque, il timecode a schermo e'
+      formattato nel transport. Va insieme alla timebase in frame (Fase 4-bis)
+- [x] Persistenza — dentro `Project.to_dict/from_dict` e
+      `ProjectService.open/save`, non in un `project_io/` separato: JSON con
+      `schema_version` (=1), lettura tollerante (campi ignoti ignorati, file
+      di versione piu' nuova aperto con avviso), scrittura atomica
+      (`.tmp` + rename), **autosave a ogni edit**, media mancanti marcati
+      all'apertura senza bloccarla. **Resta:** un vero meccanismo di
+      *migrations* (servira' al primo schema 2) e un autosave su file
+      separato con recupero dopo crash
 - [x] Commands: ogni mutazione del progetto (place/move/remove/split/trim/
       volume/mute/audio/effetto/import/remove media) passa da `ProjectEdit`
       (memento in `core/commands/project_commands.py`) sull'`UndoStack`;
@@ -67,6 +95,8 @@ PySide6/QML incontrate qui sono documentate in `CODING_STANDARDS.md` §3-bis.
 
 **Fatto quando:** si crea un progetto via codice, lo si salva, lo si ricarica
 identico, e ogni operazione e' annullabile. Ancora nessuna UI.
+*(Criterio soddisfatto: `tests/test_undo_redo.py`,
+`tests/test_project_service_safety.py`.)*
 
 ---
 
@@ -137,7 +167,7 @@ fa seek preciso, e lo scrubbing e' fluido. Su tutte e tre le piattaforme.
 
 ---
 
-## Fase 3 — Timeline  ·  XL
+## Fase 3 — Timeline  ·  XL  ·  **COMPLETATA** (due code aperte sotto)
 
 - [x] Media pool: import, metadata, thumbnail (pannello Progetto)
 - [x] **Drag & drop di file e cartelle** dall'esterno (2026-08-23 il
@@ -174,12 +204,19 @@ fa seek preciso, e lo scrubbing e' fluido. Su tutte e tre le piattaforme.
       parametri; frecce + Invio eseguono. Il registry reso visibile:
       zero manutenzione UI quando le azioni cambiano
 
+- [x] Corsie dedicate oltre al video (audit 2026-09-19): Musica, Colore,
+      Sticker, Testo, **Effetti** (2026-08-28, con la regola «l'ultima mano
+      vince» dove Colore ed Effetti si sovrappongono), `timeline.clear_lane`
+- [ ] Code aperte: **ripple delete** esplicito; ordinamento del pool per
+      data di ripresa; **marker di battuta e snap-to-beat** sulla corsia
+      Musica (nessun codice ancora)
+
 **Fatto quando:** si monta un video reale: import, taglio, riordino, salvataggio,
 riapertura. Il primo momento in cui l'app e' "usabile".
 
 ---
 
-## Fase 4 — Export e preset  ·  M
+## Fase 4 — Export e preset  ·  M  ·  **COMPLETATA**
 
 Vedi `docs/EXPORT_PRESETS.md` e `docs/MEDIA_FORMATS.md`.
 
@@ -220,7 +257,7 @@ preset creato su una macchina funziona su un'altra con GPU differente.
 
 ---
 
-## Fase 4-bis — Il motore  ·  L  ·  **PRIMA degli effetti**
+## Fase 4-bis — Il motore  ·  L  ·  **COMPLETATO tranne la timebase**
 
 Vedi `docs/ENGINE.md`. Senza questo, ogni effetto aggiunto e' debito.
 
@@ -229,7 +266,10 @@ Vedi `docs/ENGINE.md`. Senza questo, ogni effetto aggiunto e' debito.
 - [x] `ClipProducer` (PyAV), `ColourProducer`, `Playlist`, `Multitrack`, `Tractor`
 - [x] `PreviewConsumer` ed `ExportConsumer` sullo **stesso** grafo
 - [x] Decodifica audio e mixer sullo stack audio (`tests/test_audio_graph.py`)
-- [ ] Timebase della sequenza: il modello passa da secondi a frame
+- [ ] Timebase della sequenza: il modello passa da secondi a frame —
+      **ancora aperto** (audit 2026-09-19: `TimelineClip` e' in secondi
+      float). E' il debito strutturale piu' vecchio: piu' feature si
+      appoggiano ai secondi, piu' costa. Da fare insieme a `utils/timecode.py`
 - [x] Traccia nera in fondo, come Kdenlive
 
 **Fatto quando:** un effetto di prova applicato a una clip si vede identico in
@@ -238,9 +278,15 @@ l'altro.
 
 ---
 
-## Fase 5 — Effetti e testo  ·  L
+## Fase 5 — Effetti e testo  ·  L  ·  **in gran parte fatta; manca lo strato «generato dallo schema»**
 
-- [ ] `effects/base.py` con parametri dichiarativi + registry
+- [ ] `effects/base.py` con parametri dichiarativi + registry — **non
+      fatto cosi'**: gli effetti sono *ricette JSON* su un vocabolario di op
+      (`engine/filters.py`, `apply_colour_ops`), con i cataloghi in
+      `color/`, `audio/`, `transitions/`, `motion/`. Funziona ed e'
+      condivisibile, ma le op **non dichiarano uno schema dei parametri**:
+      e' il prerequisito dell'Inspector generato e dei keyframe generici
+      (ultime due voci di questa fase)
 - [x] Transform e **speed** (2026-08-27): riquadro sul canvas per i
       clip A/V (vedi Fase 4) e velocita' 0.1-8x con semantica CapCut
       (`SpeedProducer` per entry: video mappato per tempo, audio
@@ -265,37 +311,80 @@ l'altro.
       (`ive/color/grade.py` compila nello stesso vocabolario di op
       delle ricette; azioni timeline.place_grade / set_clip_grade).
       Restano: curve, HSL per gamma, LUT `.cube`
-- [ ] **Animazioni in/out** come keyframe dichiarativi (schema di
-      `CONTENT_PACKS.md` §4.2), con preview nella libreria
-- [ ] Transizioni: dissolve, wipe, slide, zoom, + supporto luma matte
-- [ ] Titoli e testo, con font bundled e stili
+- [x] **Animazioni in/out/loop** come keyframe dichiarativi (2026-08-20,
+      `docs/MOTION.md`): 12 ricette di fabbrica (4 in, 3 out, 5 loop) in
+      `config/defaults/motion/`, evaluatore in `motion/runtime.py`, preview
+      viva sulle card (`MotionPicker.qml`), su sticker e titoli, categoria
+      di pack; azione `timeline.set_clip_motion`
+- [x] **Transizioni** (2026-08-25, `docs/TRANSITIONS.md`): 16 di fabbrica in
+      3 famiglie (dissolvenze, wipe a **mappa luma** PNG, movimento), A/B
+      roll con semantica CapCut, intro/outro da/verso il nero, crossfade
+      audio a potenza costante, pillola in timeline, 1,2-6 ms/frame a 720p;
+      azione `timeline.set_transition`. Resta: altre mappe luma di fabbrica
+      (stella, cuore, pennellata)
+- [x] **Titoli e testo** (2026-08-18, `docs/TEXT_TITLES.md`): corsia Testo,
+      renderer QPainterPath (`text/raster.py`), colore/contorno/grassetto/
+      corsivo/font, maniglie sul video condivise con gli sticker, motion
+      preset, karaoke per parola. **Restano:** *font bundled* (`assets/fonts/`
+      non esiste: si usano i font di sistema, quindi un progetto puo'
+      cambiare aspetto da una macchina all'altra) e *stili di testo come
+      preset JSON* condivisibili
+- [x] **Sticker** (2026-08-11 → 09-14, `docs/STICKERS.md`; non era nel
+      piano originale): manifest + SVG, 15 statici e 6 animati Lottie via
+      rlottie (ultimo: indicatore di tap `shape_tap`), corsia dedicata,
+      maniglie nel preview, motion preset
+- [x] **Look artistici ed effetti sul soggetto** (2026-08-28): matita,
+      cartoon, pittura; aura, sfondo sfocato / grigio / parallasse 2.5D
+      (`bg_zoom`) guidati dalla maschera AI; pannello **Effetti** con corsia
+      propria (un catalogo, due porte: `COLOR_EFFECTS.md` §3-bis,
+      `AI_FEATURES.md` §6-bis). 42 ricette colore/fx di fabbrica in 10 file
 - [x] Effetti audio: gain, EQ, compressore, normalizzazione loudness (2026-08-20, `docs/AUDIO.md`)
-- [ ] Keyframe su qualunque parametro numerico + editor curve
+- [ ] Keyframe su qualunque parametro numerico + editor curve — oggi i
+      keyframe coprono x/y/scala/rotazione/opacita' dei clip A/V; i
+      parametri di effetti, grade e audio non sono animabili
 - [ ] Pannello Inspector generato **dallo schema** dei parametri, non a mano
+      — oggi ogni pannello (`ColorContent`, `AudioContent`, `TextContent`...)
+      e' QML scritto a mano: il criterio «aggiungere un effetto non richiede
+      toccare la UI» vale per le *ricette*, non per una *op* nuova
 
 **Fatto quando:** un utente monta un video completo con color grading, testo e
 transizioni. Aggiungere un effetto nuovo non richiede toccare la UI.
 
 ---
 
-## Fase 6A — Content Pack  ·  L
+## Fase 6A — Content Pack  ·  L  ·  **v1 FATTA (2026-08-19/20), resta il secondo giro**
 
 Il sistema che permette alla comunita' di contribuire senza programmare.
-Vedi `docs/CONTENT_PACKS.md`.
+Vedi `docs/CONTENT_PACKS.md` §0 per lo stato di dettaglio.
 
-- [ ] `packs/`: manifest, installer `.ivepack`, library, indice cachato
-- [ ] Installazione per drag & drop, con licenza mostrata prima della conferma
-- [ ] Tipi di contenuto: audio (con loop e beat marker), animazioni in/out
-      (keyframe JSON), transizioni (parametriche e luma matte), LUT `.cube`,
-      font, overlay, template, export e canvas preset
-- [ ] Librerie in UI con ricerca, filtri, preview e provenienza
-- [ ] Tracking delle risorse mancanti all'apertura di un progetto altrui —
-      il progetto si apre comunque
+- [x] `packs/pack.py`: manifest, `build_pack` / `preview_pack` /
+      `install_pack` / `remove_pack`, pack installati come unita' rimovibili,
+      mai sovrascritture. (Nessun indice cachato: non e' servito.)
+- [x] Installazione da file o **per drag & drop sulla finestra**, sempre con
+      card di conferma (contenuti + avviso duplicati). **Resta:** la card
+      non mostra ancora la *licenza* del pack prima della conferma
+- [~] Tipi di contenuto — **fatti:** effetti colore/fx, transizioni (mappe
+      luma incluse), sticker, motion preset, effetti audio, export preset,
+      musica (con licenza e URL per traccia). **Mancano:** LUT `.cube`,
+      font, overlay, template di progetto, canvas preset, loop e beat
+      marker sulle tracce audio
+- [~] Librerie in UI: pannelli per famiglia con preview viva e preferiti
+      (stelle) per colore, effetti, sticker, transizioni, motion, audio,
+      musica. **Mancano:** ricerca testuale, filtri, provenienza visibile
+      (da quale pack arriva un contenuto)
+- [~] Risorse mancanti: i *media* mancanti sono marcati e il progetto si
+      apre comunque (`_check_missing`). **Manca** lo stesso per i
+      *contenuti di pack* non installati (effetto/sticker/transizione ignoti)
 - [ ] "Raccogli risorse": progetto autonomo e trasferibile
 - [ ] Validatore di pack (in-app e CLI)
-- [ ] **"Esporta come content pack"** dall'app, senza editor di testo
-- [ ] Pack starter `com.ive.starter` costruito con lo stesso formato pubblico
+- [x] **"Esporta come content pack"** dall'app: pannello Pack → Crea, con
+      spunte sui contenuti e i preferiti come scorciatoia (`pack.create`)
+- [x] Pack ufficiali scaricabili (al posto di `com.ive.starter`): catalogo
+      `config/defaults/packs/catalog.json` con 7 pack musicali (Kevin
+      MacLeod, CC BY 4.0) costruiti da `build_scripts/make_music_pack.py`
+      nello stesso formato pubblico; `pack.download`, overlay di offerta
 - [ ] Badge e generazione `credits.txt` per i contenuti con attribuzione
+      (i dati ci sono: licenza e URL per traccia; manca l'uscita)
 
 **Fatto quando:** un utente crea un pack di musiche dall'app, lo manda a un
 altro utente che lo installa trascinandolo, e le tracce compaiono nella
@@ -324,8 +413,9 @@ Nell'ordine, per rapporto valore/rischio:
       con URL ancorati a revisione + SHA-256, downloader con verifica
       hash/ripresa/cancel (`ive/ai/`), pesi in `models/<task>/`; inferenza
       in PROCESSO separato (crash isolation + conflitto OpenMP del venv,
-      vedi `AI_FEATURES.md` §4). Restano: `AITask.estimate`, schermata
-      "Modelli AI" nei settings, selezione backend GPU. (Primo modello
+      vedi `AI_FEATURES.md` §4). Restano: `AITask.estimate` e la selezione
+      del backend GPU dalla UI (la schermata "Modelli AI" e' fatta, vedi
+      sotto; la segmentazione sceglie gia' DirectML/CPU da sola). (Primo modello
       ONNX gia' in campo il 2026-08-23: Silero VAD in `models/vad/` per
       il ducking «Intelligente».)
 - [x] **Sottotitoli automatici** (2026-08-25): faster-whisper con
@@ -345,7 +435,17 @@ Nell'ordine, per rapporto valore/rischio:
       un undo, righe troppo veloci segnalate; worker in processo
       separato; UI nella card sottotitoli e coppie nella schermata
       Modelli AI. Vedi `AI_FEATURES.md` §5
-- [ ] **Rimozione sfondo** — attenzione alle licenze
+- [x] **Segmentazione del soggetto** (2026-08-28, Fasi A-D,
+      `AI_FEATURES.md` §6-bis): U²-Net small (`u2netp`, 4,6 MB, Apache-2.0)
+      su ONNX Runtime, provider scelto a runtime (DirectML 34 ms/frame vs
+      446 su CPU sulla macchina di sviluppo), una maschera condivisa da
+      tutte le op mascherate del motore, sessione scaldata all'avvio
+- [~] **Rimozione sfondo** — la maschera c'e' e guida gia' sfondo
+      sfocato/grigio/parallasse; **manca** la rimozione vera: sfondo
+      sostituito (colore, immagine, video) ed export con alpha
+- [x] **Ducking «intelligente»** (2026-08-23): Silero VAD in `audio/vad.py`,
+      modalita' globale semplice/intelligente, ombra sul letto musicale dove
+      il ducking lo abbassa (`ui/duck_shades.py`)
 - [ ] **Motion tracking** — prima i tracker OpenCV, poi il livello AI
 - [ ] **Frame interpolation** — il piu' costoso, per ultimo
 
@@ -378,11 +478,15 @@ italiano" funziona, e un solo Ctrl+Z annulla tutto.
 Deliberatamente tardi: il backend CPU e' la reference implementation, e serve
 prima che ci sia qualcosa contro cui confrontarsi.
 
-- [ ] `backends/detect.py` con capability detection reale
+- [ ] `backends/detect.py` con capability detection reale — oggi la scelta
+      e' locale a chi ne ha bisogno (segmentazione: provider ONNX; export:
+      test reale dell'encoder), non c'e' un modulo unico
 - [ ] Backend CUDA
 - [ ] Backend OpenVINO
 - [ ] Backend ROCm
-- [ ] Encoding hardware in export
+- [ ] Decodifica hardware (hwaccel) — nessun codice in `media/`
+- [x] Encoding hardware in export — fatto in Fase 4 (`export/service.py`:
+      h264_qsv / nvenc / amf con test reale, software come fallback)
 - [ ] Test di regressione visiva: ogni backend vs CPU
 
 **Fatto quando:** su ogni macchina l'app sceglie il percorso migliore da sola,
@@ -392,14 +496,54 @@ e un backend rotto degrada a CPU senza che l'utente perda lavoro.
 
 ## Fase 10 — Rifinitura e distribuzione  ·  L
 
-- [ ] Traduzioni complete IT / PT / ES
-- [ ] `.spec` PyInstaller per Windows, Linux, macOS
+- [x] Traduzioni IT / PT / ES — audit 2026-09-19: 449 chiavi in `en.json`,
+      **zero mancanti** nelle altre tre lingue (una ventina di valori
+      identici all'inglese per lingua: nomi propri e sigle, da rileggere).
+      Resta la verifica che nessuna stringa QML sia sfuggita a `tr()`
+- [ ] `.spec` PyInstaller per Windows, Linux, macOS — `build_scripts/`
+      contiene solo `make_music_pack.py`; nessun packaging ancora
 - [ ] `THIRD_PARTY_LICENSES.md` generato automaticamente
 - [ ] Schermata About / Licenze
 - [ ] Onboarding, stati vuoti, scorciatoie documentate
 - [ ] Passata di accessibilita' (contrasto, tastiera, screen reader)
 - [ ] Profiling e ottimizzazione — con numeri, non a sensazione
 - [ ] Documentazione utente
+
+---
+
+## Cosa manca alla 1.0 — riepilogo dell'audit 2026-09-19
+
+In ordine di rischio, non di comodita':
+
+1. **Timebase in frame + `utils/timecode.py`** (Fase 4-bis / 1). Debito
+   strutturale: ogni feature nuova lo rende piu' caro.
+2. **Verifica su Linux e macOS.** Tutto e' verificato solo su Windows; la
+   regola 5 qui sotto non e' soddisfatta per nessuna fase. Serve insieme a
+   **CI + lint + un runner unico** per le 53 suite a script (Fase 0).
+3. **Schema dei parametri delle op** → Inspector generato e keyframe su
+   qualunque parametro (Fase 5). Senza, ogni op nuova costa QML a mano.
+4. **Tracce video multiple / picture-in-picture**: il modello a corsie
+   fisse non le prevede.
+5. **Secondo giro dei pack** (Fase 6A): LUT `.cube`, font, template,
+   validatore, "Raccogli risorse", contenuti di pack mancanti, licenza
+   nella card di installazione, `credits.txt`, ricerca nelle librerie.
+6. **Font bundled** e stili di testo come preset (Fase 5).
+7. **Colore avanzato**: curve, HSL per gamma, LUT; editor curve dei
+   keyframe; time remap; speed con pitch preservato.
+8. **AI**: rimozione sfondo vera (sostituzione + alpha), motion tracking,
+   frame interpolation, `AITask.estimate`, sottotitoli ASS.
+9. **Fase 6B (plugin)**, **Fase 8 (assistente)**, **Fase 9 (backend GPU,
+   hwaccel in decodifica)**: intere, nessun codice. Per la Fase 8 la base
+   c'e': oltre 100 azioni con schema e la command palette che gia' le elenca.
+10. **Distribuzione** (Fase 10): `.spec` PyInstaller, licenze di terze
+    parti generate, schermata About, onboarding, accessibilita', profiling
+    con numeri, documentazione utente.
+11. Code piccole: ripple delete, ordinamento per data di ripresa, marker
+    di battuta e snap-to-beat, recupero autosave dopo crash, migrations
+    del formato progetto, refresh dell'albero moduli in `ARCHITECTURE.md`
+    (cita ancora `video_engine/`/`audio_engine/`; il codice ha `engine/`,
+    e mancano `color/`, `stickers/`, `text/`, `motion/`, `music/`,
+    `transitions/`, `audio/`).
 
 ---
 

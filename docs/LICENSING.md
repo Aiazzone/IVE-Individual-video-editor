@@ -46,7 +46,11 @@ pulito.
 
 ---
 
-## 1. Licenza del progetto — decisione da prendere
+## 1. Licenza del progetto — **DECISA: GPL-3.0-or-later** (Opzione A)
+
+> Il file `LICENSE` alla radice e il README dichiarano GPL-3.0-or-later dal
+> primo commit (2026-08-10). Le opzioni qui sotto restano come motivazione
+> della scelta.
 
 La scelta dipende quasi interamente da **come distribuiamo FFmpeg**.
 

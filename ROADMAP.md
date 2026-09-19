@@ -100,6 +100,30 @@ Updated together with the code, so this file always reflects reality.
       preview and export; favourites, pack category, user recipes in
       user_data/audio_effects
 
+- [x] Multi-select, copy/paste, keyboard shortcuts wired from the action
+      registry, and a command palette (Ctrl+K) listing every action
+- [x] Drag & drop of files and folders from outside, straight onto the
+      timeline; asynchronous import with progress and cancel
+- [x] Export queue: one edit → several platforms in sequence, per-job
+      progress and cancel; preflight warnings (upscaling, aspect, length);
+      hardware encoders picked by a real test, software as fallback;
+      shareable custom presets
+- [x] Canvas presets (16:9, 9:16, 4:3, 1:1, 21:9) with fit / fill / blur;
+      per-clip placement on the canvas with the same handles as stickers
+- [x] Per-clip speed (0.1–8x), crop, opacity, and keyframes on
+      position / scale / rotation / opacity with easing (incl. a spring)
+- [x] Manual colour correction: nine dials on any Color-lane clip
+- [x] Correct colour pipeline: BT.601/709 matrices honoured and declared,
+      HDR (PQ/HLG) sources tone-mapped to SDR, phone rotation, VFR
+- [x] Texture-based preview (frames go straight to the scene graph)
+- [x] AI subtitles (faster-whisper, word timestamps, karaoke, SRT/VTT
+      import/export) and subtitle translation (OPUS-MT, it/pt/es↔en);
+      an "AI models" settings screen — every model is an explicit download
+- [x] AI subject segmentation (U²-Net small) feeding masked effects:
+      aura, blurred / grey / parallax background; artistic looks (pencil,
+      cartoon, paint); an Effects panel with a lane of its own
+- [x] Animated shape stickers, incl. a tap indicator for tutorials
+
 ## 🔨 In progress / next up
 
 - [x] Music library and a Music lane: tracks from packs and from
@@ -116,8 +140,13 @@ Updated together with the code, so this file always reflects reality.
       chill, pop, corporate) over the incompetech catalogue
 
 
-- [ ] Music: beat markers and snap-to-beat; a shade on the bed where
-      ducking lowers it; the smart (VAD) detector
+- [x] A shade on the music bed where ducking lowers it; the smart
+      (Silero VAD) detector
+- [ ] Music: beat markers and snap-to-beat
+- [ ] Sequence timebase in frames (the model still counts seconds) and
+      a timecode utility with drop-frame
+- [ ] Linux and macOS verification pass; CI, lint, one runner for the
+      script-style test suites
 
 - [ ] docs/ARCHITECTURE.md module tree refresh (engine/, stickers/,
       text/, color/, motion/, packs/ are missing from the plan's tree)
@@ -126,14 +155,24 @@ Updated together with the code, so this file always reflects reality.
 
 - [ ] Text style presets as shareable JSON
 - [ ] More factory luma maps (star, heart, brush stroke)
-- [ ] Multi-track timeline (music under video, picture-in-picture)
-- [ ] Export queue (one edit → YouTube + Reels + LinkedIn in sequence)
-- [ ] AI tools: auto-cut, subtitles, background removal (ONNX Runtime)
-- [ ] Linux packaging and testing pass; installer/builds via PyInstaller
+- [ ] Multiple video tracks / picture-in-picture (music under video is
+      done; the fixed-lane model has no second video track yet)
+- [ ] Parameter schemas for effect ops → a generated Inspector and
+      keyframes on any numeric parameter; curve editor; time remap
+- [ ] Colour: curves, HSL by range, `.cube` LUT import
+- [ ] Bundled fonts (titles use system fonts today)
+- [ ] Packs, second round: LUTs, fonts, templates, a validator, "collect
+      resources", missing pack contents on open, licence on the install
+      card, `credits.txt`, search in the libraries
+- [ ] AI tools: true background replacement (with alpha export), motion
+      tracking, frame interpolation, auto-cut
+- [ ] Plugin system; natural-language assistant over the action registry
+- [ ] GPU backends (CUDA / OpenVINO / ROCm), hardware decoding
+- [ ] Packaging via PyInstaller (Windows, Linux, macOS); About / licences
+      screen; onboarding; accessibility pass; user documentation
 
 ## 💡 Ideas (not committed)
 
-- LUT file import (`.cube`) as colour effects
 - Per-effect intensity slider on the Color lane
 - Project templates for social formats
 - Beat detection to snap cuts to music
