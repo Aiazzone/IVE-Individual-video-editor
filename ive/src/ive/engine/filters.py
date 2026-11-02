@@ -412,17 +412,34 @@ class Filter:
         return frame
 
     @staticmethod
-    def _wrap(frame: Frame, image_fn=None, audio_fn=None) -> Frame:
+    def _wrap(frame: Frame, image_fn=None, audio_fn=None,
+              alpha_fn=None) -> Frame:
         """A new frame over ``frame`` with one stack transformed.
 
-        The untouched stack is forwarded as the ORIGINAL callable, so
-        asking for it later still evaluates the source lazily, once.
+        The untouched stacks are forwarded as the ORIGINAL callables, so
+        asking for them later still evaluates the source lazily, once.
+        A filter that does not touch coverage forwards the alpha as is.
         """
         out = Frame(frame.position, frame.timebase, frame.audio_format,
                     image_fn=image_fn or frame.image,
-                    audio_fn=audio_fn or frame.audio)
+                    audio_fn=audio_fn or frame.audio,
+                    alpha_fn=alpha_fn or frame.alpha)
         out.properties = dict(frame.properties)
         return out
+
+    @staticmethod
+    def _joint(compute):
+        """(image_fn, alpha_fn) over ONE evaluation of ``compute() ->
+        (image, alpha)``: a filter whose picture and coverage come out
+        of the same work (a mask, a placement) does it once."""
+        box: list = []
+
+        def result():
+            if not box:
+                box.append(compute())
+            return box[0]
+
+        return (lambda: result()[0]), (lambda: result()[1])
 
 
 class Transition:
@@ -580,7 +597,11 @@ class Opacity(Filter):
                 return None
             return (image.astype(np.float32) * alpha).astype(np.uint8)
 
-        return self._wrap(frame, image_fn=faded)
+        def coverage():
+            # Fading towards black IS fading out, once alpha is asked.
+            return _scaled_alpha(frame, alpha)
+
+        return self._wrap(frame, image_fn=faded, alpha_fn=coverage)
 
 
 class Dissolve(Transition):
@@ -906,6 +927,8 @@ class Overlays(Filter):
     def __init__(self, spans: list[dict], timebase) -> None:
         self._spans = [s for s in spans or [] if callable(s.get("sprite"))]
         self._timebase = timebase
+        #: An alpha export: stickers and titles add their own coverage.
+        self.with_alpha = False
 
     def process(self, frame: Frame) -> Frame:
         # Activity is decided on TRUNCATED frame numbers, the same
@@ -925,10 +948,18 @@ class Overlays(Filter):
         if not active:
             return frame
 
-        def overlaid():
+        def both():
             image = frame.image()
             if image is None:
-                return None
+                return None, None
+            coverage = None
+            if self.with_alpha:
+                coverage = frame.alpha()
+                coverage = (np.full(image.shape[:2], 255, np.uint8)
+                            if coverage is None else coverage.copy())
+            return overlaid(image, coverage), coverage
+
+        def overlaid(image, coverage=None):
             out = image.copy()
             for start_f, span in active:
                 local = self._timebase.frames_to_seconds(position - start_f)
@@ -992,10 +1023,13 @@ class Overlays(Filter):
                 if rgba is None:
                     continue
                 _blend_over(out, rgba, x * out.shape[1], y * out.shape[0],
-                            opacity)
+                            opacity, coverage=coverage)
             return out
 
-        return self._wrap(frame, image_fn=overlaid)
+        if self.with_alpha:
+            image_fn, alpha_fn = self._joint(both)
+            return self._wrap(frame, image_fn=image_fn, alpha_fn=alpha_fn)
+        return self._wrap(frame, image_fn=lambda: both()[0])
 
 
 class Placement(Filter):
@@ -1027,6 +1061,8 @@ class Placement(Filter):
         self._blur = str(background) == "blur"
         self._start = int(start_frame)
         self._fps = float(fps) or 25.0
+        #: An alpha export: compute the coverage with the picture.
+        self.with_alpha = False
 
     def _values_at(self, position: int) -> dict:
         """The effective transform/opacity at this track position."""
@@ -1058,11 +1094,21 @@ class Placement(Filter):
 
         position = frame.position
 
+        if self.with_alpha:
+            def both():
+                image = frame.image()
+                if image is None:
+                    return None, None
+                return self._compose(image, position, frame.alpha(), True)
+
+            image_fn, alpha_fn = self._joint(both)
+            return self._wrap(frame, image_fn=image_fn, alpha_fn=alpha_fn)
+
         def dressed():
             image = frame.image()
             if image is None:
                 return None
-            return self._compose(image, position)
+            return self._compose(image, position)[0]
 
         return self._wrap(frame, image_fn=dressed)
 
@@ -1078,14 +1124,20 @@ class Placement(Filter):
             return image
         return image[top:ih - bottom, left:iw - right]
 
-    def _compose(self, image: np.ndarray,
-                 position: int) -> np.ndarray:
+    def _compose(self, image: np.ndarray, position: int,
+                 alpha: np.ndarray | None = None,
+                 want_alpha: bool = False) -> tuple:
+        """(picture, coverage); the coverage only when ``want_alpha``
+        (an alpha export), None meaning fully opaque."""
         try:
             import cv2
         except ImportError:
             cv2 = None
         span = self._span
-        image = self._cropped(image, span.get("crop") or {})
+        crop = span.get("crop") or {}
+        image = self._cropped(image, crop)
+        if alpha is not None:
+            alpha = self._cropped(alpha[..., None], crop)[..., 0]
         values = self._values_at(position)
         opacity = min(1.0, max(0.0, values["opacity"]))
 
@@ -1094,8 +1146,14 @@ class Placement(Filter):
             # towards the black track underneath, which is what shows
             # through - multiplying is that blend, cheaply.
             if opacity >= 0.999:
-                return image
-            return (image.astype(np.float32) * opacity).astype(np.uint8)
+                return image, alpha
+            faded = (image.astype(np.float32) * opacity).astype(np.uint8)
+            if not want_alpha:
+                return faded, None
+            if alpha is None:
+                alpha = np.full(image.shape[:2], 255, np.uint8)
+            return faded, (alpha.astype(np.float32) * opacity + 0.5
+                           ).astype(np.uint8)
 
         cw, ch = self._width, self._height
         scale = min(2.0, max(0.02, values["scale"]))
@@ -1103,27 +1161,44 @@ class Placement(Filter):
         ih, iw = image.shape[:2]
 
         canvas = self._background(image, cv2)
+        # Around the box: nothing (an alpha export sees through it), or
+        # the blurred fill, which is picture.
+        coverage = None
+        if want_alpha:
+            coverage = np.full((ch, cw), 255 if (self._blur and cv2 is not None)
+                               else 0, np.uint8)
         if opacity <= 0.001:
-            return canvas
+            return canvas, coverage
 
         box_h = max(2, int(round(scale * ch)))
         box_w = max(2, int(round(box_h * iw / max(1, ih))))
         if cv2 is not None:
             interp = (cv2.INTER_AREA if box_h < ih else cv2.INTER_LINEAR)
             resized = cv2.resize(image, (box_w, box_h), interpolation=interp)
+            if alpha is not None:
+                resized_alpha = cv2.resize(alpha, (box_w, box_h),
+                                           interpolation=interp)
         else:
             ys = (np.arange(box_h) * ih // box_h).clip(0, ih - 1)
             xs = (np.arange(box_w) * iw // box_w).clip(0, iw - 1)
             resized = image[ys][:, xs]
+            if alpha is not None:
+                resized_alpha = alpha[ys][:, xs]
 
-        # Unrotated, the box is a plain opaque rectangle: no alpha
+        # Unrotated and opaque, the box is a plain rectangle: no alpha
         # channel is built and the blend below is a paste, not per-pixel
-        # float math. Only a rotation needs RGBA - its interpolated
-        # alpha edge is the anti-aliasing.
+        # float math. A rotation needs RGBA - its interpolated alpha edge
+        # is the anti-aliasing - and so does a clip with its OWN coverage
+        # (a cut-out subject), blended premultiplied.
         sprite = resized
+        premultiplied = alpha is not None
+        if premultiplied:
+            sprite = np.dstack([resized, resized_alpha])
         if abs(rotation) > 0.01 and cv2 is not None:
-            sprite = np.dstack([resized,
-                                np.full((box_h, box_w, 1), 255, np.uint8)])
+            if not premultiplied:
+                sprite = np.dstack([resized,
+                                    np.full((box_h, box_w, 1), 255,
+                                            np.uint8)])
             matrix = cv2.getRotationMatrix2D((box_w / 2.0, box_h / 2.0),
                                              -rotation, 1.0)
             cos = abs(matrix[0, 0])
@@ -1140,8 +1215,8 @@ class Placement(Filter):
                     np.ascontiguousarray(sprite),
                     values["x"] * cw,
                     values["y"] * ch,
-                    opacity)
-        return canvas
+                    opacity, coverage=coverage, premultiplied=premultiplied)
+        return canvas, coverage
 
     def _background(self, image: np.ndarray, cv2) -> np.ndarray:
         cw, ch = self._width, self._height
@@ -1166,8 +1241,36 @@ class Placement(Filter):
         return (background.astype(np.uint16) * 3 // 4).astype(np.uint8)
 
 
+def _scaled_alpha(frame: Frame, factor: float) -> np.ndarray:
+    """The frame's coverage times ``factor`` (opaque when it had none)."""
+    alpha = frame.alpha()
+    if alpha is None:
+        image = frame.image()
+        if image is None:
+            return None
+        alpha = np.full(image.shape[:2], 255, np.uint8)
+    if factor >= 0.999:
+        return alpha
+    return (alpha.astype(np.float32) * max(0.0, factor) + 0.5
+            ).astype(np.uint8)
+
+
+def _cover(coverage: np.ndarray, part_alpha: np.ndarray | float,
+           iy0: int, iy1: int, ix0: int, ix1: int) -> None:
+    """Coverage "over": what lands (0..1) plus what showed through."""
+    roi = coverage[iy0:iy1, ix0:ix1].astype(np.float32)
+    if isinstance(part_alpha, np.ndarray):
+        a = part_alpha[..., 0] if part_alpha.ndim == 3 else part_alpha
+    else:
+        a = np.float32(part_alpha)
+    coverage[iy0:iy1, ix0:ix1] = np.clip(
+        a * 255.0 + roi * (1.0 - a) + 0.5, 0, 255).astype(np.uint8)
+
+
 def _blend_over(image: np.ndarray, sprite: np.ndarray,
-                cx: float, cy: float, opacity: float = 1.0) -> None:
+                cx: float, cy: float, opacity: float = 1.0,
+                coverage: np.ndarray | None = None,
+                premultiplied: bool = False) -> None:
     """Blend ``sprite`` onto ``image``, centred on ``(cx, cy)`` pixels,
     in place, at ``opacity`` (a motion preset's fade). RGB sprites are
     fully opaque rectangles - a paste, or one ``addWeighted``, never
@@ -1184,6 +1287,10 @@ def _blend_over(image: np.ndarray, sprite: np.ndarray,
         return
     part = sprite[iy0 - y0:iy1 - y0, ix0 - x0:ix1 - x0]
     if part.shape[2] == 3:
+        # ``coverage`` (an alpha export): the same region, same rounding.
+        if coverage is not None:
+            _cover(coverage, max(0.0, min(1.0, opacity)),
+                   iy0, iy1, ix0, ix1)
         if opacity >= 0.999:
             image[iy0:iy1, ix0:ix1] = part
             return
@@ -1205,7 +1312,15 @@ def _blend_over(image: np.ndarray, sprite: np.ndarray,
     alpha = part[..., 3:4].astype(np.float32) / 255.0
     if opacity < 1.0:
         alpha = alpha * np.float32(max(0.0, opacity))
+    if coverage is not None:
+        _cover(coverage, alpha, iy0, iy1, ix0, ix1)
     roi = image[iy0:iy1, ix0:ix1].astype(np.float32)
-    image[iy0:iy1, ix0:ix1] = (
-        part[..., :3].astype(np.float32) * alpha + roi * (1.0 - alpha)
-    ).astype(np.uint8)
+    colour = part[..., :3].astype(np.float32)
+    if premultiplied:
+        # The sprite is already "over black" (a cut-out clip): its colour
+        # carries its own coverage, only the fade still scales it.
+        colour = colour * np.float32(max(0.0, min(1.0, opacity)))
+    else:
+        colour = colour * alpha
+    image[iy0:iy1, ix0:ix1] = np.clip(
+        colour + roi * (1.0 - alpha), 0, 255).astype(np.uint8)

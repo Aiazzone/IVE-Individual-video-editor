@@ -271,8 +271,11 @@ card nel pannello Export). Il preflight avvisa su upscaling, formato
 diverso dal canvas, durata oltre il limite del preset, e **blocca solo**
 quando manca un encoder per il codec; mostra stima di dimensione
 (aritmetica dei bitrate), durata ed encoder reale (hw se disponibile:
-la probe apre un contesto vero alle impostazioni dell'export). I punti
-alpha/HDR restano per quando il motore avra' quei percorsi. Test:
+la probe apre un contesto vero alle impostazioni dell'export). Alpha
+(2026-11-02): `alpha: true` nelle opzioni personalizzate, solo ProRes/MOV
+e VP9/WebM-MKV; altrove il preflight blocca (`no_alpha`) e avvisa quando
+una clip "Trasparente" uscirebbe nera (`alpha_flattened`). HDR resta per
+quando il motore avra' quel percorso. Test:
 `tests/test_export_preflight.py`, `tests/test_export_queue.py`.
 
 1. L'utente sceglie un preset (o parte da uno e modifica alcuni campi).

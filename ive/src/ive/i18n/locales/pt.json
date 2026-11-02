@@ -513,5 +513,11 @@
   "cutout.shrink": "Encolher a borda",
   "cutout.download": "Baixar o modelo ({mb} MB)",
   "cutout.downloading": "Baixando…",
-  "cutout.backend_missing": "O ONNX Runtime não está instalado: remover o fundo não está disponível."
+  "cutout.backend_missing": "O ONNX Runtime não está instalado: remover o fundo não está disponível.",
+  "cutout.mode.transparent": "Transparente",
+  "cutout.transparent_hint": "Nada atrás do sujeito. A pré-visualização mostra preto; exporte em ProRes (MOV) ou VP9 (WebM) com «Fundo transparente» para mantê-lo transparente.",
+  "export.alpha": "Fundo transparente",
+  "export.alpha.hint": "Onde nada cobre o quadro - um fundo removido como Transparente, as faixas, em volta de um clipe posicionado - o arquivo fica transparente. Na pré-visualização é preto.",
+  "export.warn.no_alpha": "Este formato não consegue manter o fundo transparente",
+  "export.warn.alpha_flattened": "Um fundo transparente sairá preto: ative Fundo transparente (ProRes/MOV ou VP9/WebM)"
 }

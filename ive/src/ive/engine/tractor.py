@@ -62,6 +62,9 @@ class Tractor(Producer):
         #: Filters over the finished composite - grades, watermarks.
         self.filters: list = []
         self.length = 0
+        #: An alpha export: compose the coverage alongside the picture.
+        #: Off for the preview, which never looks at it.
+        self.with_alpha = False
 
     # ── building ──────────────────────────────────────────────────────
 
@@ -92,8 +95,10 @@ class Tractor(Producer):
 
         result = Frame(position, self.timebase, self.audio_format)
         composite: np.ndarray | None = None
+        coverage: np.ndarray | None = None
         mixed: np.ndarray | None = None
         contributed = False
+        with_alpha = self.with_alpha
 
         for track in self.tracks:
             if track.hidden and track.muted:
@@ -106,21 +111,40 @@ class Tractor(Producer):
             if track.video and not track.hidden:
                 image = source.image()
                 if image is not None:
+                    alpha = None
+                    if with_alpha:
+                        alpha = self._fit_alpha(image, source.alpha())
                     image = self._fit(image)
                     if composite is None:
                         composite = image.copy()
+                        coverage = alpha
                     elif track.transition is not None:
                         # A timed blend (engine/transitions.TimedBlend)
                         # needs the position: transitions live in windows.
                         # The legacy contract stays for whole-track blends.
                         if hasattr(track.transition, "blend_at"):
+                            composite_in = composite
                             composite = track.transition.blend_at(
                                 position, composite, image)
+                            if with_alpha:
+                                coverage = _blend_alpha(
+                                    lambda a, b: track.transition.blend_at(
+                                        position, a, b),
+                                    coverage, alpha, composite_in.shape)
                         else:
                             composite = track.transition.blend(
                                 composite, image, track.opacity)
+                            if with_alpha:
+                                coverage = _blend_alpha(
+                                    lambda a, b: track.transition.blend(
+                                        a, b, track.opacity),
+                                    coverage, alpha, image.shape)
                     else:
                         composite = _over(composite, image, track.opacity)
+                        if with_alpha:
+                            coverage = _blend_alpha(
+                                lambda a, b: _over(a, b, track.opacity),
+                                coverage, alpha, image.shape)
                     contributed = True
 
             # ── audio, summed ─────────────────────────────────────────
@@ -136,6 +160,8 @@ class Tractor(Producer):
 
         if composite is not None:
             result.set_image(composite)
+            if with_alpha:
+                result.set_alpha(coverage)
         elif contributed:
             result.set_image(None)
 
@@ -220,6 +246,35 @@ class Tractor(Producer):
         canvas[top:top + new_h, left:left + new_w] = image[ys][:, xs]
         return canvas
 
+    def _fit_alpha(self, image: np.ndarray,
+                   alpha: np.ndarray | None) -> np.ndarray | None:
+        """The coverage of ``image`` once ``_fit`` has placed it: the
+        same index maps; letterbox bars are see-through under "fit",
+        picture under "blur" (the blurred fill), absent under "fill"."""
+        height, width = image.shape[:2]
+        if (width, height) == (self.width, self.height):
+            return alpha
+        if alpha is None and self.fit_mode in ("fill", "blur"):
+            return None
+        source = (alpha if alpha is not None
+                  else np.full((height, width), 255, np.uint8))
+        # Reuse _fit's cached plans: run it on the coverage as a picture.
+        rgb = np.repeat(source[..., None], 3, axis=2)
+        mode = self.fit_mode
+        if mode == "blur":
+            self.fit_mode = "fit"
+            try:
+                fitted = self._fit(rgb)[..., 0]
+            finally:
+                self.fit_mode = mode
+            ys, xs, top, left, new_h, new_w = self._fit_cache[
+                (width, height)]["fit"]
+            out = np.full((self.height, self.width), 255, np.uint8)
+            out[top:top + new_h, left:left + new_w] = \
+                fitted[top:top + new_h, left:left + new_w]
+            return out
+        return np.ascontiguousarray(self._fit(rgb)[..., 0])
+
     def _blurred(self, filled: np.ndarray) -> np.ndarray:
         """A heavy, cheap blur: shrink hard, then stretch back.
 
@@ -240,6 +295,20 @@ class Tractor(Producer):
     def close(self) -> None:
         for track in self.tracks:
             track.producer.close()
+
+
+def _blend_alpha(blend, base: np.ndarray | None, top: np.ndarray | None,
+                 shape) -> np.ndarray | None:
+    """Run a picture blend on the two coverages (as grey pictures), so a
+    wipe or a dissolve reveals the alpha exactly as it reveals the
+    image. None (opaque) on both sides stays None."""
+    if base is None and top is None:
+        return None
+    h, w = shape[:2]
+    full = np.full((h, w), 255, np.uint8)
+    a = np.repeat((full if base is None else base)[..., None], 3, axis=2)
+    b = np.repeat((full if top is None else top)[..., None], 3, axis=2)
+    return np.ascontiguousarray(blend(a, b)[..., 0])
 
 
 def _over(base: np.ndarray, top: np.ndarray, opacity: float) -> np.ndarray:

@@ -69,6 +69,27 @@ audio-only, la forma d'onda.
 separato.** Se lo fosse, la sincronizzazione A/V diventerebbe un problema
 permanente invece di una proprieta' del modello.
 
+### 2.3-bis La terza pila: l'alpha (2026-11-02)
+
+Accanto a immagine e audio il frame porta l'**alpha**, pigra come le
+altre (`Frame.alpha()`, uint8 0..255; `None` = tutto pieno, la risposta
+di ogni producer normale). La convenzione e' **premoltiplicata**:
+l'immagine e' sempre "come appare sul nero", l'alpha dice quanto di ogni
+pixel c'e' davvero. Cosi' l'anteprima non cambia di un pixel e non paga
+niente: nessuno chiede l'alpha.
+
+La chiede solo un export con sfondo trasparente: `GraphBuilder.
+with_alpha` accende `_enable_alpha` sul grafo costruito — la traccia nera
+diventa "niente" (`ColourProducer.transparent`), il `Tractor` compone la
+copertura accanto all'immagine (bande del "fit" trasparenti, del "blur"
+piene; transizioni: la stessa funzione di fusione applicata all'alpha
+come immagine grigia, cosi' una tendina rivela l'alpha come rivela
+l'immagine), `Placement` copre solo il riquadro (dissolvenza = alpha
+scalata; clip con alpha propria fusa premoltiplicata), `Overlays`
+aggiunge la copertura di sticker e titoli. I filtri che non toccano la
+copertura (gradi, effetti, audio) la inoltrano con `_wrap`. L'export
+converte in RGBA **dritto** (`_straight_rgba`) prima del codec.
+
 ### 2.4 La composizione e' ricorsiva
 
 | Elemento | Cos'e' |

@@ -11,6 +11,12 @@ its own, and identical in preview and in export.
 never decodes the sound, and asking for the sound never decodes the picture.
 That is what makes waveform extraction, audio scrubbing and video-only export
 cheap instead of special cases.
+
+**Alpha is a third lazy stack, asked for only by an alpha export.** The
+image is always the picture AS SEEN OVER BLACK (premultiplied); the
+alpha says how much of each pixel is really there (uint8, 255 = solid).
+``None`` means fully opaque - the answer of every ordinary producer, so
+nothing that ignores alpha pays for it. The preview never asks.
 """
 
 from __future__ import annotations
@@ -84,7 +90,8 @@ class Frame:
     """One instant of the sequence, with lazily evaluated content."""
 
     __slots__ = ("position", "timebase", "audio_format", "_image_fn",
-                 "_audio_fn", "_image", "_audio", "properties")
+                 "_audio_fn", "_image", "_audio", "_alpha_fn", "_alpha",
+                 "properties")
 
     def __init__(
         self,
@@ -93,6 +100,7 @@ class Frame:
         audio_format: AudioFormat | None = None,
         image_fn: Callable[[], np.ndarray] | None = None,
         audio_fn: Callable[[], np.ndarray] | None = None,
+        alpha_fn: Callable[[], np.ndarray | None] | None = None,
     ) -> None:
         self.position = position
         self.timebase = timebase
@@ -101,6 +109,8 @@ class Frame:
         self._audio_fn = audio_fn
         self._image: np.ndarray | None = None
         self._audio: np.ndarray | None = None
+        self._alpha_fn = alpha_fn
+        self._alpha: np.ndarray | None = None
         #: Free-form annotations a producer can leave for a filter downstream.
         self.properties: dict[str, Any] = {}
 
@@ -124,6 +134,24 @@ class Frame:
     def set_image(self, image: np.ndarray | None) -> None:
         self._image = image
         self._image_fn = None
+
+    # ── alpha ─────────────────────────────────────────────────────────
+
+    def alpha(self) -> np.ndarray | None:
+        """uint8 coverage ``(height, width)``; None = fully opaque."""
+        if self._alpha is None and self._alpha_fn is not None:
+            try:
+                self._alpha = self._alpha_fn()
+            except Exception:
+                log.exception("Alpha evaluation failed at frame %d",
+                              self.position)
+                self._alpha = None
+            self._alpha_fn = None
+        return self._alpha
+
+    def set_alpha(self, alpha: np.ndarray | None) -> None:
+        self._alpha = alpha
+        self._alpha_fn = None
 
     # ── audio ─────────────────────────────────────────────────────────
 
@@ -179,6 +207,10 @@ class Frame:
             new.set_audio(self._audio)
         else:
             new._audio_fn = self._audio_fn
+        if self._alpha is not None:
+            new.set_alpha(self._alpha)
+        else:
+            new._alpha_fn = self._alpha_fn
         return new
 
     def __repr__(self) -> str:  # pragma: no cover - debugging aid

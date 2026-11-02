@@ -281,13 +281,30 @@ dipendenza nuova:
 - Misurato: ~45 ms a fotogramma con u2netp su DirectML dopo il primo
   caricamento della sessione (~2 s).
 
-**Resta (Fase B):** export con canale alpha (ProRes 4444 / VP9 con alpha):
-il motore compone in RGB e la "traccia nera" e' implicita anche in
-`Placement` e nelle dissolvenze, quindi serve portare l'alpha lungo il
-grafo — lavoro sul motore, non sull'AI. Poi: sfondo video, pennello di
-correzione della maschera, cache delle maschere su disco per CPU senza
-DirectML (446 ms/frame), un modello di matting migliore sui capelli
-(licenza da verificare: RVM e' GPL, MODNet non-commercial).
+### Fase B (2026-11-02): sfondo trasparente nell'export
+
+- Terza modalita' della scheda: **Trasparente** (`cutout.mode =
+  "transparent"`): niente dietro al soggetto. Nell'anteprima si vede
+  nero (come ogni buco della sequenza); un export con "Sfondo
+  trasparente" lo tiene trasparente.
+- Il motore porta l'**alpha come terza pila pigra** del frame
+  (`ENGINE.md` §2.3-bis): calcolata solo da un export con alpha.
+- Export: **ProRes 4444** in MOV (`yuva444p10le`, profilo 4444) e
+  **VP9** in WebM/MKV (`yuva420p`). Interruttore nella scheda
+  Personalizzato del pannello Export, visibile solo dove l'alpha
+  sopravvive; MP4/H.264 con alpha viene **rifiutato** (azione e
+  servizio), mai appiattito sul nero in silenzio. Il preflight avvisa
+  quando una clip "Trasparente" uscirebbe nera.
+- Test: `tests/test_alpha_export.py` (grafo con maschera finta, RGBA
+  dritto, file ProRes e VP9 riletti con l'alpha) e
+  `tests/visual/test_alpha_export_ui.py` (dalla scheda all'export, file
+  riletto).
+
+**Resta:** sfondo video, pennello di correzione della maschera, cache
+delle maschere su disco per CPU senza DirectML (446 ms/frame), un
+modello di matting migliore sui capelli (licenza da verificare: RVM e'
+GPL, MODNet non-commercial), una scacchiera al posto del nero
+nell'anteprima per le zone trasparenti.
 
 ### 6-bis. Segmentazione del soggetto (IMPLEMENTATA, 2026-08-28 — Fase A)
 

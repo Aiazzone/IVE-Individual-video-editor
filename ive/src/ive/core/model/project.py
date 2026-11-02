@@ -65,7 +65,7 @@ def _clean_track_ref(raw: Any) -> dict:
 
 
 #: Background removal: what replaces the scene behind the subject.
-CUTOUT_MODES = ("color", "image")
+CUTOUT_MODES = ("color", "image", "transparent")
 
 
 def _clean_cutout(raw: Any) -> dict:
@@ -281,7 +281,7 @@ class TimelineClip:
     #:  "target_h" (target height, canvas heights), "scale"}. Empty =
     #: never tracked.
     track_ref: dict = field(default_factory=dict)
-    #: A/V clips: background removal - {mode: color|image, color,
+    #: A/V clips: background removal - {mode: color|image|transparent, color,
     #: image (path, relative to the project folder when possible),
     #: feather, shrink}; {} = the picture as shot. engine/cutout.py.
     cutout: dict = field(default_factory=dict)

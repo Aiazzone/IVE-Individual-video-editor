@@ -58,6 +58,9 @@ class GraphBuilder:
         self.use_proxies = use_proxies
         #: fit / fill / blur: how a picture meets the canvas (Tractor).
         self.canvas_fit = "fit"
+        #: An ALPHA export: the black track becomes "nothing" and every
+        #: stage that changes coverage computes it. Never for the preview.
+        self.with_alpha = False
 
     @property
     def timebase(self) -> Timebase:
@@ -459,12 +462,33 @@ class GraphBuilder:
 
             tractor.filters.append(Overlays(overlays, self.timebase))
 
+        if self.with_alpha:
+            _enable_alpha(tractor)
         log.info("Graph built: %d clip(s), %d colour span(s), %d overlay "
-                 "span(s), %d frames at %s",
+                 "span(s), %d frames at %s%s",
                  len(usable), len(graded), len(overlays), tractor.length,
-                 self.timebase)
+                 self.timebase, " with alpha" if self.with_alpha else "")
         self.release_unused(used_keys)
         return tractor
+
+
+def _enable_alpha(tractor: Tractor) -> None:
+    """Turn coverage on along the whole graph, after it is built: the
+    bottom colour track goes see-through, the tractor composes alpha,
+    every filter that changes coverage (placement, overlays) computes
+    it. Filters that do not touch coverage forward it untouched."""
+    tractor.with_alpha = True
+    for track in tractor.tracks:
+        producer = track.producer
+        if isinstance(producer, ColourProducer):
+            producer.transparent = True
+        for entry in getattr(producer, "entries", ()):
+            for filt in entry.filters:
+                if hasattr(filt, "with_alpha"):
+                    filt.with_alpha = True
+    for filt in tractor.filters:
+        if hasattr(filt, "with_alpha"):
+            filt.with_alpha = True
 
 
 def build_from_project(clips: list[dict], *, fps=25.0,
@@ -476,7 +500,8 @@ def build_from_project(clips: list[dict], *, fps=25.0,
                        text_spans: list[dict] | None = None,
                        transition_spans: list[dict] | None = None,
                        music_spans: list[dict] | None = None,
-                       canvas_fit: str = "fit") -> Tractor:
+                       canvas_fit: str = "fit",
+                       alpha: bool = False) -> Tractor:
     """One-shot build, for tests, scripts and the export.
 
     ``fps`` takes any spelling of a rate (``"30000/1001"``, a Fraction,
@@ -485,5 +510,6 @@ def build_from_project(clips: list[dict], *, fps=25.0,
     builder = GraphBuilder(Timebase(parse_rate(fps)),
                            AudioFormat(), width, height, proxies, use_proxies)
     builder.canvas_fit = canvas_fit
+    builder.with_alpha = bool(alpha)
     return builder.build(clips, color_spans, sticker_spans, text_spans,
                          transition_spans, music_spans=music_spans)

@@ -10,9 +10,15 @@ replaces did.
 ``span`` is the clip dict itself, read at process time (the Placement
 contract): ``span["cutout"]`` holds
 
-    mode      "color" | "image"      ("" / absent = the filter is idle)
+    mode      "color" | "image" | "transparent"
+                                     ("" / absent = the filter is idle)
     color     "#RRGGBB"              the backdrop for "color"
     image     absolute path          the backdrop for "image" (cover-fit)
+                                     "transparent": NO backdrop - the frame
+                                     carries the subject's coverage as its
+                                     alpha (an alpha export keeps it; the
+                                     preview shows black behind, like any
+                                     hole in the sequence)
     feather   0..1                   how soft the edge is
     shrink    0..1                   how far the edge is pulled IN -
                                      U2-Net's mask tends to bleed a rim
@@ -44,7 +50,7 @@ log = logging.getLogger(__name__)
 
 __all__ = ["Cutout", "MODES", "STABILITY"]
 
-MODES = ("color", "image")
+MODES = ("color", "image", "transparent")
 
 #: Weight of the PREVIOUS frame's mask in the temporal blend.
 STABILITY = 0.4
@@ -66,6 +72,16 @@ class Cutout(Filter):
         if settings.get("mode") not in MODES:
             return frame
         position = frame.position
+
+        if settings.get("mode") == "transparent":
+            def both():
+                image = frame.image()
+                if image is None:
+                    return None, None
+                return self.apply_alpha(image, position)
+
+            image_fn, alpha_fn = self._joint(both)
+            return self._wrap(frame, image_fn=image_fn, alpha_fn=alpha_fn)
 
         def cut():
             image = frame.image()
@@ -92,6 +108,28 @@ class Cutout(Filter):
         out = (rgb.astype(np.float32) * alpha
                + backdrop.astype(np.float32) * (1.0 - alpha))
         return np.clip(out + 0.5, 0, 255).astype(np.uint8)
+
+    def apply_alpha(self, image: np.ndarray, position: int = -1
+                    ) -> tuple[np.ndarray, np.ndarray | None]:
+        """(subject over black, its coverage) - the "transparent" mode.
+
+        The picture is premultiplied, the engine's convention: what a
+        viewer sees over black. Without a mask: the clip untouched and
+        opaque (None).
+        """
+        settings = dict(self._span.get("cutout") or {})
+        if image.ndim != 3 or image.shape[2] < 3:
+            return image, None
+        rgb = image[..., :3]
+        mask = _subject_mask(np.ascontiguousarray(rgb))
+        if mask is None:
+            return image, None
+        h, w = rgb.shape[:2]
+        alpha = self._alpha(mask, settings, position, w, h)
+        out = np.clip(rgb.astype(np.float32) * alpha + 0.5, 0, 255
+                      ).astype(np.uint8)
+        return out, np.clip(alpha[..., 0] * 255.0 + 0.5, 0, 255
+                            ).astype(np.uint8)
 
     def _alpha(self, mask: np.ndarray, settings: dict, position: int,
                w: int, h: int) -> np.ndarray:

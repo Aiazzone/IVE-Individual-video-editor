@@ -15,7 +15,9 @@ log = logging.getLogger(__name__)
     desc_key="Remove the background of a video clip: the subject (person, "
              "animal or object, found by the segmentation model) stays, "
              "the scene behind it becomes a solid colour (mode 'color') "
-             "or a still image (mode 'image', a file path). mode 'off' "
+             "or a still image (mode 'image', a file path), or nothing "
+             "(mode 'transparent': kept as alpha by an export in ProRes/MOV "
+             "or VP9/WebM with alpha=true; black in the preview). mode 'off' "
              "restores the picture as shot. feather (0..1) softens the "
              "edge, shrink (0..1) pulls it in. Undoable. Needs the "
              "subject-segmentation model; without it the clip plays "
@@ -23,7 +25,8 @@ log = logging.getLogger(__name__)
     category="timeline",
     params={
         "clip_id": Param(str, required=True),
-        "mode": Param(str, required=True, doc="color | image | off"),
+        "mode": Param(str, required=True,
+                      doc="color | image | transparent | off"),
         "color": Param(str, required=False, doc="#RRGGBB (default green)"),
         "image": Param(str, required=False, doc="Path of a still image."),
         "feather": Param(float, required=False, doc="0..1, default 0.3"),
@@ -33,7 +36,7 @@ log = logging.getLogger(__name__)
 def set_clip_cutout(ctx, clip_id: str, mode: str, color: str = "#00B140",
                     image: str = "", feather: float = 0.3,
                     shrink: float = 0.1):
-    if mode not in ("color", "image", "off", ""):
+    if mode not in ("color", "image", "transparent", "off", ""):
         raise RuntimeError(f"Unknown background mode {mode!r}")
     if mode == "image" and not image:
         raise RuntimeError("An image background needs an image path")

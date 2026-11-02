@@ -48,7 +48,9 @@ def _safe_stem(name: str, container: str) -> str:
     params={
         "options": Param(dict, required=True,
                          doc="preset_id, or container/video_codec/width/height/"
-                             "video_bitrate_kbps."),
+                             "video_bitrate_kbps; alpha=true keeps a "
+                             "transparent background (ProRes in mov, VP9 in "
+                             "webm/mkv only)."),
         "folder": Param(str, required=False, doc="Destination folder."),
         "filename": Param(str, required=False,
                           doc="Output file name, without the extension. "
@@ -73,6 +75,13 @@ def start_export(ctx, options: dict, folder: str = "", filename: str = ""):
     else:
         stem_suffix = "custom"
 
+    if settings.get("alpha"):
+        from ive.export.service import supports_alpha
+
+        if not supports_alpha(str(settings.get("container") or "mp4"),
+                              str(settings.get("video_codec") or "h264")):
+            raise RuntimeError("A transparent background needs ProRes in "
+                               "MOV or VP9 in WebM/MKV")
     source = export.current_source(playback)
     base = Path(folder) if folder else Path(source).parent
     container = str(settings.get("container") or "mp4")

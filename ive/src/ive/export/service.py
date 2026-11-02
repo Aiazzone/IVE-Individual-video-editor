@@ -46,6 +46,35 @@ _ENCODERS: dict[str, tuple[str, ...]] = {
     "mpeg4": ("mpeg4",),
 }
 
+#: Codecs that can carry ALPHA, with the pixel format that holds it, and
+#: the containers that keep it. ProRes 4444 is the editing hand-off;
+#: VP9 is the web one (browsers composite it over the page).
+ALPHA_FORMATS: dict[str, str] = {"prores": "yuva444p10le",
+                                 "vp9": "yuva420p"}
+ALPHA_CONTAINERS: dict[str, tuple[str, ...]] = {"prores": ("mov",),
+                                                "vp9": ("webm", "mkv")}
+
+
+def supports_alpha(container: str, video_codec: str) -> bool:
+    return container in ALPHA_CONTAINERS.get(video_codec, ())
+
+
+def _straight_rgba(image: np.ndarray, alpha: np.ndarray | None) -> np.ndarray:
+    """The engine's premultiplied picture + coverage -> straight RGBA,
+    which is what every alpha codec stores: a half-covered edge pixel
+    of a red subject is RED at half opacity, not dark red."""
+    import numpy as np
+
+    h, w = image.shape[:2]
+    if alpha is None:
+        return np.dstack([image, np.full((h, w), 255, np.uint8)])
+    a = alpha.astype(np.float32)
+    safe = np.maximum(a, 1.0)[..., None]
+    rgb = np.clip(image.astype(np.float32) * 255.0 / safe + 0.5, 0, 255)
+    rgb[a == 0] = 0
+    return np.dstack([rgb.astype(np.uint8), alpha])
+
+
 #: Logical audio codec -> FFmpeg encoders to try, best first. All of these
 #: ship in the PyAV wheels, so the fallback chain is short. PyAV 17 encodes
 #: audio from arbitrary-sized frames: it buffers to the encoder's frame_size
@@ -177,7 +206,10 @@ class _Worker(QObject):
     def run(self, source: str, destination: str, options: dict) -> None:
         import av
 
-        self._cancel = False
+        # NOT resetting _cancel here: run() arrives QUEUED, so a cancel sent
+        # right after the job was dispatched (directly, see ExportService)
+        # landed BEFORE this line and was wiped by it - the "cancelled" job
+        # then rendered to the end. The flag is cleared at dispatch instead.
         out_path = Path(destination)
         tmp_path = out_path.with_suffix(out_path.suffix + ".part")
         decoder = None
@@ -196,12 +228,23 @@ class _Worker(QObject):
             height -= height % 2
 
             logical = str(options.get("video_codec") or "h264")
+            container_id = str(options.get("container") or "mp4")
+            # A transparent background survives only in a codec AND a
+            # container that keep alpha; anything else is refused, not
+            # silently flattened onto black.
+            alpha = bool(options.get("alpha"))
+            if alpha and not (clips and supports_alpha(container_id,
+                                                       logical)):
+                self.failed.emit(f"no_alpha:{container_id}/{logical}")
+                return
             # The SEQUENCE's rate, exact (30000/1001, not round(29.97) = 30:
             # a 29.97 timeline written at 30 fps ran its picture 0.1% fast,
             # 3.6 s per hour ahead of its own sound). A bare file keeps its
             # own rate.
             fps = parse_rate(options.get("fps") or decoder.fps)
             pix_fmt = "yuv422p10le" if logical == "prores" else "yuv420p"
+            if alpha:
+                pix_fmt = ALPHA_FORMATS[logical]
             encoder = encoder_for(logical, width, height, pix_fmt, fps)
             if encoder is None:
                 self.failed.emit(f"no_encoder:{logical}")
@@ -238,7 +281,8 @@ class _Worker(QObject):
                     sticker_spans=sticker_spans, text_spans=text_spans,
                     transition_spans=transition_spans,
                     music_spans=list(options.get("music_spans") or []),
-                    canvas_fit=str(options.get("canvas_fit") or "fit"))
+                    canvas_fit=str(options.get("canvas_fit") or "fit"),
+                    alpha=alpha)
                 walker = SequenceWalker(graph, want_image=True,
                                         want_audio=True)
                 total = graph.length
@@ -254,6 +298,9 @@ class _Worker(QObject):
             stream.width = width
             stream.height = height
             stream.pix_fmt = pix_fmt
+            if alpha and logical == "prores":
+                # 4444 is the ProRes profile with an alpha plane.
+                stream.options = {"profile": "4444"}
             bitrate = int(options.get("video_bitrate_kbps") or 12000)
             stream.bit_rate = bitrate * 1000
             # Convert RGB->YUV with the matrix the OUTPUT size implies
@@ -286,10 +333,11 @@ class _Worker(QObject):
 
             log.info(
                 "Export started: %s -> %s (%dx%d, %s via %s, %d kbps, "
-                "%d frames, audio=%s)",
+                "%d frames, audio=%s%s)",
                 Path(source).name, out_path.name, width, height, logical,
                 encoder, bitrate, total,
                 audio_stream.codec_context.codec.name if audio_stream else "no",
+                ", ALPHA" if alpha else "",
             )
 
             import numpy as np
@@ -331,7 +379,14 @@ class _Worker(QObject):
                     array = last_array if last_array is not None else np.zeros(
                         (height, width, 3), dtype=np.uint8)
                 last_array = array
-                video_frame = av.VideoFrame.from_ndarray(array, format="rgb24")
+                if alpha:
+                    rgba = _straight_rgba(
+                        array, pulled.alpha() if pulled is not None else None)
+                    video_frame = av.VideoFrame.from_ndarray(rgba,
+                                                             format="rgba")
+                else:
+                    video_frame = av.VideoFrame.from_ndarray(array,
+                                                             format="rgb24")
                 video_frame = video_frame.reformat(width=width, height=height,
                                                    format=stream.pix_fmt,
                                                    dst_colorspace=encode_space)
@@ -578,6 +633,17 @@ class ExportService(QObject):
             out.append(item)
         return out
 
+    @Slot(str, str, result=bool)
+    def supportsAlpha(self, container: str, video_codec: str) -> bool:
+        """Whether this container + codec keep a transparent background
+        (ProRes in MOV, VP9 in WebM/MKV)."""
+        return supports_alpha(container, video_codec)
+
+    def _has_transparent_cutout(self) -> bool:
+        segments = getattr(self._playback, "_segments", None) or []
+        return any((getattr(s, "cutout", None) or {}).get("mode")
+                   == "transparent" for s in segments)
+
     @Slot(str, result=str)
     def codecLabel(self, codec_id: str) -> str:
         from ive.export.presets import AUDIO_CODECS, VIDEO_CODECS
@@ -708,10 +774,21 @@ class ExportService(QObject):
         if hdr_name:
             warnings.append({"id": "hdr", "detail": hdr_name})
 
+        # Transparency: asked where it cannot survive blocks; a clip cut
+        # out to "transparent" exported without it is said, not hidden.
+        container = str(settings.get("container") or "mp4")
+        alpha_ok = supports_alpha(container, logical)
+        wants_alpha = bool(settings.get("alpha"))
+        if wants_alpha and not alpha_ok:
+            warnings.append({"id": "no_alpha",
+                             "detail": f"{container}/{logical}"})
+        elif not wants_alpha and self._has_transparent_cutout():
+            warnings.append({"id": "alpha_flattened", "detail": ""})
+
         # kbps -> bytes: kbit/8 per second, /1024 twice for MiB.
         size_mb = (vbr + abr) * duration / 8.0 / 1024.0
         return {
-            "ok": encoder is not None,
+            "ok": encoder is not None and (alpha_ok or not wants_alpha),
             "warnings": warnings,
             "encoder": encoder or "",
             "sizeMb": round(size_mb, 1),
@@ -837,6 +914,10 @@ class ExportService(QObject):
         self._done = 0
         self._total = 0
         self._output = job["destination"]
+        # The worker is idle here (nothing is running): clearing its flag
+        # now, on this thread, means a cancel sent from this moment on can
+        # never be lost to the queued start below.
+        self._worker._cancel = False
         self.stateChanged.emit()
         self.progressChanged.emit()
         self.queueChanged.emit()

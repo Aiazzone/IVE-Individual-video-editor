@@ -48,7 +48,12 @@ Nessuna feature visibile, ma determina tutto quello che viene dopo.
       configurazione di lint, nessun `pyproject.toml`/`conftest.py`, nessuna
       CI. Le 53 suite in `tests/` sono **script** (`__main__`, guidano l'app
       vera); solo 5 hanno anche funzioni `test_*`. Decidere: o un runner che
-      le raccoglie tutte, o la migrazione a pytest
+      le raccoglie tutte, o la migrazione a pytest. **2026-11-02: scelto il
+      runner** (`tests/run_all.py`, uno solo per Windows e Linux: uscita 2
+      = prerequisito mancante, mostrato come SALTATO; fallimenti noti e
+      instabili elencati a parte) e uno script di preparazione per Linux.
+      La cartella `tests/` resta locale per scelta, quindi niente CI per
+      ora; macOS non e' verificabile a mano. Restano lint e CI
 - [x] `.gitignore`
 - [x] `LICENSE` — **GPL-3.0-or-later** (file alla radice dal primo commit,
       dichiarata nel README; `LICENSING.md` §1 aggiornato il 2026-09-19)
@@ -276,12 +281,15 @@ Vedi `docs/ENGINE.md`. Senza questo, ogni effetto aggiunto e' debito.
       ogni modifica finisce sulla griglia dei frame (`Project.conform` in
       `ProjectService._edit`, un solo punto); su disco i tempi sono
       **conteggi di frame** (schema 2). In memoria restano secondi, ma
-      sempre multipli esatti di un frame. Corretti tre errori reali:
+      sempre multipli esatti di un frame. Corretti quattro errori reali:
       inizio e durata arrotondati separatamente (buco/sovrapposizione di
       un frame fra clip che si toccano), sequenza alla frequenza del
       primo clip (cancellarlo cambiava la griglia), export a
-      `round(29.97)` = 30 fps (immagine 3,6 s/ora avanti al suono) e
-      timecode non drop-frame a 29.97. Vedi `ENGINE.md` §6 regola 7
+      `round(29.97)` = 30 fps (immagine 3,6 s/ora avanti al suono), e il
+      playhead fermo fra due frame (mostrava un frame, il taglio cadeva
+      sul successivo: ora si parcheggia all'inizio del frame mostrato).
+      In piu' il timecode a 29.97/59.94 e' drop-frame. Vedi `ENGINE.md`
+      §6 regola 7
 - [x] Traccia nera in fondo, come Kdenlive
 
 **Fatto quando:** un effetto di prova applicato a una clip si vede identico in
@@ -452,12 +460,14 @@ Nell'ordine, per rapporto valore/rischio:
       su ONNX Runtime, provider scelto a runtime (DirectML 34 ms/frame vs
       446 su CPU sulla macchina di sviluppo), una maschera condivisa da
       tutte le op mascherate del motore, sessione scaldata all'avvio
-- [~] **Rimozione sfondo** — Fase A fatta (2026-11-02): sfondo di una
-      clip sostituito da un colore o un'immagine (`engine/cutout.py`,
-      scheda nel pannello Effetti, `timeline.set_clip_cutout`), bordo
-      regolabile, sfarfallio attenuato fra frame consecutivi, export
-      incluso. **Manca:** export con alpha (serve l'alpha lungo il
-      grafo), sfondo video, pennello di correzione. `AI_FEATURES.md` §6
+- [x] **Rimozione sfondo** (2026-11-02) — Fase A: sfondo di una clip
+      sostituito da un colore o un'immagine (`engine/cutout.py`, scheda
+      nel pannello Effetti, `timeline.set_clip_cutout`), bordo
+      regolabile, sfarfallio attenuato fra frame consecutivi. Fase B:
+      modalita' **Trasparente** ed **export con alpha** (ProRes 4444 MOV,
+      VP9 WebM/MKV), alpha come terza pila pigra del frame. Restano
+      migliorie: sfondo video, pennello di correzione, scacchiera
+      nell'anteprima. `AI_FEATURES.md` §6
 - [x] **Ducking «intelligente»** (2026-08-23): Silero VAD in `audio/vad.py`,
       modalita' globale semplice/intelligente, ombra sul letto musicale dove
       il ducking lo abbassa (`ui/duck_shades.py`)
@@ -551,9 +561,9 @@ In ordine di rischio, non di comodita':
 6. **Font bundled** e stili di testo come preset (Fase 5).
 7. **Colore avanzato**: curve, HSL per gamma, LUT; editor curve dei
    keyframe; time remap; speed con pitch preservato.
-8. **AI**: export con alpha della rimozione sfondo (la sostituzione
-   c'e' dal 2026-11-02), point tracking AI, frame interpolation,
-   `AITask.estimate`, sottotitoli ASS.
+8. **AI**: point tracking AI, frame interpolation, `AITask.estimate`,
+   sottotitoli ASS (la rimozione sfondo, export con alpha compreso, e'
+   fatta dal 2026-11-02).
 9. **Fase 6B (plugin)**, **Fase 8 (assistente)**, **Fase 9 (backend GPU,
    hwaccel in decodifica)**: intere, nessun codice. Per la Fase 8 la base
    c'e': oltre 100 azioni con schema e la command palette che gia' le elenca.

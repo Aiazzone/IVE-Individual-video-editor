@@ -27,7 +27,9 @@ CardGroup {
         return null;
     }
     readonly property var cut: root.clip !== null ? (root.clip.cutout || {}) : ({})
-    readonly property bool on: root.cut.mode === "color" || root.cut.mode === "image"
+    readonly property bool on: root.cut.mode === "color"
+                               || root.cut.mode === "image"
+                               || root.cut.mode === "transparent"
     readonly property bool ready: Cutout.state === "ready"
     readonly property bool downloading:
         Subtitles.downloading && Subtitles.downloadingId === "u2netp"
@@ -130,7 +132,9 @@ CardGroup {
             value: root.cut.mode || "color"
             model: [
                 { value: "color", text: Tr.s["cutout.mode.color"] || "" },
-                { value: "image", text: Tr.s["cutout.mode.image"] || "" }
+                { value: "image", text: Tr.s["cutout.mode.image"] || "" },
+                { value: "transparent",
+                  text: Tr.s["cutout.mode.transparent"] || "" }
             ]
             onPicked: function (v) {
                 if (v === "image" && !root.cut.image)
@@ -165,6 +169,19 @@ CardGroup {
                     }
                 }
             }
+        }
+
+        // Nothing behind the subject: black in the preview (like any
+        // hole in the sequence), see-through in an alpha export.
+        Text {
+            objectName: "cutout_transparent_hint"
+            visible: root.cut.mode === "transparent"
+            Layout.fillWidth: true
+            wrapMode: Text.WordWrap
+            text: Tr.s["cutout.transparent_hint"] || ""
+            color: Theme.c.textDisabled
+            font.pixelSize: Theme.m.fontSizeXs
+            lineHeight: 1.35
         }
 
         RowLayout {

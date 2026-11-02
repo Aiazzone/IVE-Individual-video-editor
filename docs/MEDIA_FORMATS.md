@@ -116,6 +116,10 @@ FFmpeg e' libero e sufficiente), Opus per WebM, PCM per ProRes.
 **Alpha (trasparenza) in export:** solo VP9/WebM, ProRes 4444 e le sequenze
 PNG la supportano. MP4/H.264 **non ha alpha** — se l'utente ha una clip con
 sfondo rimosso e sceglie MP4, va avvisato prima dell'export, non dopo.
+*Fatto il 2026-11-02:* ProRes 4444 (MOV) e VP9 (WebM/MKV) con alpha;
+MP4/H.264 con alpha rifiutato; preflight `alpha_flattened` quando una clip
+"Trasparente" uscirebbe nera. Nota: FFmpeg decodifica l'alpha del VP9 solo
+col decoder `libvpx-vp9`, non con quello nativo (conta per chi rilegge).
 
 ---
 

@@ -147,8 +147,8 @@ Updated together with the code, so this file always reflects reality.
       drop-frame (2026-11-02): a project frame rate (adopted from the
       first video or chosen in Settings > Layout), every edit snapped to
       the frame grid, frame counts on disk (schema 2), exact-rate export
-- [ ] Linux and macOS verification pass; CI, lint, one runner for the
-      script-style test suites
+- [ ] Linux and macOS verification pass; CI, lint (one runner for the
+      script-style suites: done 2026-11-02, kept local with the tests)
 
 - [ ] docs/ARCHITECTURE.md module tree refresh (engine/, stickers/,
       text/, color/, motion/, packs/ are missing from the plan's tree)
@@ -166,9 +166,10 @@ Updated together with the code, so this file always reflects reality.
 - [ ] Packs, second round: LUTs, fonts, templates, a validator, "collect
       resources", missing pack contents on open, licence on the install
       card, `credits.txt`, search in the libraries
-- [ ] AI tools: alpha export of background removal (replacement with a
-      colour or an image is done, 2026-11-02), AI point tracking (the
-      OpenCV tracking is done), frame interpolation, auto-cut
+- [ ] AI tools: AI point tracking (the OpenCV tracking is done),
+      frame interpolation, auto-cut (background removal is done,
+      2026-11-02: colour, image or transparent, with alpha export in
+      ProRes 4444 / VP9)
 - [ ] Plugin system; natural-language assistant over the action registry
 - [ ] GPU backends (CUDA / OpenVINO / ROCm), hardware decoding
 - [ ] Packaging via PyInstaller (Windows, Linux, macOS); About / licences

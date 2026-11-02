@@ -62,8 +62,12 @@ class ColourProducer(Producer):
                  timebase: Timebase | None = None,
                  colour: tuple[int, int, int] = (0, 0, 0),
                  audio_format: AudioFormat | None = None,
-                 name: str = "colour") -> None:
+                 name: str = "colour", transparent: bool = False) -> None:
         self.width = width
+        #: An alpha export's bottom: black in the picture, NOTHING in the
+        #: coverage - whatever no clip covers comes out see-through.
+        self.transparent = bool(transparent)
+        self._clear: np.ndarray | None = None
         self.height = height
         self.length = max(0, int(length))
         self.timebase = timebase or Timebase()
@@ -80,11 +84,17 @@ class ColourProducer(Producer):
             self._cached[:, :] = self.colour
         return self._cached
 
+    def _nothing(self) -> np.ndarray:
+        if self._clear is None:
+            self._clear = np.zeros((self.height, self.width), np.uint8)
+        return self._clear
+
     def frame_at(self, position: int) -> Frame | None:
         if self.length and not (0 <= position < self.length):
             return None
         frame = Frame(position, self.timebase, self.audio_format,
-                      image_fn=self._image)
+                      image_fn=self._image,
+                      alpha_fn=self._nothing if self.transparent else None)
         # A colour track is silent, but it still carries an audio block: the
         # mixer must never have to ask whether a track has audio at all.
         frame.set_audio(frame.silence())

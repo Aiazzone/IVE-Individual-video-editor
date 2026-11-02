@@ -513,5 +513,11 @@
   "cutout.shrink": "Restringi il bordo",
   "cutout.download": "Scarica il modello ({mb} MB)",
   "cutout.downloading": "Download…",
-  "cutout.backend_missing": "ONNX Runtime non è installato: la rimozione dello sfondo non è disponibile."
+  "cutout.backend_missing": "ONNX Runtime non è installato: la rimozione dello sfondo non è disponibile.",
+  "cutout.mode.transparent": "Trasparente",
+  "cutout.transparent_hint": "Niente dietro al soggetto. Nell'anteprima si vede nero; esporta in ProRes (MOV) o VP9 (WebM) con «Sfondo trasparente» per tenerlo trasparente.",
+  "export.alpha": "Sfondo trasparente",
+  "export.alpha.hint": "Dove niente copre l'inquadratura - uno sfondo rimosso come Trasparente, le bande, attorno a una clip posizionata - il file resta trasparente. Nell'anteprima è nero.",
+  "export.warn.no_alpha": "Questo formato non può tenere lo sfondo trasparente",
+  "export.warn.alpha_flattened": "Uno sfondo trasparente uscirà nero: attiva Sfondo trasparente (ProRes/MOV o VP9/WebM)"
 }

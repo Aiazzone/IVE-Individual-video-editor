@@ -29,6 +29,10 @@ Item {
     property string aspect: "16x9"
     property string resolution: "1920x1080"
     property int bitrate: 12000
+    /*! Keep a transparent background (custom tab, alpha codecs only). */
+    property bool alpha: false
+    readonly property bool alphaPossible:
+        Export.supportsAlpha(root.container, root.videoCodec)
 
     // Presets of the platform the user tapped; the icons row filters this.
     readonly property var platformPresets: Export.presets.filter(function (p) {
@@ -73,7 +77,8 @@ Item {
             audio_codec: audioCodec,
             width: parseInt(wh[0]),
             height: parseInt(wh[1]),
-            video_bitrate_kbps: bitrate
+            video_bitrate_kbps: bitrate,
+            alpha: alpha && alphaPossible
         };
     }
 
@@ -365,6 +370,23 @@ Item {
                         })
                     onPicked: function (v) { root.videoCodec = v; }
                 }
+            }
+
+            // Only where it can survive: ProRes in MOV, VP9 in WebM/MKV.
+            SwitchRow {
+                objectName: "export_alpha"
+                visible: root.alphaPossible
+                checked: root.alpha
+                label: Tr.s["export.alpha"] || ""
+                onToggled: function (v) { root.alpha = v; }
+            }
+            Text {
+                visible: root.alphaPossible
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                text: Tr.s["export.alpha.hint"] || ""
+                color: Theme.c.textDisabled
+                font.pixelSize: Theme.m.fontSizeXs
             }
 
             SettingRow {

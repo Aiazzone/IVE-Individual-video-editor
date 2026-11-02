@@ -513,5 +513,11 @@
   "cutout.shrink": "Pull the edge in",
   "cutout.download": "Download the model ({mb} MB)",
   "cutout.downloading": "Downloading…",
-  "cutout.backend_missing": "ONNX Runtime is not installed: background removal is unavailable."
+  "cutout.backend_missing": "ONNX Runtime is not installed: background removal is unavailable.",
+  "cutout.mode.transparent": "Transparent",
+  "cutout.transparent_hint": "Nothing behind the subject. The preview shows black; export in ProRes (MOV) or VP9 (WebM) with \"Transparent background\" to keep it see-through.",
+  "export.alpha": "Transparent background",
+  "export.alpha.hint": "Where nothing covers the frame - a background removed as Transparent, bars, around a placed clip - the file stays see-through. Black in the preview.",
+  "export.warn.no_alpha": "This format cannot keep a transparent background",
+  "export.warn.alpha_flattened": "A transparent background will come out black: turn on Transparent background (ProRes/MOV or VP9/WebM)"
 }
