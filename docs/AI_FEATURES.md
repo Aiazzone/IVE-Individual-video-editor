@@ -429,6 +429,31 @@ Punti importanti:
 - Un modello mancante non e' un errore: e' uno stato `MODEL_MISSING` che la
   UI presenta come invito al download.
 
+### Contenuti online: la domanda all'avvio (2026-11-01)
+
+`ive/ui/online_content.py` mette **pack ufficiali + modelli di default**
+(modello vocale configurato, `u2netp`, `vittrack`) dietro una domanda e un
+bottone. Le coppie di traduzione restano su richiesta (70-90 MB l'una, servono
+solo a chi traduce quella lingua). Regole:
+
+| Situazione | Effetto |
+|---|---|
+| Avvio con qualcosa mancante, mai risposto | la domanda compare (`OfficialPacksOverlay.qml`) |
+| «Non ora» | silenzio per questa sessione, richiesta al prossimo avvio |
+| «Non ora» con «Non chiedere piu'» | `online.never_ask = true`, mai piu' |
+| «Scarica» (anche solo una parte) | `online.offer_accepted = true`, mai piu' |
+| Tutto installato | niente da chiedere; il bottone nelle Impostazioni si disabilita |
+| Download in corso | la domanda non lo interrompe |
+
+Impostazioni > Media, scheda «Contenuti online»: stato (quanti elementi /
+MB), bottone «Scarica i contenuti online» (tutto cio' che manca; DISABILITATO
+quando e' tutto scaricato), interruttore «Chiedi all'avvio» (inverso di
+`online.never_ask`). Azioni `online.download`, `online.dismiss_offer`,
+`online.set_ask_on_start`. Test: `tests/test_online_content.py` (regole, con
+servizi finti: nessuna rete), `tests/visual/test_online_content_ui.py`.
+L'harness visivo pre-risponde la domanda (`online.offer_accepted` nelle
+impostazioni isolate): coprirebbe la shell in ogni test.
+
 ---
 
 ## 11. Checklist per una nuova funzione AI

@@ -37,6 +37,7 @@ _SHELL_KEYS = {
     "shell.panel_hide_delay_ms": "panelHideDelay",
     "shell.panel_pinned": "panelPinned",
     "packs.offer_shown": "packsOfferShown",
+    "online.never_ask": "onlineNeverAsk",
     "shell.ambient_backdrop": "ambientBackdrop",
     "appearance.idle_background": "idleBackground",
     "appearance.glass": "glassMode",
@@ -221,7 +222,7 @@ def register_singletons(*, theme, translations, shell, actions,
                         waves=None, stickers=None, transitions=None,
                         packs=None, motion=None, audiofx=None,
                         music=None, duckshade=None, subtitles=None,
-                        tracking=None) -> None:
+                        tracking=None, online=None) -> None:
     """Expose the four singletons to QML under the ``IVE`` import namespace.
 
     .. warning::
@@ -294,4 +295,7 @@ def register_singletons(*, theme, translations, shell, actions,
     if tracking is not None:
         qmlRegisterSingletonInstance(type(tracking), "IVE", 1, 0,
                                      "Tracking", tracking)
+    if online is not None:
+        qmlRegisterSingletonInstance(type(online), "IVE", 1, 0,
+                                     "OnlineContent", online)
     log.debug("QML singletons registered under the IVE namespace")

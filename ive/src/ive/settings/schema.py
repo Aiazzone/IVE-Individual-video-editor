@@ -112,8 +112,15 @@ SETTINGS: dict[str, Setting] = {
         _s("shell.panel_hide_delay_ms", 600, int, minimum=0, maximum=3000),
         _s("shell.panel_pinned", False, bool),
         _s("packs.offer_shown", False, bool,
-           doc="The first-run card offering the official packs was shown "
-               "(accepted or dismissed); it is never shown again."),
+           doc="Legacy (before 2026-11-01): the packs-only offer was "
+               "shown. Superseded by the online.* keys."),
+        _s("online.never_ask", False, bool,
+           doc="The user switched off the startup question about online "
+               "content (packs, AI models). The Settings button still "
+               "downloads on request."),
+        _s("online.offer_accepted", False, bool,
+           doc="The user chose Download in the startup question once; "
+               "it is not asked again, whatever was ticked."),
         _s("shell.ambient_backdrop", True, bool),
 
         # ── colour effects ─────────────────────────────────────────────

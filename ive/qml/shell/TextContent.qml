@@ -450,7 +450,7 @@ Item {
 
         // ── make the selected title follow something ──────────────
         TrackingCard {
-            objectName: "text_tracking_card"
+            objectName: "tracking_card_text"
             clip: root.view === "" ? root.textClip : null
         }
 

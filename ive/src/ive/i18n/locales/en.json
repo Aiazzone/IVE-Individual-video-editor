@@ -472,5 +472,21 @@
   "tracking.draw_hint": "Drag a box around the target on the video — Esc to cancel.",
   "tracking.has_path": "Follows a path: drag it to move the whole path; on a diamond, the drag corrects that point.",
   "tracking.shift_path": "Move the tracked path",
-  "tracking.draw_cancel": "Cancel drawing"
+  "tracking.draw_cancel": "Cancel drawing",
+  "online.title": "Download the extra content?",
+  "online.text": "Some parts of IVE need files from the internet: the official music packs and the AI models for subtitles, subject effects and motion tracking. Nothing is downloaded without your OK.",
+  "online.kind.pack": "Content pack",
+  "online.kind.model": "AI model",
+  "online.licence": "Free licences, shown next to each item in Settings. Everything runs on this machine afterwards.",
+  "online.never_ask": "Don't ask again",
+  "online.later": "Not now",
+  "online.download": "Download",
+  "online.settings_title": "Online content",
+  "online.settings_hint": "Official music packs and the AI models the features use by default. Translation models are fetched when a language pair is needed.",
+  "online.status_missing": "{n} items to download · {mb} MB",
+  "online.status_complete": "Everything is already downloaded.",
+  "online.downloading": "Downloading…",
+  "online.download_all": "Download online content",
+  "online.ask_on_start": "Ask at startup",
+  "online.status_missing_one": "1 item to download · {mb} MB"
 }

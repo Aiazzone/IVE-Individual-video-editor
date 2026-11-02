@@ -171,6 +171,12 @@ class SubtitleService(QObject):
         """Fetch one model's weights. Explicit, cancellable."""
         return self._download_ids([str(model_id)])
 
+    @Slot("QVariantList", result=bool)
+    def download_many(self, model_ids) -> bool:
+        """Fetch several models in one cancellable run (online content)."""
+        ids = model_ids.toVariant() if hasattr(model_ids, "toVariant")             else model_ids
+        return self._download_ids([str(m) for m in ids or []])
+
     def _download_ids(self, model_ids: list) -> bool:
         """Fetch several models in order, one progress bar over all."""
         model_ids = [m for m in model_ids if model_entry(m) is not None]

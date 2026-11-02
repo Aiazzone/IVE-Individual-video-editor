@@ -140,6 +140,11 @@ class Application:
 
         self.tracking = TrackingService(self.project, self.playback)
         self.context.extras["tracking"] = self.tracking
+        from ive.ui.online_content import OnlineContentService
+
+        self.online = OnlineContentService(self.settings, self.packs,
+                                           self.subtitles)
+        self.context.extras["online"] = self.online
         # The AI Models tab (driven by SubtitleService) fetches and removes
         # VitTrack too; the tracking state must follow it live.
         self.subtitles.stateChanged.connect(self.tracking.refresh)
@@ -165,6 +170,7 @@ class Application:
             duckshade=self.duckshades,
             subtitles=self.subtitles,
             tracking=self.tracking,
+            online=self.online,
         )
         # Same rule as the singletons: register before the engine exists.
         qmlRegisterType(PreviewItem, "IVE", 1, 0, "PreviewItem")
@@ -262,6 +268,7 @@ class Application:
         from ive.core.actions.builtin import pack_actions  # noqa: F401
         from ive.core.actions.builtin import subtitle_actions  # noqa: F401
         from ive.core.actions.builtin import tracking_actions  # noqa: F401
+        from ive.core.actions.builtin import online_actions  # noqa: F401
 
         self.registry.add_pending()
         log.info("Registered %d actions", len(tuple(self.registry.all())))

@@ -472,5 +472,21 @@
   "tracking.draw_hint": "Arrastra un recuadro alrededor del objetivo en el vídeo — Esc para cancelar.",
   "tracking.has_path": "Sigue un recorrido: arrástralo para mover todo el recorrido; sobre un rombo, el arrastre corrige ese punto.",
   "tracking.shift_path": "Mover el recorrido seguido",
-  "tracking.draw_cancel": "Cancelar el recuadro"
+  "tracking.draw_cancel": "Cancelar el recuadro",
+  "online.title": "¿Descargar el contenido adicional?",
+  "online.text": "Algunas partes de IVE necesitan archivos de internet: los packs musicales oficiales y los modelos de IA para subtítulos, efectos sobre el sujeto y seguimiento de movimiento. No se descarga nada sin tu permiso.",
+  "online.kind.pack": "Pack de contenido",
+  "online.kind.model": "Modelo de IA",
+  "online.licence": "Licencias libres, indicadas junto a cada elemento en Ajustes. Después, todo funciona en este equipo.",
+  "online.never_ask": "No volver a preguntar",
+  "online.later": "Ahora no",
+  "online.download": "Descargar",
+  "online.settings_title": "Contenido en línea",
+  "online.settings_hint": "Packs musicales oficiales y los modelos de IA que usan las funciones por defecto. Los modelos de traducción se descargan cuando se necesita un par de idiomas.",
+  "online.status_missing": "{n} elementos por descargar · {mb} MB",
+  "online.status_complete": "Ya está todo descargado.",
+  "online.downloading": "Descargando…",
+  "online.download_all": "Descargar el contenido en línea",
+  "online.ask_on_start": "Preguntar al iniciar",
+  "online.status_missing_one": "1 elemento por descargar · {mb} MB"
 }

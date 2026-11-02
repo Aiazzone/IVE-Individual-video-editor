@@ -92,10 +92,15 @@ def download(ctx, pack_ids: list):
 @action(
     id="pack.dismiss_offer",
     title_key="pack.later",
-    desc_key="Close the first-run card offering the official packs; the "
-             "packs stay available under Packs > Official.",
+    desc_key="Close the startup question about online content (packs "
+             "and AI models) until the next start; everything stays "
+             "available under Packs > Official and Settings. Same as "
+             "online.dismiss_offer.",
     category="packs",
     params={},
 )
 def dismiss_offer(ctx):
     ctx.require("settings").set("packs.offer_shown", True)
+    online = ctx.extras.get("online")
+    if online is not None:
+        online.dismiss(False)

@@ -1,12 +1,12 @@
-// The first-run offer: "want the official music packs?"
+// The startup question: "download the extra content?"
 //
-// Shown ONCE, over everything, the first time the shell opens with a
-// catalogue that has something not yet installed. Every pack is a
-// checkbox with its size; "Download" queues the ticked ones on the
-// pack service's worker and closes the card, "Later" just closes it.
-// Either way packs.offer_shown is set, and the same list lives forever
-// under Packs > Official - nobody is nagged, nothing downloads in
-// silence.
+// Over everything, at startup, while something offered online is missing
+// (official packs AND the default AI models - ive/ui/online_content.py
+// owns the list and the rules). Every item is a checkbox with its size.
+// "Download" fetches the ticked ones and answers the question for good;
+// "Not now" asks again at the next start - unless the "Don't ask again"
+// switch is on. Settings > Media keeps a button for later; nothing is
+// ever fetched in silence.
 import QtQuick
 import QtQuick.Layouts
 import components
@@ -15,20 +15,23 @@ import IVE
 Item {
     id: root
 
-    readonly property var offers: Packs.official.filter(function (p) {
-        return !p.installed;
-    })
-    visible: !Shell.v.packsOfferShown && offers.length > 0
+    readonly property var offers: OnlineContent.missing
+    visible: OnlineContent.shouldOffer && offers.length > 0
 
-    /*! Ids the user has ticked; everything ticked at first. */
-    property var ticked: []
-    Component.onCompleted: ticked = offers.map(function (p) { return p.id; })
+    /*! Ids the user UNticked: everything starts ticked, and an item that
+        appears later (a list refreshed while open) is ticked too. */
+    property var unticked: []
+    readonly property var ticked: offers.filter(function (p) {
+        return unticked.indexOf(p.id) < 0;
+    }).map(function (p) { return p.id; })
+    /*! The "Don't ask again" switch. */
+    property bool neverAsk: false
 
     function toggle(id) {
-        var next = ticked.slice();
+        var next = unticked.slice();
         var at = next.indexOf(id);
         if (at >= 0) next.splice(at, 1); else next.push(id);
-        ticked = next;
+        unticked = next;
     }
     readonly property int tickedMb: offers.reduce(function (sum, p) {
         return sum + (ticked.indexOf(p.id) >= 0 ? p.sizeMb : 0);
@@ -59,7 +62,7 @@ Item {
 
             Text {
                 Layout.fillWidth: true
-                text: Tr.s["pack.offer_title"] || ""
+                text: Tr.s["online.title"] || ""
                 color: Theme.c.text
                 font.pixelSize: Theme.m.fontSizeLg
                 font.bold: true
@@ -67,7 +70,7 @@ Item {
             }
             Text {
                 Layout.fillWidth: true
-                text: Tr.s["pack.offer_text"] || ""
+                text: Tr.s["online.text"] || ""
                 color: Theme.c.textMuted
                 font.pixelSize: Theme.m.fontSizeSm
                 wrapMode: Text.WordWrap
@@ -110,6 +113,11 @@ Item {
                             elide: Text.ElideRight
                         }
                         Text {
+                            text: Tr.s["online.kind." + row.modelData.kind] || ""
+                            color: Theme.c.textDisabled
+                            font.pixelSize: Theme.m.fontSizeXs
+                        }
+                        Text {
                             text: row.modelData.sizeMb + " MB"
                             color: Theme.c.textDisabled
                             font.pixelSize: Theme.m.fontSizeXs
@@ -122,11 +130,19 @@ Item {
 
             Text {
                 Layout.fillWidth: true
-                text: Tr.s["pack.offer_licence"] || ""
+                text: Tr.s["online.licence"] || ""
                 color: Theme.c.textDisabled
                 font.pixelSize: Theme.m.fontSizeXs
                 wrapMode: Text.WordWrap
                 lineHeight: 1.35
+            }
+
+            SwitchRow {
+                objectName: "offer_never_ask"
+                Layout.fillWidth: true
+                checked: root.neverAsk
+                label: Tr.s["online.never_ask"] || ""
+                onToggled: function (v) { root.neverAsk = v; }
             }
 
             RowLayout {
@@ -142,12 +158,15 @@ Item {
                     border.color: Theme.c.borderStrong
                     Text {
                         anchors.centerIn: parent
-                        text: Tr.s["pack.later"] || ""
+                        text: Tr.s["online.later"] || ""
                         color: Theme.c.textMuted
                         font.pixelSize: Theme.m.fontSizeSm + 1
                     }
                     HoverHandler { cursorShape: Qt.PointingHandCursor }
-                    TapHandler { onTapped: Actions.invoke("pack.dismiss_offer") }
+                    TapHandler {
+                        onTapped: Actions.invoke("online.dismiss_offer",
+                                                 { never_ask: root.neverAsk })
+                    }
                 }
                 Rectangle {
                     objectName: "offer_download"
@@ -160,7 +179,7 @@ Item {
                                    : Qt.alpha(Theme.c.accent, 0.35)
                     Text {
                         anchors.centerIn: parent
-                        text: (Tr.s["pack.download"] || "")
+                        text: (Tr.s["online.download"] || "")
                               + (root.tickedMb > 0 ? "  ·  " + root.tickedMb + " MB" : "")
                         color: Theme.c.onAccent
                         font.pixelSize: Theme.m.fontSizeSm + 1
@@ -171,8 +190,8 @@ Item {
                         onTapped: {
                             if (!parent.enabled)
                                 return;
-                            Actions.invoke("pack.download", { pack_ids: root.ticked });
-                            Actions.invoke("pack.dismiss_offer");
+                            Actions.invoke("online.download", {
+                                ids: root.ticked, never_ask: root.neverAsk });
                         }
                     }
                 }

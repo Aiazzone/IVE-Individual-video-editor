@@ -472,5 +472,21 @@
   "tracking.draw_hint": "Trascina un riquadro attorno al soggetto sul video — Esc per annullare.",
   "tracking.has_path": "Segue un percorso: trascinalo per spostare tutto il percorso; su un diamante, il trascinamento corregge quel punto.",
   "tracking.shift_path": "Sposta il percorso tracciato",
-  "tracking.draw_cancel": "Annulla il riquadro"
+  "tracking.draw_cancel": "Annulla il riquadro",
+  "online.title": "Scaricare i contenuti aggiuntivi?",
+  "online.text": "Alcune parti di IVE hanno bisogno di file da internet: i pack musicali ufficiali e i modelli AI per sottotitoli, effetti sul soggetto e motion tracking. Niente viene scaricato senza il tuo consenso.",
+  "online.kind.pack": "Pack di contenuti",
+  "online.kind.model": "Modello AI",
+  "online.licence": "Licenze libere, indicate accanto a ogni voce nelle Impostazioni. Dopo, tutto gira su questo computer.",
+  "online.never_ask": "Non chiedere più",
+  "online.later": "Non ora",
+  "online.download": "Scarica",
+  "online.settings_title": "Contenuti online",
+  "online.settings_hint": "Pack musicali ufficiali e i modelli AI usati di default dalle funzioni. I modelli di traduzione si scaricano quando serve una coppia di lingue.",
+  "online.status_missing": "{n} elementi da scaricare · {mb} MB",
+  "online.status_complete": "È già tutto scaricato.",
+  "online.downloading": "Download in corso…",
+  "online.download_all": "Scarica i contenuti online",
+  "online.ask_on_start": "Chiedi all'avvio",
+  "online.status_missing_one": "1 elemento da scaricare · {mb} MB"
 }

@@ -170,6 +170,83 @@ Item {
             }
         }
 
+        // ── online content ────────────────────────────────────────
+        // The same list the startup question offers (official packs +
+        // the default AI models). The button fetches whatever is still
+        // missing and goes OFF once everything is on disk; the switch
+        // brings the startup question back (or silences it).
+        CardGroup {
+            objectName: "settings_online_card"
+            visible: root.tab === "media"
+            title: Tr.s["online.settings_title"] || ""
+
+            Text {
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                text: Tr.s["online.settings_hint"] || ""
+                color: Theme.c.textDisabled
+                font.pixelSize: Theme.m.fontSizeXs
+                lineHeight: 1.35
+            }
+
+            Text {
+                objectName: "online_status"
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                text: OnlineContent.downloading
+                      ? (Tr.s["online.downloading"] || "")
+                      : OnlineContent.complete
+                      ? (Tr.s["online.status_complete"] || "")
+                      : (Tr.s[OnlineContent.missing.length === 1
+                              ? "online.status_missing_one"
+                              : "online.status_missing"] || "")
+                            .replace("{n}", OnlineContent.missing.length)
+                            .replace("{mb}", OnlineContent.missingMb)
+                color: Theme.c.textMuted
+                font.pixelSize: Theme.m.fontSizeXs
+            }
+
+            Rectangle {
+                id: onlineButton
+                objectName: "online_download_all"
+                Layout.fillWidth: true
+                Layout.preferredHeight: Theme.m.controlHeight + 6
+                radius: Theme.m.radiusMd
+                enabled: !OnlineContent.complete && !OnlineContent.downloading
+                color: !enabled ? Qt.alpha(Theme.c.glassOn, 0.08)
+                       : onlineHover.hovered ? Qt.lighter(Theme.c.accent, 1.1)
+                       : Theme.c.accent
+                Text {
+                    anchors.centerIn: parent
+                    text: (Tr.s["online.download_all"] || "")
+                          + (onlineButton.enabled
+                             ? "  ·  " + OnlineContent.missingMb + " MB" : "")
+                    color: onlineButton.enabled ? Theme.c.onAccent
+                                                : Theme.c.textDisabled
+                    font.pixelSize: Theme.m.fontSizeSm + 1
+                    font.bold: true
+                }
+                HoverHandler {
+                    id: onlineHover
+                    enabled: onlineButton.enabled
+                    cursorShape: Qt.PointingHandCursor
+                }
+                TapHandler {
+                    enabled: onlineButton.enabled
+                    onTapped: Actions.invoke("online.download", {})
+                }
+            }
+
+            SwitchRow {
+                objectName: "online_ask_on_start"
+                checked: !Shell.v.onlineNeverAsk
+                label: Tr.s["online.ask_on_start"] || ""
+                onToggled: function (v) {
+                    Actions.invoke("online.set_ask_on_start", { enabled: v });
+                }
+            }
+        }
+
         // ── media / proxies ───────────────────────────────────────
         // The proxy is the working copy the PREVIEW edits against; the
         // export always reads the originals. Both dials go through the

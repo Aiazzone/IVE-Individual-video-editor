@@ -47,10 +47,11 @@ con queste scelte concrete della v1:
   un worker thread con coda (un download alla volta, progresso, annulla)
   e la lista `official` con stato idle/queued/downloading/installed/
   error. UI: tab «Ufficiali» nel pannello Pacchetti (scarica / scarica
-  tutti / annulla) e **carta di primo avvio** `OfficialPacksOverlay.qml`,
-  mostrata UNA volta (`packs.offer_shown`) solo se c'e' qualcosa da
-  installare: spunte per pack con peso, «Scarica» o «Piu' tardi» — mai
-  download in silenzio. Azioni `pack.download`, `pack.dismiss_offer`.
+  tutti / annulla) e **domanda all'avvio** `OfficialPacksOverlay.qml`.
+  Dal 2026-11-01 la domanda copre i pack E i modelli AI di default ed e'
+  governata da `ive/ui/online_content.py` (singleton `OnlineContent`), vedi
+  «Contenuti online» in `AI_FEATURES.md` §10. Azioni `pack.download`,
+  `pack.dismiss_offer` (= `online.dismiss_offer`), `online.*`.
   Test: `tests/test_official_packs.py` (file:// come asset, hash, cancel,
   residui, worker), `tests/visual/test_official_packs_ui.py`.
   Trappola: un componente nuovo in `ive/qml/shell/` va registrato in

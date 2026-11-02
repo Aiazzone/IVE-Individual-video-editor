@@ -472,5 +472,21 @@
   "tracking.draw_hint": "Arraste um retângulo em volta do alvo no vídeo — Esc para cancelar.",
   "tracking.has_path": "Segue um percurso: arraste para mover o percurso inteiro; sobre um losango, o arrasto corrige esse ponto.",
   "tracking.shift_path": "Mover o percurso rastreado",
-  "tracking.draw_cancel": "Cancelar o retângulo"
+  "tracking.draw_cancel": "Cancelar o retângulo",
+  "online.title": "Baixar o conteúdo adicional?",
+  "online.text": "Algumas partes do IVE precisam de arquivos da internet: os packs musicais oficiais e os modelos de IA para legendas, efeitos no assunto e rastreamento de movimento. Nada é baixado sem a sua permissão.",
+  "online.kind.pack": "Pack de conteúdo",
+  "online.kind.model": "Modelo de IA",
+  "online.licence": "Licenças livres, indicadas ao lado de cada item nas Configurações. Depois, tudo roda neste computador.",
+  "online.never_ask": "Não perguntar de novo",
+  "online.later": "Agora não",
+  "online.download": "Baixar",
+  "online.settings_title": "Conteúdo online",
+  "online.settings_hint": "Packs musicais oficiais e os modelos de IA que as funções usam por padrão. Os modelos de tradução são baixados quando um par de idiomas é necessário.",
+  "online.status_missing": "{n} itens para baixar · {mb} MB",
+  "online.status_complete": "Já está tudo baixado.",
+  "online.downloading": "Baixando…",
+  "online.download_all": "Baixar o conteúdo online",
+  "online.ask_on_start": "Perguntar ao iniciar",
+  "online.status_missing_one": "1 item para baixar · {mb} MB"
 }
