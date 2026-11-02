@@ -53,6 +53,10 @@ class TrackingService(QObject):
         self._lost_at = -1.0
         self._lost_before = -1.0
         self._drawing_for = ""
+        #: Re-track with the clip's stored relation (track_ref) instead
+        #: of measuring a new one off the current - maybe drifted - path.
+        self._keep_relation = True
+        self._reused = False
         self._cancel = threading.Event()
         self._thread: threading.Thread | None = None
         self._done.connect(self._on_done)
@@ -137,6 +141,22 @@ class TrackingService(QObject):
         self.drawChanged.emit()
         self.runChanged.emit()
 
+    @Property(bool, notify=drawChanged)
+    def keepRelation(self) -> bool:
+        """A re-track keeps the overlay where it sat relative to the
+        target (the clip's stored relation)."""
+        return self._keep_relation
+
+    @Slot(bool)
+    def set_keep_relation(self, keep: bool) -> None:
+        self._keep_relation = bool(keep)
+        self.drawChanged.emit()
+
+    @Property(bool, notify=runChanged)
+    def lastReusedRelation(self) -> bool:
+        """The last run laid the path with the stored relation."""
+        return self._reused
+
     @Slot()
     def end_draw(self) -> None:
         if self._drawing_for:
@@ -155,7 +175,8 @@ class TrackingService(QObject):
 
     @Slot(str, "QVariantMap", float, result=bool)
     def track(self, overlay_id: str, box, at: float,
-              follow_size: bool = True, direction: str = "") -> bool:
+              follow_size: bool = True, direction: str = "",
+              keep_relation: bool | None = None) -> bool:
         """Start following ``box`` (canvas fractions, top-left + size)
         drawn at timeline second ``at``; ``overlay_id`` follows it.
         ``direction`` "" = the ai.tracking_direction setting."""
@@ -182,7 +203,11 @@ class TrackingService(QObject):
                    "canvas_aspect": float(self._playback.canvas_aspect()),
                    "fit": str(self._playback.canvas_fit()),
                    "follow_size": bool(follow_size),
-                   "direction": str(direction or self._direction())}
+                   "direction": str(direction or self._direction()),
+                   "relation": (dict(overlay.get("trackRef") or {})
+                                if (self._keep_relation
+                                    if keep_relation is None
+                                    else keep_relation) else {})}
         except (KeyError, TypeError, ValueError):
             return self._fail("bad_box")
 
@@ -210,6 +235,7 @@ class TrackingService(QObject):
                 canvas_aspect=job["canvas_aspect"], fit=job["fit"],
                 follow_size=job["follow_size"],
                 direction=job["direction"],
+                relation=job["relation"] or None,
                 progress=self._ticked.emit,
                 cancelled=self._cancel.is_set)}
         except TrackingCancelled:
@@ -241,9 +267,16 @@ class TrackingService(QObject):
             self._lost_before = float(lost) if lost is not None else -1.0
             params = ("x", "y", "scale") if result.get("follows_size") \
                 else ("x", "y")
+            self._reused = bool(result.get("reused_relation"))
             if self._project.apply_tracked_path(
                     result["clip_id"], result["samples"],
-                    float(result["t0"]), float(result["t1"]), params):
+                    float(result["t0"]), float(result["t1"]), params,
+                    result.get("relation")):
+                landed = len(result["samples"])
+            elif any(c.get("id") == result["clip_id"] for c in self._clips()):
+                # The clip is there and the path came out IDENTICAL (the
+                # same box re-tracked): nothing to change, not a failure,
+                # and no empty undo step.
                 landed = len(result["samples"])
             else:
                 self._error = "not_applied"

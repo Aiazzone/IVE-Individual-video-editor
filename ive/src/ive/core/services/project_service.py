@@ -286,6 +286,7 @@ class ProjectService(QObject):
                 "crop": dict(clip.crop),
                 "opacity": clip.opacity,
                 "keyframes": [dict(k) for k in clip.keyframes],
+                "trackRef": dict(clip.track_ref),
                 "words": list(clip.words),
                 "karaoke": clip.karaoke,
                 "karaokeColor": clip.karaoke_color,
@@ -777,7 +778,8 @@ class ProjectService(QObject):
 
     @Slot(str, "QVariantList", float, float, result=bool)
     def apply_tracked_path(self, clip_id: str, samples, t0: float,
-                           t1: float, params=("x", "y", "scale")) -> bool:
+                           t1: float, params=("x", "y", "scale"),
+                           relation=None) -> bool:
         """A tracked path lands on an overlay's keyframes - ONE undo step.
 
         ``samples`` are clip-local ``{"t", "x", "y", "scale"?}`` pins
@@ -788,7 +790,8 @@ class ProjectService(QObject):
                                    else samples) or []]
         return self._edit("overlay.track",
                           lambda: self._project.apply_tracked_path(
-                              clip_id, plain, t0, t1, tuple(params)))
+                              clip_id, plain, t0, t1, tuple(params),
+                              dict(relation or {})))
 
     @Slot(str, float, float, float, float, result=bool)
     def shift_clip_path(self, clip_id: str, dx: float, dy: float,

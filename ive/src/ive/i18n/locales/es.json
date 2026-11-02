@@ -493,5 +493,8 @@
   "tracking.dir.forward": "Adelante",
   "tracking.dir.backward": "Atrás",
   "tracking.dir.both": "Ambas",
-  "tracking.lost_before": "Hacia atrás se perdió el objetivo en {t}; el recorrido empieza ahí."
+  "tracking.lost_before": "Hacia atrás se perdió el objetivo en {t}; el recorrido empieza ahí.",
+  "tracking.retrack": "Volver a seguir desde aquí",
+  "tracking.retrack_hint": "¿El recorrido falla en algún punto? Lleva el cabezal allí, elige la dirección y vuelve a dibujar el objetivo: solo se reescribe ese tramo.",
+  "tracking.keep_relation": "Mantener su posición respecto al objetivo"
 }

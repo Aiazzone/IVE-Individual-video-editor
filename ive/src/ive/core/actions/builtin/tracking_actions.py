@@ -23,7 +23,10 @@ from ive.core.actions.registry import Param, action
              "keyframes - one undo step. Follows size too when the "
              "VitTrack model is installed; position only otherwise. "
              "direction: forward (to the end of the shot), backward (to "
-             "its start) or both; empty = the user's setting.",
+             "its start) or both; empty = the user's setting. On an "
+             "overlay already tracked, only the re-tracked stretch is "
+             "rewritten and the stored overlay/target relation is reused "
+             "(keep_relation), so a drifted stretch is laid right.",
     category="timeline",
     params={
         "clip_id": Param(str, required=True, doc="The overlay to move."),
@@ -37,15 +40,20 @@ from ive.core.actions.registry import Param, action
                              doc="Scale with the target (default true)."),
         "direction": Param(str, required=False,
                            doc="forward | backward | both; '' = setting."),
+        "keep_relation": Param(bool, required=False,
+                               doc="Re-track with the overlay's stored "
+                                   "relation to the target (default: "
+                                   "the panel's switch, on)."),
     },
 )
 def track(ctx, clip_id: str, x: float, y: float, w: float, h: float,
-          at: float, follow_size: bool = True, direction: str = ""):
+          at: float, follow_size: bool = True, direction: str = "",
+          keep_relation: bool | None = None):
     if direction and direction not in ("forward", "backward", "both"):
         raise RuntimeError(f"Unknown direction {direction!r}")
     service = ctx.require("tracking")
     if not service.track(clip_id, {"x": x, "y": y, "w": w, "h": h}, at,
-                         follow_size, direction):
+                         follow_size, direction, keep_relation):
         raise RuntimeError(f"Tracking refused: {service.error or 'busy'}")
 
 

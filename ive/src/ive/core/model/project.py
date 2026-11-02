@@ -34,6 +34,18 @@ def _new_id() -> str:
 # blow up the document - a TypeError here used to escape from open() and the
 # user could not open their own project any more.
 
+def _clean_track_ref(raw: Any) -> dict:
+    """A stored tracking relation, or {} when absent or malformed."""
+    if not isinstance(raw, dict):
+        return {}
+    try:
+        ref = {k: float(raw[k]) for k in ("gap_x", "gap_y", "target_h",
+                                          "scale")}
+    except (KeyError, TypeError, ValueError):
+        return {}
+    return ref if ref["target_h"] > 0 and ref["scale"] > 0 else {}
+
+
 def _as_str(value: Any, default: str = "") -> str:
     return default if value is None else str(value)
 
@@ -221,6 +233,13 @@ class TimelineClip:
     #: (utils/keyframes.py): [{"t", "x"?, "y"?, "scale"?, "rotation"?,
     #: "opacity"?}, ...] sorted. Empty = the static fields above rule.
     keyframes: list = field(default_factory=list)
+    #: Overlays that follow a tracked target: the RELATION to it, kept so
+    #: a re-track of a stretch reuses it instead of measuring the gap
+    #: from a path that may have drifted (ive/ai/tracking/path.py):
+    #: {"gap_x", "gap_y" (canvas fractions, at the reference size),
+    #:  "target_h" (target height, canvas heights), "scale"}. Empty =
+    #: never tracked.
+    track_ref: dict = field(default_factory=dict)
 
     @property
     def end(self) -> float:
@@ -302,6 +321,7 @@ class TimelineClip:
                 for entry in (data.get("keyframes") or [])
                 if isinstance(entry, dict) and "t" in entry
             ],
+            track_ref=_clean_track_ref(data.get("track_ref")),
         )
 
 
@@ -790,7 +810,8 @@ class Project:
 
     def apply_tracked_path(self, clip_id: str, samples: list,
                            t0: float, t1: float,
-                           params: tuple = ("x", "y", "scale")) -> bool:
+                           params: tuple = ("x", "y", "scale"),
+                           relation: dict | None = None) -> bool:
         """Lay a tracked path on an overlay's keyframes over ``[t0, t1]``.
 
         ``samples`` are ``{"t": clip-local s, "x"?, "y"?, "scale"?}``,
@@ -813,6 +834,9 @@ class Project:
         if merged == clip.keyframes:
             return False
         clip.keyframes = merged
+        ref = _clean_track_ref(relation)
+        if ref:
+            clip.track_ref = ref
         return True
 
     def shift_clip_path(self, clip_id: str, dx: float, dy: float,
@@ -849,6 +873,14 @@ class Project:
                 key["scale"] = min(2.0, max(0.02, key["scale"] * ratio))
             moved.append(key)
         clip.keyframes = moved
+        if clip.track_ref:
+            # The path moved relative to its target: so did the relation
+            # a re-track will reuse.
+            ref = dict(clip.track_ref)
+            ref["gap_x"] += dx
+            ref["gap_y"] += dy
+            ref["scale"] = min(2.0, max(0.02, ref["scale"] * ratio))
+            clip.track_ref = ref
         clip.x = min(1.0, max(0.0, clip.x + dx))
         clip.y = min(1.0, max(0.0, clip.y + dy))
         clip.scale = min(2.0, max(0.02, clip.scale * ratio))

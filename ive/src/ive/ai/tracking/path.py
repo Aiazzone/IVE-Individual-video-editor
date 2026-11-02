@@ -19,7 +19,7 @@ Pure Python, no Qt, no NumPy.
 
 from __future__ import annotations
 
-__all__ = ["overlay_samples", "smooth", "thin"]
+__all__ = ["overlay_samples", "measure_relation", "smooth", "thin"]
 
 #: Position tolerance, canvas heights: ~2 px on a 1080 canvas.
 POSITION_TOLERANCE = 0.002
@@ -77,38 +77,58 @@ def thin(samples: list[dict], tolerances: dict) -> list[dict]:
     return [s for s, kept in zip(samples, keep) if kept]
 
 
-def overlay_samples(observations: list[dict], anchor: dict,
-                    canvas_aspect: float, overlay_start: float,
-                    follow_size: bool = True,
-                    anchor_index: int = 0) -> list[dict]:
-    """The overlay's clip-local pins along the target's path.
-
-    ``observations`` are ``{"t": timeline s, "cx", "cy": canvas
-    fractions, "h": target height in canvas heights}``, in time order,
-    trusted frames only. ``anchor`` is the overlay's transform at
-    observation ``anchor_index`` - the frame the box was drawn on, which
-    is not the first one when tracking ran backwards - and the relation
-    to keep (``x``, ``y``, ``scale``).
-    """
-    if not observations:
-        return []
-    width = max(1e-6, float(canvas_aspect))
+def _smoothed(observations: list[dict]) -> tuple[list, list, list]:
     cx = smooth([float(o["cx"]) for o in observations], _POSITION_WINDOW)
     cy = smooth([float(o["cy"]) for o in observations], _POSITION_WINDOW)
     h = smooth([max(1e-6, float(o["h"])) for o in observations],
                _SIZE_WINDOW)
-    # The gap overlay-target, in canvas heights on both axes so that a
-    # size ratio scales it isotropically.
+    return cx, cy, h
+
+
+def measure_relation(observations: list[dict], anchor: dict,
+                     anchor_index: int = 0) -> dict:
+    """The overlay-target relation at observation ``anchor_index``.
+
+    ``anchor`` is the overlay's transform there (``x``, ``y``,
+    ``scale``). The result is what a clip stores (``track_ref``) and a
+    re-track reuses: the gap in canvas fractions and the target's size
+    at that moment, so a later stretch can be laid with the SAME
+    relation instead of one measured off a path that may have drifted.
+    """
+    cx, cy, h = _smoothed(observations)
     a = max(0, min(len(observations) - 1, int(anchor_index)))
-    gap_x = (float(anchor["x"]) - cx[a]) * width
-    gap_y = float(anchor["y"]) - cy[a]
-    scale0 = float(anchor.get("scale", 0.3))
+    return {"gap_x": float(anchor["x"]) - cx[a],
+            "gap_y": float(anchor["y"]) - cy[a],
+            "target_h": h[a],
+            "scale": float(anchor.get("scale", 0.3))}
+
+
+def overlay_samples(observations: list[dict], relation: dict,
+                    canvas_aspect: float, overlay_start: float,
+                    follow_size: bool = True) -> list[dict]:
+    """The overlay's clip-local pins along the target's path.
+
+    ``observations`` are ``{"t": timeline s, "cx", "cy": canvas
+    fractions, "h": target height in canvas heights}``, in time order,
+    trusted frames only. ``relation`` (measure_relation, or a clip's
+    stored ``track_ref``) says where the overlay sits relative to the
+    target: the gap scales with the target's size, isotropically on
+    screen, and so does the overlay when ``follow_size``.
+    """
+    if not observations:
+        return []
+    width = max(1e-6, float(canvas_aspect))
+    cx, cy, h = _smoothed(observations)
+    gap_x = float(relation["gap_x"])
+    gap_y = float(relation["gap_y"])
+    ref_h = max(1e-6, float(relation["target_h"]))
+    scale0 = float(relation.get("scale", 0.3))
     samples = []
     for i, obs in enumerate(observations):
-        ratio = h[i] / h[a] if follow_size else 1.0
+        ratio = h[i] / ref_h if follow_size else 1.0
         sample = {
             "t": round(float(obs["t"]) - float(overlay_start), 4),
-            "x": (cx[i] * width + gap_x * ratio) / width,
+            "x": cx[i] + gap_x * ratio,
             "y": cy[i] + gap_y * ratio,
         }
         if follow_size:

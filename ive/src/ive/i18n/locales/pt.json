@@ -493,5 +493,8 @@
   "tracking.dir.forward": "Para frente",
   "tracking.dir.backward": "Para trás",
   "tracking.dir.both": "Ambas",
-  "tracking.lost_before": "Indo para trás o alvo foi perdido em {t}; o percurso começa aí."
+  "tracking.lost_before": "Indo para trás o alvo foi perdido em {t}; o percurso começa aí.",
+  "tracking.retrack": "Rastrear de novo daqui",
+  "tracking.retrack_hint": "O percurso erra em algum ponto? Leve o cursor até lá, escolha a direção e desenhe o alvo de novo: só esse trecho é reescrito.",
+  "tracking.keep_relation": "Manter a posição em relação ao alvo"
 }

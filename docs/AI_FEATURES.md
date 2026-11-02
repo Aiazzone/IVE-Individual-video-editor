@@ -376,8 +376,26 @@ scheda, Action `overlay.set_track_direction`, parametro `direction` su
   9 fps. Il primo frame della finestra arrotonda per eccesso: il passo
   indietro non esce mai dalla testa della clip.
 
-**Poi**: re-tracking parziale dalla UI (il motore ha gia' `since`/`until`);
-point tracking AI robusto alle occlusioni.
+**Re-tracking di un tratto — fatto (2026-11-01).** Sulla stessa
+overlay il bottone diventa «Ritraccia da qui»: testina dove il percorso
+sbaglia, direzione, nuovo riquadro; si riscrive solo la finestra osservata
+(`merge_path`), i pin fuori restano. Il punto delicato e' la RELAZIONE
+overlay/soggetto: misurarla dal percorso attuale in quel punto (quello
+andato alla deriva) farebbe ereditare la deriva al tratto nuovo. Quindi:
+- `TimelineClip.track_ref` = {gap_x, gap_y (frazioni canvas), target_h,
+  scale}, misurata al primo tracking (`path.measure_relation`), salvata
+  con lo stesso undo del percorso, sanificata al caricamento;
+- i ri-tracking la RIUSANO (`track_overlay(relation=...)`), interruttore
+  «Mantieni la posizione rispetto al soggetto» (default on,
+  `Tracking.keepRelation`, parametro `keep_relation` su `overlay.track`);
+- `shift_clip_path` sposta anche la relazione (gap += dx/dy, scale *=
+  ratio): un percorso spostato a mano resta spostato nei ri-tracking;
+- un ri-tracking che produce un percorso IDENTICO non e' un errore e non
+  crea un passo di undo vuoto.
+Misurato (test): deriva simulata +0,15 dopo il frame 40; ri-tracking senza
+relazione salvata: errore 0,063 alla fine; con: 0,000.
+
+**Poi**: point tracking AI robusto alle occlusioni.
 - Il risultato e' una **serie di keyframe modificabili**, non una curva
   opaca: l'utente deve poter correggere un frame sbagliato.
 - Supporto a tracking all'indietro dal punto corrente e a re-tracking

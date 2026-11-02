@@ -493,5 +493,8 @@
   "tracking.dir.forward": "Avanti",
   "tracking.dir.backward": "Indietro",
   "tracking.dir.both": "Entrambe",
-  "tracking.lost_before": "Andando all'indietro il soggetto è stato perso a {t}: il percorso parte da lì."
+  "tracking.lost_before": "Andando all'indietro il soggetto è stato perso a {t}: il percorso parte da lì.",
+  "tracking.retrack": "Ritraccia da qui",
+  "tracking.retrack_hint": "Il percorso sbaglia in un punto? Porta la testina lì, scegli la direzione e ridisegna il soggetto: viene riscritto solo quel tratto.",
+  "tracking.keep_relation": "Mantieni la posizione rispetto al soggetto"
 }

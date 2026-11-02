@@ -27,7 +27,7 @@ import time
 from typing import Callable
 
 from ive.ai.tracking.mapping import CanvasMap
-from ive.ai.tracking.path import overlay_samples
+from ive.ai.tracking.path import measure_relation, overlay_samples
 from ive.ai.tracking.tracker import ObjectTracker
 
 log = logging.getLogger(__name__)
@@ -112,6 +112,7 @@ def track_overlay(av: dict, overlay: dict, box: dict, at: float, *,
                   direction: str = "forward",
                   since: float | None = None, until: float | None = None,
                   follow_size: bool = True, engine: str = "",
+                  relation: dict | None = None,
                   progress: Callable[[float], None] | None = None,
                   cancelled: Callable[[], bool] | None = None) -> dict:
     """Follow ``box`` drawn at timeline second ``at``; return the pins.
@@ -121,13 +122,16 @@ def track_overlay(av: dict, overlay: dict, box: dict, at: float, *,
     shot), "backward" (to its start) or "both"; ``since``/``until``
     narrow the window (a partial re-track). Each direction runs its own
     tracker from the box and stops on its own when the target is lost.
-    The overlay keeps the relation to the target it has AT ``at``.
+    The overlay keeps the relation to the target it has AT ``at`` -
+    or, given ``relation`` (a clip's stored ``track_ref``), that one:
+    a re-track over a drifted stretch must not inherit the drift.
     Result::
 
         {"clip_id", "samples", "t0", "t1" (clip-local window to
          rewrite), "engine", "follows_size", "frames", "lost_at" /
          "lost_before" (timeline s where each direction lost the
-         target, or None), "seconds"}
+         target, or None), "relation" (the one used, to store),
+         "seconds"}
     """
     from ive.media.decoder import VideoDecoder
 
@@ -280,9 +284,13 @@ def track_overlay(av: dict, overlay: dict, box: dict, at: float, *,
     values = _values(overlay, anchor_local, {
         "x": float(overlay.get("x", 0.5)), "y": float(overlay.get("y", 0.5)),
         "scale": float(overlay.get("scale", 0.3))})
-    samples = overlay_samples(observations, values, canvas_aspect,
-                              ov_start, follow_size=follows,
-                              anchor_index=len(behind))
+    if relation:
+        used = {k: float(relation[k])
+                for k in ("gap_x", "gap_y", "target_h", "scale")}
+    else:
+        used = measure_relation(observations, values, len(behind))
+    samples = overlay_samples(observations, used, canvas_aspect,
+                              ov_start, follow_size=follows)
     seconds = time.perf_counter() - began
     log.info("Tracking done (%s, %s): %d frames, %d pins, %.1fs%s%s",
              tracker.engine, direction, len(observations), len(samples),
@@ -299,5 +307,7 @@ def track_overlay(av: dict, overlay: dict, box: dict, at: float, *,
         "frames": len(observations),
         "lost_at": lost_at,
         "lost_before": lost_before,
+        "relation": used,
+        "reused_relation": bool(relation),
         "seconds": seconds,
     }

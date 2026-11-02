@@ -6,6 +6,12 @@
 // worker (ive/ui/tracking_service.py) and lands as keyframes, one undo
 // step. Without the VitTrack model tracking still works, position only
 // (MIL baseline) - said plainly, with the way to get size too.
+//
+// On an overlay that already follows a path the same button RE-tracks:
+// from the playhead, in the chosen direction, only that stretch is
+// rewritten - and, with the switch on (default), with the relation to
+// the target stored at the first track, so a drifted stretch is laid
+// right instead of inheriting the drift.
 import QtQuick
 import QtQuick.Layouts
 import IVE
@@ -20,6 +26,9 @@ CardGroup {
         root.clip !== null && Tracking.drawingFor === root.clip.id
     readonly property bool hasPath:
         root.clip !== null && (root.clip.keyframes || []).length > 0
+    readonly property bool hasRelation:
+        root.clip !== null && root.clip.trackRef !== undefined
+        && Object.keys(root.clip.trackRef || {}).length > 0
     readonly property bool failed:
         Tracking.error !== "" && Tracking.error !== "cancelled"
 
@@ -33,6 +42,17 @@ CardGroup {
               : root.hasPath ? (Tr.s["tracking.has_path"] || "")
               : (Tr.s["tracking.hint"] || "")
         color: root.drawing ? Theme.c.text : Theme.c.textDisabled
+        font.pixelSize: Theme.m.fontSizeXs
+        lineHeight: 1.35
+    }
+
+    Text {
+        objectName: "tracking_retrack_hint"
+        visible: root.hasPath && !root.drawing && !Tracking.running
+        Layout.fillWidth: true
+        wrapMode: Text.WordWrap
+        text: Tr.s["tracking.retrack_hint"] || ""
+        color: Theme.c.textDisabled
         font.pixelSize: Theme.m.fontSizeXs
         lineHeight: 1.35
     }
@@ -54,6 +74,14 @@ CardGroup {
         }
     }
 
+    SwitchRow {
+        objectName: "tracking_keep_relation"
+        visible: root.hasRelation && !root.drawing && !Tracking.running
+        checked: Tracking.keepRelation
+        label: Tr.s["tracking.keep_relation"] || ""
+        onToggled: function (v) { Tracking.set_keep_relation(v); }
+    }
+
     // Draw the target: arms the preview, and pauses - boxes are drawn
     // on a still frame, the one the track starts from.
     Rectangle {
@@ -69,7 +97,8 @@ CardGroup {
         Text {
             anchors.centerIn: parent
             text: root.drawing ? (Tr.s["tracking.draw_cancel"] || "")
-                               : (Tr.s["tracking.draw"] || "")
+                  : root.hasPath ? (Tr.s["tracking.retrack"] || "")
+                  : (Tr.s["tracking.draw"] || "")
             color: root.drawing ? Theme.c.text : "#FFFFFF"
             font.pixelSize: Theme.m.fontSizeSm + 2
             font.bold: true
