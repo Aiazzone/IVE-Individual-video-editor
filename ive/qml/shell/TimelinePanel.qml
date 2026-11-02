@@ -98,9 +98,12 @@ Item {
               }).map(function (c) {
                   return { from: c.start, to: c.end, color: Theme.c.clipVideo,
                            name: c.name, film: true, id: c.id, wave: false,
-                           // Diamond markers: clip-local pin times.
+                           // Diamond markers: pin times as FRACTIONS
+                           // of the clip, so the nested delegate never
+                           // reads the outer model (undefined while
+                           // the timeline rebuilds).
                            keys: (c.keyframes || []).map(function (k) {
-                               return k.t;
+                               return k.t / Math.max(0.001, c.end - c.start);
                            }) };
               }) },
             { name: "A1", kind: "audio", audio: true,
@@ -152,7 +155,13 @@ Item {
                              return { from: c.start, to: c.end,
                                       color: Theme.c.clipSticker,
                                       name: c.name, film: false,
-                                      id: c.id, wave: false };
+                                      id: c.id, wave: false,
+                                      // Hand-set or tracked pins.
+                                      keys: (c.keyframes || []).map(
+                                          function (k) {
+                                              return k.t / Math.max(
+                                                  0.001, c.end - c.start);
+                                          }) };
                          }) });
         var mu = clips.filter(function (c) { return c.track === 4; });
         if (mu.length > 0)
@@ -177,7 +186,13 @@ Item {
                              return { from: c.start, to: c.end,
                                       color: Theme.c.clipText,
                                       name: c.name, film: false,
-                                      id: c.id, wave: false };
+                                      id: c.id, wave: false,
+                                      // Hand-set or tracked pins.
+                                      keys: (c.keyframes || []).map(
+                                          function (k) {
+                                              return k.t / Math.max(
+                                                  0.001, c.end - c.start);
+                                          }) };
                          }) });
         return lanes;
     }
@@ -684,7 +699,10 @@ Item {
             IconButton {
                 id: kfButton
                 objectName: "timeline_keyframe_button"
-                visible: root.selectedKind === "video"
+                // Videos, stickers and titles all take pins.
+                visible: (root.selectedKind === "video"
+                          || root.selectedKind === "sticker"
+                          || root.selectedKind === "text")
                          && root.selectedClipData !== null
                          && root.position >= root.selectedClipData.start
                          && root.position < root.selectedClipData.end
@@ -718,7 +736,7 @@ Item {
                     // canvas fit, the fit's own geometry, so the first
                     // pin changes nothing until the next one moves.
                     var v = Project.clip_keyframe_values(clip.id, localT);
-                    if (!clip.placed
+                    if (root.selectedKind === "video" && !clip.placed
                             && (clip.keyframes || []).length === 0) {
                         v.x = 0.5;
                         v.y = 0.5;
@@ -1617,11 +1635,12 @@ Item {
                                 }
 
                                 // Keyframe diamonds, along the pill's foot:
-                                // one per pin, at its clip-local time.
+                                // one per pin, at its fraction of the clip.
                                 Repeater {
-                                    model: clip.modelData.keys || []
+                                    model: (clip.modelData && clip.modelData.keys) || []
                                     delegate: Rectangle {
                                         required property var modelData
+                                        objectName: "timeline_keyframe_diamond"
                                         width: 7
                                         height: 7
                                         rotation: 45
@@ -1629,11 +1648,11 @@ Item {
                                         color: "#FFFFFF"
                                         border.width: 1
                                         border.color: "#59000000"
-                                        x: modelData / Math.max(0.001,
-                                               clip.modelData.to
-                                               - clip.modelData.from)
-                                           * clip.width - 3.5
-                                        y: clip.height - 11
+                                        // parent, not the `clip` id: an outer
+                                        // id does not resolve inside this
+                                        // nested delegate (x stayed 0).
+                                        x: modelData * parent.width - 3.5
+                                        y: parent.height - 11
                                     }
                                 }
 

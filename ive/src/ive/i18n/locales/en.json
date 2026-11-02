@@ -465,5 +465,12 @@
   "tracking.err.no_video": "There is no video under the playhead.",
   "tracking.err.bad_box": "Draw a box around the target first.",
   "tracking.err.not_applied": "The path could not be applied to the clip.",
-  "tracking.err.failed": "Tracking did not finish."
+  "tracking.err.failed": "Tracking did not finish.",
+  "tracking.group": "Motion tracking",
+  "tracking.hint": "Make this follow something in the video: draw a box around it, and the path becomes keyframes you can still adjust.",
+  "tracking.draw": "Draw the target",
+  "tracking.draw_hint": "Drag a box around the target on the video — Esc to cancel.",
+  "tracking.has_path": "Follows a path: drag it to move the whole path; on a diamond, the drag corrects that point.",
+  "tracking.shift_path": "Move the tracked path",
+  "tracking.draw_cancel": "Cancel drawing"
 }

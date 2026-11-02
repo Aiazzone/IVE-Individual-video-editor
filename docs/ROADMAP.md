@@ -447,8 +447,9 @@ Nell'ordine, per rapporto valore/rischio:
       modalita' globale semplice/intelligente, ombra sul letto musicale dove
       il ducking lo abbassa (`ui/duck_shades.py`)
 - [ ] **Motion tracking** — prima i tracker OpenCV, poi il livello AI.
-      Fase A fatta (2026-11-01): motore ViT/MIL, mappatura, keyframe sulle
-      overlay, Action; manca la UI (Fase B). Vedi `AI_FEATURES.md` §7
+      Fasi A+B fatte (2026-11-01): motore ViT/MIL, mappatura, keyframe sulle
+      overlay, Action, scheda + riquadro sulla preview, drag del percorso.
+      Restano tracking all'indietro e point tracking AI. `AI_FEATURES.md` §7
 - [ ] **Frame interpolation** — il piu' costoso, per ultimo
 
 Ogni funzione segue la checklist di `docs/AI_FEATURES.md` §11.

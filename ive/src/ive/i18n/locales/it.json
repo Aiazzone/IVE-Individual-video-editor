@@ -465,5 +465,12 @@
   "tracking.err.no_video": "Non c'è video sotto la testina.",
   "tracking.err.bad_box": "Disegna prima un riquadro attorno al soggetto.",
   "tracking.err.not_applied": "Non è stato possibile applicare il percorso alla clip.",
-  "tracking.err.failed": "Il tracking non è terminato."
+  "tracking.err.failed": "Il tracking non è terminato.",
+  "tracking.group": "Motion tracking",
+  "tracking.hint": "Fallo seguire qualcosa nel video: disegna un riquadro attorno al soggetto e il percorso diventa keyframe che puoi ancora ritoccare.",
+  "tracking.draw": "Disegna il soggetto",
+  "tracking.draw_hint": "Trascina un riquadro attorno al soggetto sul video — Esc per annullare.",
+  "tracking.has_path": "Segue un percorso: trascinalo per spostare tutto il percorso; su un diamante, il trascinamento corregge quel punto.",
+  "tracking.shift_path": "Sposta il percorso tracciato",
+  "tracking.draw_cancel": "Annulla il riquadro"
 }

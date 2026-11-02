@@ -448,6 +448,12 @@ Item {
             }
         }
 
+        // ── make the selected title follow something ──────────────
+        TrackingCard {
+            objectName: "text_tracking_card"
+            clip: root.view === "" ? root.textClip : null
+        }
+
         // ── automatic subtitles ───────────────────────────────────
         // The speech in the cut's A/V clips becomes editable titles on
         // the Text lane - one undo step, every line correctable here

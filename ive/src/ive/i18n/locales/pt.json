@@ -465,5 +465,12 @@
   "tracking.err.no_video": "Não há vídeo sob o cursor de reprodução.",
   "tracking.err.bad_box": "Desenhe primeiro um retângulo em volta do alvo.",
   "tracking.err.not_applied": "Não foi possível aplicar o percurso ao clipe.",
-  "tracking.err.failed": "O rastreamento não terminou."
+  "tracking.err.failed": "O rastreamento não terminou.",
+  "tracking.group": "Rastreamento de movimento",
+  "tracking.hint": "Faça isto seguir algo no vídeo: desenhe um retângulo em volta e o percurso vira keyframes que você ainda pode ajustar.",
+  "tracking.draw": "Desenhe o alvo",
+  "tracking.draw_hint": "Arraste um retângulo em volta do alvo no vídeo — Esc para cancelar.",
+  "tracking.has_path": "Segue um percurso: arraste para mover o percurso inteiro; sobre um losango, o arrasto corrige esse ponto.",
+  "tracking.shift_path": "Mover o percurso rastreado",
+  "tracking.draw_cancel": "Cancelar o retângulo"
 }

@@ -790,6 +790,14 @@ class ProjectService(QObject):
                           lambda: self._project.apply_tracked_path(
                               clip_id, plain, t0, t1, tuple(params)))
 
+    @Slot(str, float, float, float, float, result=bool)
+    def shift_clip_path(self, clip_id: str, dx: float, dy: float,
+                        ratio: float, rotation: float) -> bool:
+        """Move a keyframed overlay's whole path - one undo step."""
+        return self._edit("overlay.shift_path",
+                          lambda: self._project.shift_clip_path(
+                              clip_id, dx, dy, ratio, rotation))
+
     @Slot(str, float, str, result=bool)
     def set_keyframe_easing(self, clip_id: str, t: float,
                             easing: str) -> bool:

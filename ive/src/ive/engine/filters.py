@@ -952,6 +952,14 @@ class Overlays(Filter):
                     if opacity <= 0.0:
                         continue
                     base_scale = max(0.005, pinned["scale"])
+                    shift = span.get("shift")
+                    if shift:
+                        # A whole-path drag in progress (transport.
+                        # set_overlay_shift_live): the commit bakes it
+                        # into the pins and the rebuilt span drops it.
+                        x += shift[0]
+                        y += shift[1]
+                        base_scale *= shift[2]
                     base_rotation = pinned["rotation"]
                 else:
                     base_scale = base_rotation = None

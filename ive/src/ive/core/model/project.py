@@ -815,6 +815,47 @@ class Project:
         clip.keyframes = merged
         return True
 
+    def shift_clip_path(self, clip_id: str, dx: float, dy: float,
+                        ratio: float = 1.0,
+                        rotation: float | None = None) -> bool:
+        """Move a keyframed overlay's WHOLE path: the drag between pins.
+
+        Every pinned x/y moves by (dx, dy) and every pinned scale is
+        multiplied by ``ratio`` - so a tracked sticker can be set a
+        little higher, or made bigger, without re-tracking. The static
+        fields move the same way, so params no pin holds follow too;
+        ``rotation`` (when given) replaces the static rotation.
+        """
+        clip = self.find_clip(clip_id)
+        if clip is None or clip.track == 0 or not self._keyframable(clip):
+            return False
+        dx, dy = float(dx), float(dy)
+        ratio = min(20.0, max(0.05, float(ratio)))
+        if abs(dx) < 1e-6 and abs(dy) < 1e-6 and abs(ratio - 1.0) < 1e-6 \
+                and (rotation is None
+                     or abs(float(rotation) - clip.rotation) < 1e-6):
+            return False
+        # Pins are NOT clamped to the canvas: a tracked path may hang off
+        # an edge (an overlay can, the engine clips it), and a clamp here
+        # would bend the path instead of translating it.
+        moved = []
+        for key in clip.keyframes:
+            key = dict(key)
+            if "x" in key:
+                key["x"] = key["x"] + dx
+            if "y" in key:
+                key["y"] = key["y"] + dy
+            if "scale" in key:
+                key["scale"] = min(2.0, max(0.02, key["scale"] * ratio))
+            moved.append(key)
+        clip.keyframes = moved
+        clip.x = min(1.0, max(0.0, clip.x + dx))
+        clip.y = min(1.0, max(0.0, clip.y + dy))
+        clip.scale = min(2.0, max(0.02, clip.scale * ratio))
+        if rotation is not None:
+            clip.rotation = float(rotation)
+        return True
+
     def set_keyframe_easing(self, clip_id: str, t: float,
                             easing: str) -> bool:
         """Give the diamond at clip-local ``t`` its travel character.

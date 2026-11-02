@@ -379,5 +379,11 @@ Item {
                 }
             }
         }
+
+        // ── make the selected sticker follow something ────────────
+        TrackingCard {
+            objectName: "sticker_tracking_card"
+            clip: root.motionClip
+        }
     }
 }

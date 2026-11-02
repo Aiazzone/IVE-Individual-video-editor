@@ -156,10 +156,11 @@ def set_clip_opacity(ctx, clip_id: str, opacity: float):
 @action(
     id="timeline.set_clip_keyframe",
     title_key="video.keyframe",
-    desc_key="Pin an A/V clip's transform/opacity at a clip-local time "
-             "(seconds): any of x, y, scale, rotation, opacity. Between "
-             "pins the values run linearly; a pin already at that time "
-             "is replaced. Pinning a transform floats the clip.",
+    desc_key="Pin a clip's transform/opacity at a clip-local time "
+             "(seconds): any of x, y, scale, rotation, opacity. Works on "
+             "A/V clips, stickers and titles. Between pins the values "
+             "run along the arriving pin's easing; a pin already at that "
+             "time is replaced. Pinning a transform floats an A/V clip.",
     category="timeline",
     params={
         "clip_id": Param(str, required=True),
@@ -179,8 +180,38 @@ def set_clip_keyframe(ctx, clip_id: str, t: float, x=None, y=None,
               if value is not None}
     if not ctx.require("project").set_clip_keyframe(clip_id, t, values):
         raise RuntimeError(
-            f"No keyframe landed on {clip_id} (no values, or not an A/V "
-            f"clip, or t outside it)")
+            f"No keyframe landed on {clip_id} (no values, not a "
+            f"keyframable clip, or t outside it)")
+
+
+@action(
+    id="timeline.shift_clip_path",
+    title_key="tracking.shift_path",
+    desc_key="Move a sticker's or title's WHOLE keyframed path (a tracked "
+             "one, typically): every pinned x/y moves by dx/dy (canvas "
+             "fractions), every pinned scale is multiplied by ratio. "
+             "Optional rotation replaces the static rotation. One undo "
+             "step.",
+    category="timeline",
+    params={
+        "clip_id": Param(str, required=True),
+        "dx": Param(float, required=False, doc="Canvas width fraction."),
+        "dy": Param(float, required=False, doc="Canvas height fraction."),
+        "ratio": Param(float, required=False, doc="Scale multiplier."),
+        "rotation": Param(float, required=False, doc="Degrees."),
+    },
+)
+def shift_clip_path(ctx, clip_id: str, dx: float = 0.0, dy: float = 0.0,
+                    ratio: float = 1.0, rotation=None):
+    project = ctx.require("project")
+    clip = next((c for c in project.timelineClips if c["id"] == clip_id),
+                None)
+    if clip is None:
+        raise RuntimeError(f"No clip {clip_id}")
+    angle = float(clip.get("rotation", 0.0)) if rotation is None         else float(rotation)
+    if not project.shift_clip_path(clip_id, dx, dy, ratio, angle):
+        raise RuntimeError(f"Nothing to move on {clip_id} (not an overlay, "
+                           f"or no change)")
 
 
 @action(

@@ -611,10 +611,21 @@ class PlaybackService(QObject):
         for span in self._sticker_spans + self._text_spans:
             if span.get("id") != clip_id:
                 continue
-            span["x"] = min(1.0, max(0.0, float(x)))
-            span["y"] = min(1.0, max(0.0, float(y)))
-            span["scale"] = min(2.0, max(0.02, float(scale)))
-            span["rotation"] = float(rotation)
+            values = {"x": min(1.0, max(0.0, float(x))),
+                      "y": min(1.0, max(0.0, float(y))),
+                      "scale": min(2.0, max(0.02, float(scale))),
+                      "rotation": float(rotation)}
+            if span.get("keyframes"):
+                # A keyed overlay dragged ON a diamond: the gesture
+                # corrects that pin (the commit is set_clip_keyframe).
+                # Between pins the hand moves the whole path instead -
+                # set_overlay_shift_live.
+                from ive.utils.keyframes import upsert
+
+                local = self._position - float(span.get("start") or 0.0)
+                span["keyframes"] = upsert(span["keyframes"], local, values)
+            else:
+                span.update(values)
             if not self._playing:
                 self._request_at(self._position)
             return
@@ -638,6 +649,26 @@ class PlaybackService(QObject):
                 span["keyframes"] = upsert(span["keyframes"], local, values)
             else:
                 span.update(values)
+            if not self._playing:
+                self._request_at(self._position)
+            return
+
+    @Slot(str, float, float, float, float)
+    def set_overlay_shift_live(self, clip_id: str, dx: float, dy: float,
+                               ratio: float, rotation: float) -> None:
+        """Move a keyframed overlay's WHOLE path while it is dragged.
+
+        The live half of timeline.shift_clip_path: the Overlays filter
+        adds the ``shift`` to whatever the keyframes evaluate to, so the
+        paused frame follows the hand. The commit rebuilds the spans
+        from the model, which drops the shift for good.
+        """
+        for span in self._sticker_spans + self._text_spans:
+            if span.get("id") != clip_id:
+                continue
+            span["shift"] = (float(dx), float(dy),
+                             min(20.0, max(0.05, float(ratio))))
+            span["rotation"] = float(rotation)
             if not self._playing:
                 self._request_at(self._position)
             return

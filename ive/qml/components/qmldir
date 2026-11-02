@@ -15,3 +15,4 @@ CardGroup 1.0 CardGroup.qml
 AnimatedPreview 1.0 AnimatedPreview.qml
 StarButton 1.0 StarButton.qml
 MotionPicker 1.0 MotionPicker.qml
+TrackingCard 1.0 TrackingCard.qml

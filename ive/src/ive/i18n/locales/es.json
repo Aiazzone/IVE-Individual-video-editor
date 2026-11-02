@@ -465,5 +465,12 @@
   "tracking.err.no_video": "No hay vídeo bajo el cabezal.",
   "tracking.err.bad_box": "Dibuja primero un recuadro alrededor del objetivo.",
   "tracking.err.not_applied": "No se pudo aplicar el recorrido al clip.",
-  "tracking.err.failed": "El seguimiento no terminó."
+  "tracking.err.failed": "El seguimiento no terminó.",
+  "tracking.group": "Seguimiento de movimiento",
+  "tracking.hint": "Haz que siga algo del vídeo: dibuja un recuadro a su alrededor y el recorrido se convierte en fotogramas clave que aún puedes ajustar.",
+  "tracking.draw": "Dibuja el objetivo",
+  "tracking.draw_hint": "Arrastra un recuadro alrededor del objetivo en el vídeo — Esc para cancelar.",
+  "tracking.has_path": "Sigue un recorrido: arrástralo para mover todo el recorrido; sobre un rombo, el arrastre corrige ese punto.",
+  "tracking.shift_path": "Mover el recorrido seguido",
+  "tracking.draw_cancel": "Cancelar el recuadro"
 }

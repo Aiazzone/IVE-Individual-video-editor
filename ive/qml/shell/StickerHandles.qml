@@ -84,11 +84,14 @@ Item {
             readonly property string clipId: modelData.id
             readonly property var clipCrop: modelData.crop || ({})
 
-            // A keyframed video clip: the box must sit where the
-            // ANIMATION has it at the paused playhead, and a drag pins
-            // a diamond there instead of moving the static transform.
+            // A keyframed clip (a video, or an overlay with a hand-set
+            // or tracked path): the box must sit where the ANIMATION
+            // has it at the paused playhead. A video drag pins a
+            // diamond there. An overlay drag pins only when the playhead
+            // stands ON a diamond (correcting that point); between pins
+            // it moves the WHOLE path (timeline.shift_clip_path).
             readonly property bool keyed:
-                box.isVideo && (modelData.keyframes || []).length > 0
+                (modelData.keyframes || []).length > 0
             readonly property var evaluated: keyed
                 ? Project.clip_keyframe_values(
                       modelData.id,
@@ -96,6 +99,15 @@ Item {
                 : null
             readonly property real localT:
                 Playback.positionSeconds - modelData.start
+            readonly property bool onPin: {
+                var keys = modelData.keyframes || [];
+                for (var i = 0; i < keys.length; i++)
+                    if (Math.abs(keys[i].t - box.localT) <= 0.05)
+                        return true;
+                return false;
+            }
+            readonly property bool shiftsPath:
+                box.keyed && !box.isVideo && !box.onPin
 
             // Live values: seeded from the model, driven by the hand
             // during a gesture. The Repeater recreates delegates whenever
@@ -132,9 +144,31 @@ Item {
             rotation: vr
 
             function pushLive() {
+                if (box.shiftsPath) {
+                    Playback.set_overlay_shift_live(
+                        modelData.id, vx - box.evaluated.x,
+                        vy - box.evaluated.y,
+                        vs / Math.max(0.005, box.evaluated.scale), vr);
+                    return;
+                }
                 Playback.set_overlay_live(modelData.id, vx, vy, vs, vr);
             }
             function commit() {
+                if (box.shiftsPath) {
+                    var e = box.evaluated;
+                    if (Math.abs(vx - e.x) < 1e-6 && Math.abs(vy - e.y) < 1e-6
+                            && Math.abs(vs - e.scale) < 1e-6
+                            && Math.abs(vr - e.rotation) < 1e-6)
+                        return;     // a tap, not a drag: nothing moved
+                    Actions.invoke("timeline.shift_clip_path", {
+                        clip_id: modelData.id,
+                        dx: vx - box.evaluated.x,
+                        dy: vy - box.evaluated.y,
+                        ratio: vs / Math.max(0.005, box.evaluated.scale),
+                        rotation: vr
+                    });
+                    return;
+                }
                 if (box.keyed) {
                     // On an animated clip the drag PINS a diamond at
                     // the playhead - the gesture edits the animation,
@@ -424,6 +458,100 @@ Item {
                     onReleased: box.commit()
                 }
             }
+        }
+    }
+
+    // ── draw the tracking target ──────────────────────────────────
+    // Armed by the Tracking card (Tracking.drawingFor). Covers the whole
+    // video above every handle, so the gesture can start on top of the
+    // sticker itself; the box is converted with the same cover mapping
+    // and the track starts at the paused playhead. Esc, or a box too
+    // small to be meant, disarms without tracking.
+    MouseArea {
+        id: drawLayer
+        objectName: "tracking_draw_layer"
+        anchors.fill: parent
+        z: 100
+        visible: Tracking.drawingFor !== ""
+        enabled: visible
+        focus: visible
+        cursorShape: Qt.CrossCursor
+        preventStealing: true
+
+        property point from: Qt.point(0, 0)
+        property point to: Qt.point(0, 0)
+
+        Keys.onEscapePressed: Tracking.end_draw()
+        onVisibleChanged: if (visible) forceActiveFocus()
+
+        onPressed: function (mouse) {
+            from = Qt.point(mouse.x, mouse.y);
+            to = from;
+        }
+        onPositionChanged: function (mouse) {
+            if (pressed)
+                to = Qt.point(mouse.x, mouse.y);
+        }
+        onReleased: function (mouse) {
+            to = Qt.point(mouse.x, mouse.y);
+            var left = Math.min(from.x, to.x);
+            var top = Math.min(from.y, to.y);
+            var w = Math.abs(to.x - from.x);
+            var h = Math.abs(to.y - from.y);
+            var overlayId = Tracking.drawingFor;
+            from = to = Qt.point(0, 0);
+            if (w < 8 || h < 8) {
+                Tracking.end_draw();
+                return;
+            }
+            Actions.invoke("overlay.track", {
+                clip_id: overlayId,
+                x: (left - root.offX) / root.coverW,
+                y: (top - root.offY) / root.coverH,
+                w: w / root.coverW,
+                h: h / root.coverH,
+                at: Playback.positionSeconds
+            });
+            Tracking.end_draw();
+        }
+
+        // A soft veil says "the video is waiting for a box".
+        Rectangle {
+            anchors.fill: parent
+            color: "#33000000"
+        }
+        // The rubber band.
+        Rectangle {
+            objectName: "tracking_draw_band"
+            visible: drawLayer.pressed
+            x: Math.min(drawLayer.from.x, drawLayer.to.x)
+            y: Math.min(drawLayer.from.y, drawLayer.to.y)
+            width: Math.abs(drawLayer.to.x - drawLayer.from.x)
+            height: Math.abs(drawLayer.to.y - drawLayer.from.y)
+            color: "#26FFFFFF"
+            radius: 2
+            border.width: 2
+            border.color: "#FFFFFF"
+            Rectangle {
+                anchors.fill: parent
+                anchors.margins: -1
+                color: "transparent"
+                radius: 3
+                border.width: 1
+                border.color: "#55000000"
+                z: -1
+            }
+        }
+        Text {
+            visible: !drawLayer.pressed
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.top: parent.top
+            anchors.topMargin: 16
+            text: Tr.s["tracking.draw_hint"] || ""
+            color: "#FFFFFF"
+            style: Text.Outline
+            styleColor: "#66000000"
+            font.pixelSize: 14
         }
     }
 }

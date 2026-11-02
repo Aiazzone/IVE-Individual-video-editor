@@ -32,6 +32,7 @@ class TrackingService(QObject):
 
     stateChanged = Signal()
     runChanged = Signal()
+    drawChanged = Signal()
     #: Pins landed on the overlay (count); 0 = nothing applied.
     finished = Signal(int)
     #: Worker -> GUI thread hand-off (queued: the service lives on GUI).
@@ -49,6 +50,7 @@ class TrackingService(QObject):
         self._last_pins = 0
         self._last_engine = ""
         self._lost_at = -1.0
+        self._drawing_for = ""
         self._cancel = threading.Event()
         self._thread: threading.Thread | None = None
         self._done.connect(self._on_done)
@@ -85,7 +87,7 @@ class TrackingService(QObject):
 
     @Property(str, notify=runChanged)
     def error(self) -> str:
-        """The last refusal's code ("" = none); tracking.error.<code>."""
+        """The last refusal's code ("" = none); tracking.err.<code>."""
         return self._error
 
     @Property(int, notify=runChanged)
@@ -100,6 +102,32 @@ class TrackingService(QObject):
     def lostAt(self) -> float:
         """Timeline second the target was lost at; -1 = followed to the end."""
         return self._lost_at
+
+    # ── the "draw the target" mode ────────────────────────────────────
+
+    @Property(str, notify=drawChanged)
+    def drawingFor(self) -> str:
+        """The overlay waiting for its target box ("" = not drawing).
+
+        Shared state between the panel that arms the mode and the
+        preview layer that takes the box - neither owns the other.
+        """
+        return self._drawing_for
+
+    @Slot(str)
+    def begin_draw(self, overlay_id: str) -> None:
+        if self._running:
+            return
+        self._drawing_for = str(overlay_id or "")
+        self._error = ""
+        self.drawChanged.emit()
+        self.runChanged.emit()
+
+    @Slot()
+    def end_draw(self) -> None:
+        if self._drawing_for:
+            self._drawing_for = ""
+            self.drawChanged.emit()
 
     # ── run ───────────────────────────────────────────────────────────
 
@@ -118,6 +146,7 @@ class TrackingService(QObject):
         drawn at timeline second ``at``; ``overlay_id`` follows it."""
         if self._running:
             return False
+        self.end_draw()
         box = box.toVariant() if hasattr(box, "toVariant") else dict(box or {})
         clips = self._clips()
         overlay = next((c for c in clips if c.get("id") == overlay_id), None)

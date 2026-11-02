@@ -338,12 +338,29 @@ Punti importanti:
   Action `overlay.track` / `overlay.track_cancel`. Codici d'errore
   tradotti in `tracking.err.*`.
 
-**Fase B (da fare)**: bottone nel pannello dell'overlay, riquadro
-disegnato sulla preview, barra di progresso, avviso "solo posizione"
-senza VitTrack, diamanti dei keyframe overlay in timeline; trascinare un
-overlay tracciato deve spostare il percorso (offset), non il valore
-statico che i keyframe coprono. Poi: tracking all'indietro (serve un
-buffer di frame: il decoder all'indietro costa un seek per frame).
+**Fase B — fatta (2026-11-01)** (test `tests/visual/test_tracking_ui.py`):
+- `components/TrackingCard.qml` nei pannelli Sticker e Testo, sotto la
+  scheda Animazione: "Disegna il soggetto" arma la preview
+  (`Tracking.drawingFor`, stato condiviso nel servizio), progresso +
+  stop, esito (pin posati, punto di perdita) o errore tradotto, avviso
+  "solo posizione" quando VitTrack manca.
+- Strato di disegno in `StickerHandles.qml` (sopra ogni maniglia, Esc
+  annulla, riquadri < 8 px ignorati): converte col mapping "cover" e
+  invoca `overlay.track` all'istante della testina in pausa.
+- Le maniglie delle overlay seguono i keyframe. **Regola del drag** su
+  un'overlay con keyframe: testina SU un diamante (±50 ms, lo stesso
+  criterio che accende il bottone keyframe) = corregge quel pin;
+  testina FRA i pin = sposta TUTTO il percorso
+  (`timeline.shift_clip_path`; anteprima live con `shift` nello span,
+  `transport.set_overlay_shift_live`). Lo spostamento NON fa clamp sui
+  pin: un percorso tracciato puo' uscire dal canvas e va traslato, non
+  piegato.
+- Diamanti dei keyframe anche sulle corsie Sticker/Testo; il bottone
+  keyframe della timeline vale anche per le overlay.
+
+**Poi**: tracking all'indietro (serve un buffer di frame: il decoder
+all'indietro costa un seek per frame); re-tracking parziale dalla UI
+(dal motore c'e' gia': la finestra riscritta parte dalla testina).
 - Il risultato e' una **serie di keyframe modificabili**, non una curva
   opaca: l'utente deve poter correggere un frame sbagliato.
 - Supporto a tracking all'indietro dal punto corrente e a re-tracking

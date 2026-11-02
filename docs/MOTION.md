@@ -70,6 +70,13 @@ prima fonte di questi keyframe e' il motion tracking
 (`AI_FEATURES.md` §7), che li scrive con `merge_path`: i pin distano un
 frame, sotto la tolleranza di `upsert`, che li fonderebbe a coppie.
 
+**Drag di un'overlay con keyframe.** Le maniglie seguono il valore
+interpolato alla testina. Testina su un diamante: il drag corregge quel
+pin (`set_clip_keyframe`). Fra i pin: il drag sposta l'intero percorso
+(`timeline.shift_clip_path`: dx/dy su ogni x/y, ratio su ogni scale, senza
+clamp). Prima della Fase B il drag scriveva i valori statici, che i
+keyframe coprivano: la maniglia "tornava indietro".
+
 ## 3. UI
 
 - **Il pannello Sticker mostra l'animazione del clip selezionato SOTTO
