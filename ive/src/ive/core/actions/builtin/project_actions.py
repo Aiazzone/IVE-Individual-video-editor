@@ -71,6 +71,26 @@ def rename_project(ctx, name: str):
 
 
 @action(
+    id="project.set_frame_rate",
+    title_key="project.frame_rate",
+    desc_key="Set the sequence frame rate - the grid every cut, fade and "
+             "keyframe sits on. 'auto' = the first video's rate (the "
+             "default); otherwise e.g. '25', '30000/1001' or '29.97'. Times "
+             "keep their place and snap to the nearest frame. Undoable.",
+    category="project",
+    params={"rate": Param(str, required=True,
+                          doc="auto | 23.976 | 24 | 25 | 29.97 | 30 | 50 | "
+                              "59.94 | 60 | any n/d")},
+)
+def set_frame_rate(ctx, rate: str):
+    from ive.utils.timecode import parse_rate
+
+    if rate != "auto" and parse_rate(rate, default=None) is None:
+        raise RuntimeError(f"Not a frame rate: {rate!r}")
+    ctx.require("project").set_frame_rate(rate)
+
+
+@action(
     id="project.import_media",
     title_key="project.import_media",
     desc_key="Add files or folders to the media pool. Folders are scanned "

@@ -444,6 +444,50 @@ Item {
                 }
             }
 
+            // The PROJECT's frame rate: the grid every cut, fade and
+            // keyframe sits on. Stored in the project file, not in the
+            // settings - "Auto" takes the first video's rate, once.
+            SettingRow {
+                objectName: "settings_frame_rate"
+                visible: Project.isOpen
+                label: Tr.s["settings.frame_rate"] || ""
+                hint: (Tr.s["settings.frame_rate.hint"] || "")
+                      + " " + (Tr.s["settings.frame_rate.current"] || "")
+                          .replace("{fps}", Project.frameRateLabel)
+                ColumnLayout {
+                    spacing: 4
+                    Segmented {
+                        objectName: "settings_frame_rate_a"
+                        Layout.fillWidth: true
+                        value: Project.frameRateChoice
+                        model: [
+                            { value: "auto", text: Tr.s["settings.canvas.auto"] || "" },
+                            { value: "24000/1001", text: "23.976" },
+                            { value: "24", text: "24" },
+                            { value: "25", text: "25" },
+                            { value: "30000/1001", text: "29.97" }
+                        ]
+                        onPicked: function (v) {
+                            Actions.invoke("project.set_frame_rate", { rate: v });
+                        }
+                    }
+                    Segmented {
+                        objectName: "settings_frame_rate_b"
+                        Layout.fillWidth: true
+                        value: Project.frameRateChoice
+                        model: [
+                            { value: "30", text: "30" },
+                            { value: "50", text: "50" },
+                            { value: "60000/1001", text: "59.94" },
+                            { value: "60", text: "60" }
+                        ]
+                        onPicked: function (v) {
+                            Actions.invoke("project.set_frame_rate", { rate: v });
+                        }
+                    }
+                }
+            }
+
             SettingRow {
                 label: Tr.s["settings.rail_side"] || ""
                 hint: Tr.s["settings.rail_side.hint"] || ""

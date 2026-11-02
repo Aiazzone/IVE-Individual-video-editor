@@ -496,5 +496,22 @@
   "tracking.lost_before": "Indo para trás o alvo foi perdido em {t}; o percurso começa aí.",
   "tracking.retrack": "Rastrear de novo daqui",
   "tracking.retrack_hint": "O percurso erra em algum ponto? Leve o cursor até lá, escolha a direção e desenhe o alvo de novo: só esse trecho é reescrito.",
-  "tracking.keep_relation": "Manter a posição em relação ao alvo"
+  "tracking.keep_relation": "Manter a posição em relação ao alvo",
+  "project.frame_rate": "Taxa de quadros",
+  "settings.frame_rate": "Quadros por segundo do projeto",
+  "settings.frame_rate.hint": "Cada corte, transição e keyframe cai num quadro desta taxa. Auto usa a do primeiro vídeo. Fica salva no projeto.",
+  "settings.frame_rate.current": "Agora: {fps} fps.",
+  "cutout.group": "Remover fundo",
+  "cutout.label": "Remover fundo",
+  "cutout.select_hint": "Selecione um clipe de vídeo na linha do tempo para remover o fundo.",
+  "cutout.hint": "O sujeito fica; a cena atrás vira uma cor ou uma imagem.",
+  "cutout.remove": "Remover o fundo",
+  "cutout.mode.color": "Cor",
+  "cutout.mode.image": "Imagem",
+  "cutout.pick_image": "Escolher imagem…",
+  "cutout.feather": "Borda suave",
+  "cutout.shrink": "Encolher a borda",
+  "cutout.download": "Baixar o modelo ({mb} MB)",
+  "cutout.downloading": "Baixando…",
+  "cutout.backend_missing": "O ONNX Runtime não está instalado: remover o fundo não está disponível."
 }

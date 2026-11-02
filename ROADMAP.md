@@ -143,8 +143,10 @@ Updated together with the code, so this file always reflects reality.
 - [x] A shade on the music bed where ducking lowers it; the smart
       (Silero VAD) detector
 - [ ] Music: beat markers and snap-to-beat
-- [ ] Sequence timebase in frames (the model still counts seconds) and
-      a timecode utility with drop-frame
+- [x] Sequence timebase in frames and a timecode utility with
+      drop-frame (2026-11-02): a project frame rate (adopted from the
+      first video or chosen in Settings > Layout), every edit snapped to
+      the frame grid, frame counts on disk (schema 2), exact-rate export
 - [ ] Linux and macOS verification pass; CI, lint, one runner for the
       script-style test suites
 
@@ -164,8 +166,9 @@ Updated together with the code, so this file always reflects reality.
 - [ ] Packs, second round: LUTs, fonts, templates, a validator, "collect
       resources", missing pack contents on open, licence on the install
       card, `credits.txt`, search in the libraries
-- [ ] AI tools: true background replacement (with alpha export), motion
-      tracking, frame interpolation, auto-cut
+- [ ] AI tools: alpha export of background removal (replacement with a
+      colour or an image is done, 2026-11-02), AI point tracking (the
+      OpenCV tracking is done), frame interpolation, auto-cut
 - [ ] Plugin system; natural-language assistant over the action registry
 - [ ] GPU backends (CUDA / OpenVINO / ROCm), hardware decoding
 - [ ] Packaging via PyInstaller (Windows, Linux, macOS); About / licences

@@ -213,6 +213,11 @@ Project
 Regole:
 - Tutti i tempi in **frame o rational**, mai float di secondi, per evitare
   drift. `utils/timecode.py` e' l'unico posto dove si converte.
+  *Stato reale (2026-11-02):* il modello e' piatto (`Project` con la sua
+  `frame_rate`, niente classe Sequence). In memoria i tempi sono secondi
+  che stanno SEMPRE su un frame esatto (`Project.conform` dopo ogni
+  modifica, in `ProjectService._edit`); su disco (schema 2) sono conteggi
+  di frame. La frequenza fa parte dello snapshot di undo.
 - Ogni entita' ha un `id` stabile (UUID) — la serializzazione usa gli id,
   mai gli indici di lista.
 - Il modello e' serializzabile senza dipendenze Qt.

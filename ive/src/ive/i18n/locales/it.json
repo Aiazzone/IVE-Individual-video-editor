@@ -496,5 +496,22 @@
   "tracking.lost_before": "Andando all'indietro il soggetto è stato perso a {t}: il percorso parte da lì.",
   "tracking.retrack": "Ritraccia da qui",
   "tracking.retrack_hint": "Il percorso sbaglia in un punto? Porta la testina lì, scegli la direzione e ridisegna il soggetto: viene riscritto solo quel tratto.",
-  "tracking.keep_relation": "Mantieni la posizione rispetto al soggetto"
+  "tracking.keep_relation": "Mantieni la posizione rispetto al soggetto",
+  "project.frame_rate": "Frequenza fotogrammi",
+  "settings.frame_rate": "Fotogrammi al secondo del progetto",
+  "settings.frame_rate.hint": "Ogni taglio, dissolvenza e keyframe cade su un fotogramma di questa frequenza. Auto la prende dal primo video. Salvata nel progetto.",
+  "settings.frame_rate.current": "Ora: {fps} fps.",
+  "cutout.group": "Rimuovi sfondo",
+  "cutout.label": "Rimuovi sfondo",
+  "cutout.select_hint": "Seleziona una clip video sulla timeline per rimuoverne lo sfondo.",
+  "cutout.hint": "Il soggetto resta; la scena dietro diventa un colore o un'immagine.",
+  "cutout.remove": "Rimuovi lo sfondo",
+  "cutout.mode.color": "Colore",
+  "cutout.mode.image": "Immagine",
+  "cutout.pick_image": "Scegli immagine…",
+  "cutout.feather": "Bordo morbido",
+  "cutout.shrink": "Restringi il bordo",
+  "cutout.download": "Scarica il modello ({mb} MB)",
+  "cutout.downloading": "Download…",
+  "cutout.backend_missing": "ONNX Runtime non è installato: la rimozione dello sfondo non è disponibile."
 }

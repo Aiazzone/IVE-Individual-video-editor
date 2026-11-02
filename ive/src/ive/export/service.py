@@ -23,6 +23,7 @@ from PySide6.QtCore import Property, QObject, Qt, QThread, Signal, Slot
 from ive.engine.builder import build_from_project
 from ive.engine.consumer import SequenceWalker
 from ive.media.decoder import VideoDecoder
+from ive.utils.timecode import parse_rate
 
 log = logging.getLogger(__name__)
 
@@ -107,10 +108,8 @@ def _can_open(name: str) -> bool:
     # that rejected every encoder on the machine until it was found.
 
 
-def _opens_at(name: str, width: int, height: int, pix_fmt: str, fps: float) -> bool:
+def _opens_at(name: str, width: int, height: int, pix_fmt: str, fps) -> bool:
     """Whether ``name`` opens with the settings the export will really use."""
-    from fractions import Fraction
-
     import av
 
     try:
@@ -118,7 +117,7 @@ def _opens_at(name: str, width: int, height: int, pix_fmt: str, fps: float) -> b
         context.width = width
         context.height = height
         context.pix_fmt = pix_fmt
-        context.framerate = Fraction(max(1, round(fps)), 1)
+        context.framerate = parse_rate(fps)
         context.open()
         return True
     except Exception as exc:
@@ -128,7 +127,7 @@ def _opens_at(name: str, width: int, height: int, pix_fmt: str, fps: float) -> b
 
 
 def encoder_for(logical: str, width: int, height: int, pix_fmt: str,
-                fps: float) -> str | None:
+                fps) -> str | None:
     """Pick an encoder that works **at the real export settings**.
 
     A small probe is not enough: h264_qsv opens happily at 64x64 and refuses
@@ -197,13 +196,16 @@ class _Worker(QObject):
             height -= height % 2
 
             logical = str(options.get("video_codec") or "h264")
-            fps = decoder.fps
+            # The SEQUENCE's rate, exact (30000/1001, not round(29.97) = 30:
+            # a 29.97 timeline written at 30 fps ran its picture 0.1% fast,
+            # 3.6 s per hour ahead of its own sound). A bare file keeps its
+            # own rate.
+            fps = parse_rate(options.get("fps") or decoder.fps)
             pix_fmt = "yuv422p10le" if logical == "prores" else "yuv420p"
             encoder = encoder_for(logical, width, height, pix_fmt, fps)
             if encoder is None:
                 self.failed.emit(f"no_encoder:{logical}")
                 return
-            fps = float(fps)
             if clips:
                 # Sticker spans arrive as pure data (a QVariantMap crossing
                 # the thread boundary would drop callables); the sprite
@@ -248,7 +250,7 @@ class _Worker(QObject):
 
             muxer = _MUXERS.get(str(options.get("container") or "mp4"), "mp4")
             container = av.open(str(tmp_path), "w", format=muxer)
-            stream = container.add_stream(encoder, rate=round(fps))
+            stream = container.add_stream(encoder, rate=fps)
             stream.width = width
             stream.height = height
             stream.pix_fmt = pix_fmt
@@ -591,8 +593,8 @@ class ExportService(QObject):
         not the whole story.
 
         Always the FIRST segment, never the clip under the playhead: the
-        sequence timebase is the first clip's (transport sets fps from it),
-        and fps and default dimensions are derived from this file. Matching
+        default dimensions are derived from this file (the RATE is the
+        project's, handed over as ``options["fps"]``). Matching
         the playhead clip made the exported file's frame rate and size depend
         on where the cursor happened to be parked.
         """
@@ -784,6 +786,10 @@ class ExportService(QObject):
         if clips:
             options = dict(options)
             options["clips"] = clips
+            rate = getattr(self._playback, "frameRate", "")
+            if isinstance(rate, str) and rate:
+                # The project's grid, exactly as the preview runs it.
+                options["fps"] = rate
             fit = getattr(self._playback, "canvas_fit", None)
             if callable(fit):
                 # The export composites with the SAME fit strategy the

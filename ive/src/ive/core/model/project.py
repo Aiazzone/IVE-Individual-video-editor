@@ -5,6 +5,15 @@ interface. The UI observes it through :mod:`ive.core.services.project_service`.
 
 Every stored file path is kept **relative to the project folder when possible**,
 so moving or sending a project folder does not break its media links.
+
+**The frame grid.** A project runs at one frame rate (``Project.rate``) and
+every sequence time - a clip's edges, a fade, a transition, a keyframe -
+lies ON that grid (``Project.snap_to_grid``, run after every edit by the
+service). In memory the times stay seconds, because every caller speaks
+seconds; on disk (schema 2) they are frame COUNTS, exact by construction.
+What is NOT on the grid: ``source_in`` (a time in the source file, whose
+own rate is not the sequence's) and the per-word timings of a subtitle
+(they come from speech, and karaoke reads them per frame anyway).
 """
 
 from __future__ import annotations
@@ -12,8 +21,12 @@ from __future__ import annotations
 import logging
 import uuid
 from dataclasses import dataclass, field, asdict
+from fractions import Fraction
 from pathlib import Path
 from typing import Any
+
+from ive.utils.timecode import (DEFAULT_RATE, frame_seconds, parse_rate,
+                                rate_to_str, snap, to_frames, to_seconds)
 
 log = logging.getLogger(__name__)
 
@@ -21,7 +34,12 @@ __all__ = ["Project", "MediaItem", "TimelineClip", "SCHEMA_VERSION",
            "PROJECT_SUFFIX"]
 
 #: Bumped whenever the on-disk shape changes; migrations live alongside.
-SCHEMA_VERSION = 1
+#: 2 (2026-11): sequence times are FRAME COUNTS at ``frame_rate``.
+SCHEMA_VERSION = 2
+
+#: Clip fields that are sequence times: seconds in memory, frames on disk.
+_GRID_FIELDS = ("start", "duration", "fade_in", "fade_out",
+                "transition_duration", "transition_in_duration")
 PROJECT_SUFFIX = ".iveproj"
 
 
@@ -44,6 +62,29 @@ def _clean_track_ref(raw: Any) -> dict:
     except (KeyError, TypeError, ValueError):
         return {}
     return ref if ref["target_h"] > 0 and ref["scale"] > 0 else {}
+
+
+#: Background removal: what replaces the scene behind the subject.
+CUTOUT_MODES = ("color", "image")
+
+
+def _clean_cutout(raw: Any) -> dict:
+    """A clip's background removal, or {} (off) when absent/malformed."""
+    if not isinstance(raw, dict) or raw.get("mode") not in CUTOUT_MODES:
+        return {}
+    colour = str(raw.get("color") or "#00B140")
+    if not (len(colour) == 7 and colour.startswith("#")
+            and all(c in "0123456789abcdefABCDEF" for c in colour[1:])):
+        colour = "#00B140"
+    out = {"mode": raw["mode"], "color": colour.upper(),
+           "image": str(raw.get("image") or "")}
+    for key, default in (("feather", 0.3), ("shrink", 0.1)):
+        try:
+            out[key] = round(min(1.0, max(0.0, float(raw.get(key, default)))),
+                             3)
+        except (TypeError, ValueError):
+            out[key] = default
+    return out
 
 
 def _as_str(value: Any, default: str = "") -> str:
@@ -240,6 +281,10 @@ class TimelineClip:
     #:  "target_h" (target height, canvas heights), "scale"}. Empty =
     #: never tracked.
     track_ref: dict = field(default_factory=dict)
+    #: A/V clips: background removal - {mode: color|image, color,
+    #: image (path, relative to the project folder when possible),
+    #: feather, shrink}; {} = the picture as shot. engine/cutout.py.
+    cutout: dict = field(default_factory=dict)
 
     @property
     def end(self) -> float:
@@ -322,6 +367,7 @@ class TimelineClip:
                 if isinstance(entry, dict) and "t" in entry
             ],
             track_ref=_clean_track_ref(data.get("track_ref")),
+            cutout=_clean_cutout(data.get("cutout")),
         )
 
 
@@ -336,6 +382,101 @@ class Project:
     timeline: list[TimelineClip] = field(default_factory=list)
     #: Free-form, for things later stages add without a schema bump.
     extras: dict[str, Any] = field(default_factory=dict)
+    #: The sequence frame rate. None = not decided yet: the first video
+    #: placed on the main track gives it (``adopt_frame_rate``), and it
+    #: then STAYS - deleting that clip does not move every cut onto a
+    #: different grid.
+    frame_rate: Fraction | None = None
+    #: The user picked the rate: never re-adopted from the footage.
+    frame_rate_chosen: bool = False
+
+    # ── frame grid ────────────────────────────────────────────────────
+
+    @property
+    def rate(self) -> Fraction:
+        """The grid everything snaps to (25 until a video decides)."""
+        return self.frame_rate or DEFAULT_RATE
+
+    def adopt_frame_rate(self) -> bool:
+        """Take the rate from the footage when nobody chose one.
+
+        The first A/V clip (by start) of the main track whose media has a
+        rate decides, once. A timeline left without any video forgets an
+        ADOPTED rate, so the next first video decides again; a chosen rate
+        is never touched. Returns whether the rate changed.
+        """
+        if self.frame_rate_chosen:
+            return False
+        before = self.frame_rate
+        rated = None
+        for clip in self.ordered_clips(0):
+            media = self.find_media(clip.media_id)
+            if media is not None and media.fps > 0:
+                rated = media
+                break
+        if rated is None:
+            self.frame_rate = None
+        elif self.frame_rate is None:
+            self.frame_rate = parse_rate(rated.fps)
+        return self.frame_rate != before
+
+    def set_frame_rate(self, value) -> bool:
+        """The user's choice; ``"auto"`` hands it back to the footage."""
+        if value in ("auto", "", None):
+            if not self.frame_rate_chosen:
+                return False
+            self.frame_rate_chosen = False
+            self.frame_rate = None
+            self.adopt_frame_rate()
+            return True
+        rate = parse_rate(value, default=None)
+        if rate is None:
+            return False
+        if self.frame_rate_chosen and rate == self.frame_rate:
+            return False
+        self.frame_rate = rate
+        self.frame_rate_chosen = True
+        return True
+
+    def snap_to_grid(self) -> bool:
+        """Every sequence time onto the frame grid; True if any moved.
+
+        EDGES are snapped, not lengths: a clip's start and end each go to
+        their nearest frame and the duration is what lies between, so two
+        clips that touched still touch (they shared the boundary value).
+        Rounding start and length separately was the classic one-frame
+        gap or overlap. Idempotent: a second pass changes nothing.
+        """
+        rate = self.rate
+        one = frame_seconds(rate)
+        changed = False
+        for clip in self.timeline:
+            first = to_frames(clip.start, rate)
+            last = max(first + 1, to_frames(clip.start + clip.duration, rate))
+            start = to_seconds(first, rate)
+            duration = to_seconds(last - first, rate)
+            # Snapped only: how long a fade may be is set_clip_fades'
+            # rule, not the grid's (a split tail keeps its fade-out).
+            fade_in = snap(clip.fade_in, rate)
+            fade_out = snap(clip.fade_out, rate)
+            t_out = max(one, snap(clip.transition_duration, rate))
+            t_in = max(one, snap(clip.transition_in_duration, rate))
+            keys = _snap_keyframes(clip.keyframes, rate)
+            new = (start, duration, fade_in, fade_out, t_out, t_in, keys)
+            old = (clip.start, clip.duration, clip.fade_in, clip.fade_out,
+                   clip.transition_duration, clip.transition_in_duration,
+                   clip.keyframes)
+            if new != old:
+                (clip.start, clip.duration, clip.fade_in, clip.fade_out,
+                 clip.transition_duration, clip.transition_in_duration,
+                 clip.keyframes) = new
+                changed = True
+        return changed
+
+    def conform(self) -> bool:
+        """Settle the rate, then the grid: what every edit ends with."""
+        adopted = self.adopt_frame_rate()
+        return self.snap_to_grid() or adopted
 
     # ── paths ─────────────────────────────────────────────────────────
 
@@ -420,8 +561,12 @@ class Project:
         """
         if not left.transition_id:
             return 0.0
-        return max(0.0, min(left.transition_duration,
-                            left.duration / 2, right.duration / 2))
+        overlap = max(0.0, min(left.transition_duration,
+                               left.duration / 2, right.duration / 2))
+        # Whole frames, rounded DOWN: half of an odd-length clip is half a
+        # frame, and a start on half a frame is a cut between two pictures.
+        rate = self.rate
+        return to_seconds(int(overlap * float(rate) + 1e-6), rate)
 
     def _lay(self, ordered: list["TimelineClip"]) -> None:
         """Positions for a run of clips: back to back, except that a clip
@@ -765,6 +910,23 @@ class Project:
                                  "right": right, "bottom": bottom})
         return True
 
+    def set_clip_cutout(self, clip_id: str, settings: dict) -> bool:
+        """Remove (or restore, with an empty/"off" mode) a clip's
+        background. Only clips with a PICTURE: a sound has no scene."""
+        clip = self.find_clip(clip_id)
+        if clip is None or clip.track != 0:
+            return False
+        media = self.find_media(clip.media_id)
+        if media is None or media.width <= 0:
+            return False
+        cleaned = _clean_cutout(settings)
+        if cleaned.get("image"):
+            cleaned["image"] = self.relative_to_base(Path(cleaned["image"]))
+        if cleaned == clip.cutout:
+            return False
+        clip.cutout = cleaned
+        return True
+
     def set_clip_opacity(self, clip_id: str, opacity: float) -> bool:
         """Fade an A/V clip towards what sits underneath it."""
         clip = self.find_clip(clip_id)
@@ -1058,7 +1220,9 @@ class Project:
         clip = self.find_clip(clip_id)
         if clip is None:
             return None
-        offset = at - clip.start
+        # The cut falls on a frame, so the second half's source_in is the
+        # exact continuation of the first half's last picture.
+        offset = snap(at, self.rate) - clip.start
         # A hair from either edge is a misclick, not a cut.
         minimum = 0.05
         if offset < minimum or offset > clip.duration - minimum:
@@ -1091,6 +1255,8 @@ class Project:
             # the second half that meets the next clip.
             transition_id=clip.transition_id,
             transition_duration=clip.transition_duration,
+            # The new backdrop is the clip's, on both sides of the cut.
+            cutout=dict(clip.cutout),
         )
         clip.duration = offset
         clip.fade_out = 0.0
@@ -1198,12 +1364,17 @@ class Project:
     # ── serialisation ─────────────────────────────────────────────────
 
     def to_dict(self) -> dict[str, Any]:
+        """The on-disk document: sequence times as FRAMES at ``rate``."""
+        rate = self.rate
         return {
             "schema_version": SCHEMA_VERSION,
             "id": self.id,
             "name": self.name,
+            "frame_rate": rate_to_str(rate),
+            "frame_rate_chosen": self.frame_rate_chosen,
             "media": [m.to_dict() for m in self.media],
-            "timeline": [c.to_dict() for c in self.timeline],
+            "timeline": [_clip_to_frames(c.to_dict(), rate)
+                         for c in self.timeline],
             "extras": self.extras,
         }
 
@@ -1227,20 +1398,78 @@ class Project:
                 media.append(MediaItem.from_dict(entry))
             except ValueError as exc:
                 log.warning("Skipping a media entry: %s", exc)
+        # Schema 1 stored seconds and had no rate: the rate is adopted
+        # from the footage below and the times snapped onto its grid -
+        # the migration. Schema 2 stores frames at its own rate.
+        stored_rate = parse_rate(data.get("frame_rate"), default=None)
+        in_frames = version >= 2 and stored_rate is not None
         timeline: list[TimelineClip] = []
         for entry in data.get("timeline") or []:
             if not isinstance(entry, dict):
                 continue
             try:
+                if in_frames:
+                    entry = _clip_from_frames(entry, stored_rate)
                 timeline.append(TimelineClip.from_dict(entry))
-            except ValueError as exc:
+            except (ValueError, TypeError) as exc:
                 log.warning("Skipping a timeline clip: %s", exc)
         extras = data.get("extras")
-        return cls(
+        project = cls(
             id=_as_str(data.get("id")) or _new_id(),
             name=_as_str(data.get("name")) or "Untitled",
             folder=folder,
             media=media,
             timeline=timeline,
             extras=dict(extras) if isinstance(extras, dict) else {},
+            frame_rate=stored_rate if version >= 2 else None,
+            frame_rate_chosen=bool(data.get("frame_rate_chosen", False))
+            and stored_rate is not None,
         )
+        if version < 2:
+            log.info("Project schema %d: times move onto the frame grid",
+                     version)
+        project.conform()
+        return project
+
+
+def _snap_keyframes(keyframes: list, rate: Fraction) -> list:
+    """Pins onto the grid; two on one frame become one.
+
+    Pins past the clip's end are KEPT where they are: a trim that hid
+    them must give them back when the clip is stretched again.
+
+    A path tracked at the SOURCE rate (60 fps footage in a 30 fps
+    sequence) puts two pins on one sequence frame: they merge, the later
+    pin's values winning, every parameter either one pinned kept.
+    """
+    if not keyframes:
+        return keyframes
+    merged: dict[int, dict] = {}
+    for key in keyframes:
+        frame = max(0, to_frames(float(key.get("t", 0.0)), rate))
+        pin = merged.setdefault(frame, {})
+        pin.update(key)
+        pin["t"] = to_seconds(frame, rate)
+    return [merged[f] for f in sorted(merged)]
+
+
+def _clip_to_frames(document: dict, rate: Fraction) -> dict:
+    out = dict(document)
+    for name in _GRID_FIELDS:
+        out[name] = to_frames(float(out.get(name) or 0.0), rate)
+    if out.get("keyframes"):
+        out["keyframes"] = [dict(k, t=to_frames(float(k.get("t", 0.0)), rate))
+                            for k in out["keyframes"]]
+    return out
+
+
+def _clip_from_frames(document: dict, rate: Fraction) -> dict:
+    out = dict(document)
+    for name in _GRID_FIELDS:
+        if name in out:
+            out[name] = to_seconds(_as_int(out[name]), rate)
+    keys = out.get("keyframes")
+    if isinstance(keys, list):
+        out["keyframes"] = [dict(k, t=to_seconds(_as_int(k.get("t")), rate))
+                            for k in keys if isinstance(k, dict) and "t" in k]
+    return out

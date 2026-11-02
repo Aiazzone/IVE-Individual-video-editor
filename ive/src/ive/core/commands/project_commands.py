@@ -78,6 +78,9 @@ class ProjectEdit(Command):
         state: dict[str, Any] = {}
         if self._timeline:
             state["timeline"] = copy.deepcopy(project.timeline)
+            # The grid the times sit on is part of the timeline: undoing a
+            # rate change must bring the old rate back with the old times.
+            state["rate"] = (project.frame_rate, project.frame_rate_chosen)
         if self._media:
             state["media"] = copy.deepcopy(project.media)
         return state
@@ -91,6 +94,8 @@ class ProjectEdit(Command):
             return
         if self._timeline:
             project.timeline = copy.deepcopy(state["timeline"])
+            if "rate" in state:
+                project.frame_rate, project.frame_rate_chosen = state["rate"]
         if self._media:
             project.media = copy.deepcopy(state["media"])
         self._service._history_restored(media_changed=self._media,

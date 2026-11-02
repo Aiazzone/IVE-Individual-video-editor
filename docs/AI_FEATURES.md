@@ -245,6 +245,50 @@ Punti importanti:
 non-commercial. Questa e' l'area con i vincoli piu' stretti — vedi §4 di
 `docs/LICENSING.md`.
 
+### Stato (2026-11-02): sostituzione dello sfondo per clip — Fase A
+
+Fatta sulla maschera che c'era gia' (u2netp, §6-bis), nessun modello o
+dipendenza nuova:
+
+- **Modello**: `TimelineClip.cutout` = `{mode: color|image, color,
+  image, feather, shrink}`, `{}` = spento. Solo clip A/V con immagine
+  (traccia 0). L'immagine e' salvata **relativa** alla cartella del
+  progetto quando ci sta dentro; il servizio la passa al grafo assoluta.
+  Lo split la copia su entrambe le meta'. Un passo di undo per modifica.
+- **Motore**: `engine/cutout.py`, filtro `Cutout` sull'**entry** della
+  clip, PRIMA di `Placement`: il nuovo sfondo appartiene all'immagine
+  della clip e si muove/scala/sfuma con lei (verificato con clip
+  posizionata). Colore pieno o immagine fissa cover-fit (letta con
+  `imdecode`: `imread` non apre percorsi non-ASCII su Windows; un file
+  mancante ricade sul colore, mai buchi neri).
+- **Bordo**: `shrink` erode la maschera (u2netp lascia un alone della
+  vecchia scena attorno ai capelli), `feather` la sfuma.
+- **Sfarfallio**: i fotogrammi CONSECUTIVI fondono la maschera con la
+  precedente (`STABILITY` = 0,4): passa-basso temporale che calma il
+  bordo al prezzo di un frame di ritardo sui movimenti veloci; si
+  azzera su ogni salto (seek, lettura fuori ordine).
+- **Senza modello**: la clip si vede INVARIATA (stesso contratto delle
+  op a maschera); la scheda offre il download (`cutout.download_model`).
+- **UI**: scheda "Rimuovi sfondo" in cima al pannello Effetti
+  (`components/CutoutCard.qml`): interruttore, Colore/Immagine, cinque
+  colori (verde e blu per ri-chiavarlo altrove), scelta immagine, bordo
+  morbido e restringi. Stato del modello da `ui/cutout_service.py`.
+- **Azione**: `timeline.set_clip_cutout` (mode color|image|off).
+- Test: `tests/test_cutout.py` (maschera finta = pixel attesi esatti,
+  grafo, clip posizionata, export; piu' u2netp vero se installato) e
+  `tests/visual/test_cutout_ui.py` (lo sfondo diventa verde
+  nell'anteprima vera, la figura resta).
+- Misurato: ~45 ms a fotogramma con u2netp su DirectML dopo il primo
+  caricamento della sessione (~2 s).
+
+**Resta (Fase B):** export con canale alpha (ProRes 4444 / VP9 con alpha):
+il motore compone in RGB e la "traccia nera" e' implicita anche in
+`Placement` e nelle dissolvenze, quindi serve portare l'alpha lungo il
+grafo — lavoro sul motore, non sull'AI. Poi: sfondo video, pennello di
+correzione della maschera, cache delle maschere su disco per CPU senza
+DirectML (446 ms/frame), un modello di matting migliore sui capelli
+(licenza da verificare: RVM e' GPL, MODNet non-commercial).
+
 ### 6-bis. Segmentazione del soggetto (IMPLEMENTATA, 2026-08-28 — Fase A)
 
 L'ingrediente comune degli effetti a maschera del pannello Effetti

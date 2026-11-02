@@ -257,8 +257,20 @@ richiede di cambiare il modello di progetto, le azioni o l'interfaccia.**
 6. **Ogni producer e' sostituibile.** Il tipo che sta sopra non deve sapere se
    sotto c'e' PyAV, un generatore di colore o un tractor MLT.
 7. **Tutto in frame, mai in secondi**, dentro il motore. I secondi restano
-   all'interfaccia. Il modello di progetto oggi usa i secondi: e' un debito
-   da chiudere quando arriva il timebase della sequenza.
+   all'interfaccia. Dal 2026-11-02 il modello sta sulla **griglia della
+   sequenza**: il progetto ha una frequenza esatta (`Fraction`, adottata
+   dal primo video o scelta), ogni tempo di sequenza e' un multiplo esatto
+   di un frame (`Project.conform` dopo ogni modifica) e su disco e' un
+   conteggio di frame. Il builder converte i **bordi** (inizio e fine) e
+   ricava la durata come differenza, mai arrotondando durata e inizio
+   separatamente. Fuori dalla griglia, di proposito: `source_in` (tempo
+   del file sorgente, che ha la sua frequenza) e i tempi delle parole dei
+   sottotitoli. Gli arrotondamenti a meta' frame vanno sempre AVANTI
+   (`utils/timecode.to_frames`), non al pari come `round()`. Anche il
+   **playhead** sta sulla griglia: un seek o una pausa lo parcheggiano
+   all'INIZIO del frame che mostra (`transport._frame_start`); prima
+   restava fra due frame, mostrava quello troncato e un taglio li'
+   cadeva sul successivo.
 
 ---
 
@@ -342,7 +354,7 @@ clip in fila, export che ricodifica un file.
 - [x] `PreviewConsumer` ed `ExportConsumer` **sullo stesso grafo** —
       chiude la violazione di `ARCHITECTURE.md` §5
 - [x] decodifica audio e mixer sullo stack audio
-- [ ] timebase della sequenza: modello in frame, non in secondi
+- [x] timebase della sequenza: modello sulla griglia dei frame (2026-11-02)
 
 **Chiuso il 2026-08-09:** anteprima ed export tirano lo **stesso grafo**,
 derivato dallo stesso modello. `PlaybackService` non apre piu' decoder per
@@ -359,7 +371,8 @@ lavoro sprecato che l'utente scopre dopo. Verificato da
   che sfoca il fotogramma del canvas — si scurisce di conseguenza. Corretto
   come modello (il canvas appartiene al progetto), ma va reso una **scelta
   esplicita**: canvas di progetto come da `EXPORT_PRESETS.md`.
-- Il modello di progetto misura in secondi.
+- ~~Il modello di progetto misura in secondi.~~ Chiuso il 2026-11-02:
+  griglia dei frame, vedi la regola 7.
 - L'export non porta ancora l'audio nel file (il grafo lo produce; manca il
   muxing in `export/service.py`, insieme al fix dei rate frazionari
   `rate=round(fps)`).

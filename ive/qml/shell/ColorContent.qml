@@ -147,6 +147,15 @@ Item {
             onPicked: function (v) { root.tab = v; }
         }
 
+        // ── background removal on the selected video clip ─────────
+        // The Effects panel's own tool: the AI subject effects tint
+        // the scene, this one REPLACES it.
+        CutoutCard {
+            objectName: "cutout_card"
+            visible: root.catalog === "fx"
+                     && root.tab === "colors" && root.section === ""
+        }
+
         // ── the manual grade ──────────────────────────────────────
         // Nine dials on the SELECTED Color-lane clip - an effect gets
         // hand adjustments layered on top of its recipe, an "Adjust"

@@ -13,15 +13,16 @@ something and hope the model catches up.
 from __future__ import annotations
 
 import logging
-from fractions import Fraction
 from pathlib import Path
 
+from ive.engine.cutout import Cutout
 from ive.engine.filters import AudioEffect, AudioRamp, Gain, Placement
 from ive.engine.frame import AudioFormat, Timebase
 from ive.engine.playlist import Entry, Playlist
 from ive.engine.producer import (ClipProducer, ColourProducer, Producer,
                                  SpeedProducer)
 from ive.engine.tractor import Track, Tractor
+from ive.utils.timecode import parse_rate
 
 log = logging.getLogger(__name__)
 
@@ -76,6 +77,14 @@ class GraphBuilder:
             log.info("Sequence timebase changed to %s: reopening %d producer(s)",
                      value, len(self._producers))
             self.close()
+
+    def _span(self, clip: dict) -> tuple[int, int]:
+        """(first frame, frame count) of a ``start``/``duration`` dict."""
+        start_s = float(clip.get("start") or 0.0)
+        first = self.timebase.seconds_to_frames(start_s)
+        last = self.timebase.seconds_to_frames(
+            start_s + float(clip.get("duration") or 0.0))
+        return first, last - first
 
     # ── producers ─────────────────────────────────────────────────────
 
@@ -196,8 +205,11 @@ class GraphBuilder:
         used_keys: set[str] = set()
         prev_end = None
         for clip in usable:
-            start = self.timebase.seconds_to_frames(float(clip.get("start") or 0.0))
-            length = self.timebase.seconds_to_frames(float(clip.get("duration") or 0.0))
+            # EDGES to frames, the length is what lies between: rounding
+            # start and duration separately left a one-frame gap (or
+            # overlap) between clips that touch whenever both rounded the
+            # same way at a boundary that sits between two frames.
+            start, length = self._span(clip)
             if length <= 0:
                 continue
             if prev_end is not None and start < prev_end:
@@ -255,6 +267,10 @@ class GraphBuilder:
                 entry.filters.append(AudioRamp(
                     start + max(0, length - fade_out), start + length,
                     rising=False))
+            # Background removal FIRST: the new backdrop belongs to the
+            # clip's picture, so placement and crop then move it along.
+            if (clip.get("cutout") or {}).get("mode"):
+                entry.filters.append(Cutout(clip))
             # The clip's canvas dressing - placement, crop, opacity and
             # their keyframes: the filter reads the CLIP DICT at process
             # time, so the transport's live handle drag mutates this
@@ -338,10 +354,7 @@ class GraphBuilder:
             path = str(span.get("path") or "")
             if not path or not Path(path).is_file():
                 continue
-            m_start = self.timebase.seconds_to_frames(
-                float(span.get("start") or 0.0))
-            m_length = self.timebase.seconds_to_frames(
-                float(span.get("duration") or 0.0))
+            m_start, m_length = self._span(span)
             m_length = min(m_length, max(0, total - m_start))
             if m_length <= 0:
                 continue
@@ -454,7 +467,7 @@ class GraphBuilder:
         return tractor
 
 
-def build_from_project(clips: list[dict], *, fps: float = 25.0,
+def build_from_project(clips: list[dict], *, fps=25.0,
                        width: int = DEFAULT_WIDTH,
                        height: int = DEFAULT_HEIGHT,
                        proxies=None, use_proxies: bool = True,
@@ -464,8 +477,12 @@ def build_from_project(clips: list[dict], *, fps: float = 25.0,
                        transition_spans: list[dict] | None = None,
                        music_spans: list[dict] | None = None,
                        canvas_fit: str = "fit") -> Tractor:
-    """One-shot build, for tests and scripts."""
-    builder = GraphBuilder(Timebase(Fraction(fps).limit_denominator(1001)),
+    """One-shot build, for tests, scripts and the export.
+
+    ``fps`` takes any spelling of a rate (``"30000/1001"``, a Fraction,
+    ``29.97``); it is made exact before it becomes the timebase.
+    """
+    builder = GraphBuilder(Timebase(parse_rate(fps)),
                            AudioFormat(), width, height, proxies, use_proxies)
     builder.canvas_fit = canvas_fit
     return builder.build(clips, color_spans, sticker_spans, text_spans,

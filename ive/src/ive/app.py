@@ -149,6 +149,12 @@ class Application:
         # The AI Models tab (driven by SubtitleService) fetches and removes
         # VitTrack too; the tracking state must follow it live.
         self.subtitles.stateChanged.connect(self.tracking.refresh)
+        from ive.ui.cutout_service import CutoutService
+
+        # Background removal reads the segmentation model's state, which
+        # the same downloads change.
+        self.cutout = CutoutService()
+        self.subtitles.stateChanged.connect(self.cutout.refresh)
         register_singletons(
             theme=self.theme,
             translations=self.translations,
@@ -172,6 +178,7 @@ class Application:
             subtitles=self.subtitles,
             tracking=self.tracking,
             online=self.online,
+            cutout=self.cutout,
         )
         # Same rule as the singletons: register before the engine exists.
         qmlRegisterType(PreviewItem, "IVE", 1, 0, "PreviewItem")
@@ -270,6 +277,7 @@ class Application:
         from ive.core.actions.builtin import subtitle_actions  # noqa: F401
         from ive.core.actions.builtin import tracking_actions  # noqa: F401
         from ive.core.actions.builtin import online_actions  # noqa: F401
+        from ive.core.actions.builtin import cutout_actions  # noqa: F401
 
         self.registry.add_pending()
         log.info("Registered %d actions", len(tuple(self.registry.all())))
@@ -361,6 +369,7 @@ class Application:
         clips = self.project.timelineClips
         if clips:
             self._warm_masks(clips)
+            self.playback.set_frame_rate(self.project.frameRate)
             self.playback.open_sequence(clips)
         elif self.playback.isSequence:
             # The timeline emptied out; stop pretending there is something.
@@ -377,11 +386,12 @@ class Application:
         from ive.color.library import ops_for
 
         for clip in clips:
-            if int(clip.get("track") or 0) not in (1, 5):
+            masked = bool((clip.get("cutout") or {}).get("mode"))
+            if not masked and int(clip.get("track") or 0) not in (1, 5):
                 continue
-            ops = ops_for(str(clip.get("effectId") or ""))
-            if any(str(op.get("op") or "") in self._MASKED_OP_NAMES
-                   for op in ops):
+            ops = [] if masked else ops_for(str(clip.get("effectId") or ""))
+            if masked or any(str(op.get("op") or "") in self._MASKED_OP_NAMES
+                             for op in ops):
                 from ive.ai.segmentation import warm_up
 
                 warm_up()

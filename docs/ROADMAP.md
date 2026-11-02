@@ -73,16 +73,20 @@ PySide6/QML incontrate qui sono documentate in `CODING_STANDARDS.md` §3-bis.
       grade, motion e keyframe sono campi del clip. Una sola sequenza per
       progetto. Tracce video multiple / picture-in-picture: **da fare**, ed
       e' il punto in cui il modello piatto andra' ripensato
-- [ ] `utils/timecode.py` con test esaustivi (incluso drop-frame) — non
-      esiste; il tempo e' in secondi float ovunque, il timecode a schermo e'
-      formattato nel transport. Va insieme alla timebase in frame (Fase 4-bis)
+- [x] `utils/timecode.py` con test esaustivi (incluso drop-frame) —
+      fatto il 2026-11-02 (`tests/test_timebase.py`): rate esatte come
+      `Fraction` (29.97 = 30000/1001), frame ↔ secondi, timecode SMPTE
+      drop-frame a 29.97/59.94 in entrambe le direzioni (round-trip su un
+      giorno intero). Il transport formatta da qui
 - [x] Persistenza — dentro `Project.to_dict/from_dict` e
       `ProjectService.open/save`, non in un `project_io/` separato: JSON con
       `schema_version` (=1), lettura tollerante (campi ignoti ignorati, file
       di versione piu' nuova aperto con avviso), scrittura atomica
       (`.tmp` + rename), **autosave a ogni edit**, media mancanti marcati
-      all'apertura senza bloccarla. **Resta:** un vero meccanismo di
-      *migrations* (servira' al primo schema 2) e un autosave su file
+      all'apertura senza bloccarla. Schema 2 (2026-11-02): tempi in frame;
+      la migrazione da 1 e' in `Project.from_dict` (adotta la frequenza,
+      aggancia i tempi alla griglia). **Resta:** un modulo di *migrations*
+      separato quando ne servira' una seconda, e un autosave su file
       separato con recupero dopo crash
 - [x] Commands: ogni mutazione del progetto (place/move/remove/split/trim/
       volume/mute/audio/effetto/import/remove media) passa da `ProjectEdit`
@@ -266,10 +270,18 @@ Vedi `docs/ENGINE.md`. Senza questo, ogni effetto aggiunto e' debito.
 - [x] `ClipProducer` (PyAV), `ColourProducer`, `Playlist`, `Multitrack`, `Tractor`
 - [x] `PreviewConsumer` ed `ExportConsumer` sullo **stesso** grafo
 - [x] Decodifica audio e mixer sullo stack audio (`tests/test_audio_graph.py`)
-- [ ] Timebase della sequenza: il modello passa da secondi a frame —
-      **ancora aperto** (audit 2026-09-19: `TimelineClip` e' in secondi
-      float). E' il debito strutturale piu' vecchio: piu' feature si
-      appoggiano ai secondi, piu' costa. Da fare insieme a `utils/timecode.py`
+- [x] Timebase della sequenza (2026-11-02): il progetto ha la SUA
+      frequenza (`Project.frame_rate`, adottata dal primo video e poi
+      ferma, o scelta dall'utente in Impostazioni > Layout, annullabile);
+      ogni modifica finisce sulla griglia dei frame (`Project.conform` in
+      `ProjectService._edit`, un solo punto); su disco i tempi sono
+      **conteggi di frame** (schema 2). In memoria restano secondi, ma
+      sempre multipli esatti di un frame. Corretti tre errori reali:
+      inizio e durata arrotondati separatamente (buco/sovrapposizione di
+      un frame fra clip che si toccano), sequenza alla frequenza del
+      primo clip (cancellarlo cambiava la griglia), export a
+      `round(29.97)` = 30 fps (immagine 3,6 s/ora avanti al suono) e
+      timecode non drop-frame a 29.97. Vedi `ENGINE.md` §6 regola 7
 - [x] Traccia nera in fondo, come Kdenlive
 
 **Fatto quando:** un effetto di prova applicato a una clip si vede identico in
@@ -440,9 +452,12 @@ Nell'ordine, per rapporto valore/rischio:
       su ONNX Runtime, provider scelto a runtime (DirectML 34 ms/frame vs
       446 su CPU sulla macchina di sviluppo), una maschera condivisa da
       tutte le op mascherate del motore, sessione scaldata all'avvio
-- [~] **Rimozione sfondo** — la maschera c'e' e guida gia' sfondo
-      sfocato/grigio/parallasse; **manca** la rimozione vera: sfondo
-      sostituito (colore, immagine, video) ed export con alpha
+- [~] **Rimozione sfondo** — Fase A fatta (2026-11-02): sfondo di una
+      clip sostituito da un colore o un'immagine (`engine/cutout.py`,
+      scheda nel pannello Effetti, `timeline.set_clip_cutout`), bordo
+      regolabile, sfarfallio attenuato fra frame consecutivi, export
+      incluso. **Manca:** export con alpha (serve l'alpha lungo il
+      grafo), sfondo video, pennello di correzione. `AI_FEATURES.md` §6
 - [x] **Ducking «intelligente»** (2026-08-23): Silero VAD in `audio/vad.py`,
       modalita' globale semplice/intelligente, ombra sul letto musicale dove
       il ducking lo abbassa (`ui/duck_shades.py`)
@@ -521,8 +536,8 @@ e un backend rotto degrada a CPU senza che l'utente perda lavoro.
 
 In ordine di rischio, non di comodita':
 
-1. **Timebase in frame + `utils/timecode.py`** (Fase 4-bis / 1). Debito
-   strutturale: ogni feature nuova lo rende piu' caro.
+1. ~~**Timebase in frame + `utils/timecode.py`**~~ — fatto il
+   2026-11-02 (Fase 4-bis / 1).
 2. **Verifica su Linux e macOS.** Tutto e' verificato solo su Windows; la
    regola 5 qui sotto non e' soddisfatta per nessuna fase. Serve insieme a
    **CI + lint + un runner unico** per le 53 suite a script (Fase 0).
@@ -536,8 +551,9 @@ In ordine di rischio, non di comodita':
 6. **Font bundled** e stili di testo come preset (Fase 5).
 7. **Colore avanzato**: curve, HSL per gamma, LUT; editor curve dei
    keyframe; time remap; speed con pitch preservato.
-8. **AI**: rimozione sfondo vera (sostituzione + alpha), motion tracking,
-   frame interpolation, `AITask.estimate`, sottotitoli ASS.
+8. **AI**: export con alpha della rimozione sfondo (la sostituzione
+   c'e' dal 2026-11-02), point tracking AI, frame interpolation,
+   `AITask.estimate`, sottotitoli ASS.
 9. **Fase 6B (plugin)**, **Fase 8 (assistente)**, **Fase 9 (backend GPU,
    hwaccel in decodifica)**: intere, nessun codice. Per la Fase 8 la base
    c'e': oltre 100 azioni con schema e la command palette che gia' le elenca.

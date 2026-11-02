@@ -496,5 +496,22 @@
   "tracking.lost_before": "Hacia atrás se perdió el objetivo en {t}; el recorrido empieza ahí.",
   "tracking.retrack": "Volver a seguir desde aquí",
   "tracking.retrack_hint": "¿El recorrido falla en algún punto? Lleva el cabezal allí, elige la dirección y vuelve a dibujar el objetivo: solo se reescribe ese tramo.",
-  "tracking.keep_relation": "Mantener su posición respecto al objetivo"
+  "tracking.keep_relation": "Mantener su posición respecto al objetivo",
+  "project.frame_rate": "Velocidad de fotogramas",
+  "settings.frame_rate": "Fotogramas por segundo del proyecto",
+  "settings.frame_rate.hint": "Cada corte, fundido y fotograma clave cae en un fotograma de esta velocidad. Auto la toma del primer vídeo. Se guarda en el proyecto.",
+  "settings.frame_rate.current": "Ahora: {fps} fps.",
+  "cutout.group": "Quitar fondo",
+  "cutout.label": "Quitar fondo",
+  "cutout.select_hint": "Selecciona un clip de vídeo en la línea de tiempo para quitarle el fondo.",
+  "cutout.hint": "El sujeto se queda; la escena de detrás pasa a ser un color o una imagen.",
+  "cutout.remove": "Quitar el fondo",
+  "cutout.mode.color": "Color",
+  "cutout.mode.image": "Imagen",
+  "cutout.pick_image": "Elegir imagen…",
+  "cutout.feather": "Borde suave",
+  "cutout.shrink": "Encoger el borde",
+  "cutout.download": "Descargar el modelo ({mb} MB)",
+  "cutout.downloading": "Descargando…",
+  "cutout.backend_missing": "ONNX Runtime no está instalado: quitar el fondo no está disponible."
 }

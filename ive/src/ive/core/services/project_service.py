@@ -287,6 +287,7 @@ class ProjectService(QObject):
                 "opacity": clip.opacity,
                 "keyframes": [dict(k) for k in clip.keyframes],
                 "trackRef": dict(clip.track_ref),
+                "cutout": self._cutout_out(clip),
                 "words": list(clip.words),
                 "karaoke": clip.karaoke,
                 "karaokeColor": clip.karaoke_color,
@@ -305,6 +306,42 @@ class ProjectService(QObject):
     @Property(int, notify=timelineChanged)
     def timelineCount(self) -> int:
         return len(self._project.timeline) if self._project else 0
+
+    # ── frame rate (the sequence grid) ────────────────────────────────
+
+    @Property(str, notify=timelineChanged)
+    def frameRate(self) -> str:
+        """The sequence rate, exact: ``"30000/1001"``, ``"25"``."""
+        from ive.utils.timecode import rate_to_str
+
+        return rate_to_str(self._project.rate) if self._project else "25"
+
+    @Property(str, notify=timelineChanged)
+    def frameRateLabel(self) -> str:
+        """The rate as read: ``"29.97"``."""
+        from ive.utils.timecode import rate_label
+
+        return rate_label(self._project.rate) if self._project else "25"
+
+    @Property(str, notify=timelineChanged)
+    def frameRateChoice(self) -> str:
+        """``"auto"`` while the footage decides, else the chosen rate."""
+        if self._project is None or not self._project.frame_rate_chosen:
+            return "auto"
+        return self.frameRate
+
+    @Slot(str, result=bool)
+    def set_frame_rate(self, value: str) -> bool:
+        """Put the sequence on another grid (``"auto"`` = the footage's).
+
+        Every time keeps its place in SECONDS and snaps to the nearest
+        frame of the new grid: a cut moves by at most half a frame.
+        """
+        if self._project is None:
+            return False
+        log.info("Frame rate -> %s", value)
+        return self._edit("project.frame_rate",
+                          lambda: self._project.set_frame_rate(value))
 
     # Every mutating slot below has the same shape: validate what needs the
     # service (lookups, logging), then hand the actual mutation to _edit(),
@@ -734,6 +771,33 @@ class ProjectService(QObject):
         return self._edit("video.crop",
                           lambda: self._project.set_clip_crop(
                               clip_id, left, top, right, bottom))
+
+    def _cutout_out(self, clip) -> dict:
+        """The clip's background removal with an ABSOLUTE image path,
+        ready for the graph (the model keeps it project-relative)."""
+        if not clip.cutout:
+            return {}
+        out = dict(clip.cutout)
+        if out.get("image"):
+            path = Path(out["image"])
+            if not path.is_absolute() and self._project.base is not None:
+                path = self._project.base / path
+            out["image"] = str(path)
+        return out
+
+    @Slot(str, str, str, str, float, float, result=bool)
+    def set_clip_cutout(self, clip_id: str, mode: str, color: str = "",
+                        image: str = "", feather: float = 0.3,
+                        shrink: float = 0.1) -> bool:
+        """Remove a clip's background (mode color/image) or restore it
+        (mode "" / "off"). One undo step."""
+        settings = {"mode": mode, "color": color,
+                    "image": _strip_url(image) if image else "",
+                    "feather": feather, "shrink": shrink}
+        log.info("Background removal on %s -> %s", clip_id, mode or "off")
+        return self._edit("cutout.label",
+                          lambda: self._project.set_clip_cutout(clip_id,
+                                                                settings))
 
     @Slot(str, float, result=bool)
     def set_clip_opacity(self, clip_id: str, opacity: float) -> bool:
@@ -1533,6 +1597,18 @@ class ProjectService(QObject):
         """
         if self._project is None:
             return False
+        if timeline:
+            inner = mutate
+
+            def mutate():
+                # Every timeline edit ends ON the frame grid (and settles
+                # the rate the first video brings): one choke point, so no
+                # operation can leave a cut between two frames.
+                result = inner()
+                if result:
+                    self._project.conform()
+                return result
+
         if self._history is None:
             if not mutate():
                 return False

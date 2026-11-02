@@ -31,6 +31,9 @@ Trappole note (documentate qui perche' costano ore):
   `docs/LICENSING.md` §3. E' la decisione piu' vincolante del progetto.
 - I timestamp (`pts`/`dts`) sono in `time_base` del flusso, non in secondi.
   Le conversioni passano **solo** da `utils/timecode.py`.
+- L'export scrive alla frequenza **esatta** della sequenza (`Fraction`,
+  30000/1001 per 29.97): fino al 2026-11 usava `round(fps)` e un 29.97
+  usciva a 30 fps, con l'immagine che anticipava il suono di 3,6 s/ora.
 - Il seek "veloce" arriva al keyframe precedente, non al frame richiesto: per
   un editor serve seek al keyframe + decode in avanti fino al frame esatto.
   E' l'unico modo di essere frame-accurate.

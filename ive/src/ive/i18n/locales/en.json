@@ -496,5 +496,22 @@
   "tracking.lost_before": "Going backwards the target was lost at {t}; the path starts there.",
   "tracking.retrack": "Re-track from here",
   "tracking.retrack_hint": "Path wrong somewhere? Move the playhead there, pick the direction and draw the target again: only that stretch is rewritten.",
-  "tracking.keep_relation": "Keep its position relative to the target"
+  "tracking.keep_relation": "Keep its position relative to the target",
+  "project.frame_rate": "Frame rate",
+  "settings.frame_rate": "Project frame rate",
+  "settings.frame_rate.hint": "Every cut, fade and keyframe falls on a frame of this rate. Auto takes it from the first video. Saved in the project.",
+  "settings.frame_rate.current": "Now: {fps} fps.",
+  "cutout.group": "Remove background",
+  "cutout.label": "Remove background",
+  "cutout.select_hint": "Select a video clip on the timeline to remove its background.",
+  "cutout.hint": "The subject stays; the scene behind it becomes a colour or an image.",
+  "cutout.remove": "Remove the background",
+  "cutout.mode.color": "Colour",
+  "cutout.mode.image": "Image",
+  "cutout.pick_image": "Choose image…",
+  "cutout.feather": "Soft edge",
+  "cutout.shrink": "Pull the edge in",
+  "cutout.download": "Download the model ({mb} MB)",
+  "cutout.downloading": "Downloading…",
+  "cutout.backend_missing": "ONNX Runtime is not installed: background removal is unavailable."
 }

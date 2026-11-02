@@ -223,7 +223,7 @@ def register_singletons(*, theme, translations, shell, actions,
                         waves=None, stickers=None, transitions=None,
                         packs=None, motion=None, audiofx=None,
                         music=None, duckshade=None, subtitles=None,
-                        tracking=None, online=None) -> None:
+                        tracking=None, online=None, cutout=None) -> None:
     """Expose the four singletons to QML under the ``IVE`` import namespace.
 
     .. warning::
@@ -299,4 +299,7 @@ def register_singletons(*, theme, translations, shell, actions,
     if online is not None:
         qmlRegisterSingletonInstance(type(online), "IVE", 1, 0,
                                      "OnlineContent", online)
+    if cutout is not None:
+        qmlRegisterSingletonInstance(type(cutout), "IVE", 1, 0,
+                                     "Cutout", cutout)
     log.debug("QML singletons registered under the IVE namespace")

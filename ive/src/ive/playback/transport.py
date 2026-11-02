@@ -52,6 +52,8 @@ from ive.engine.builder import GraphBuilder
 from ive.engine.frame import AudioFormat, Timebase
 from ive.media.reader import VideoReader
 from ive.playback.audio_output import AudioOutput
+from ive.utils.timecode import (format_timecode as _format_timecode,
+                                parse_rate, rate_to_str, to_seconds)
 
 log = logging.getLogger(__name__)
 
@@ -94,6 +96,8 @@ class _Segment:
     crop: dict = field(default_factory=dict)
     opacity: float = 1.0
     keyframes: list = field(default_factory=list)
+    #: Background removal (engine/cutout.py); {} = off.
+    cutout: dict = field(default_factory=dict)
 
     @property
     def end(self) -> float:
@@ -150,6 +154,12 @@ class PlaybackService(QObject):
         self._position = 0.0                    # seconds on the timeline
         self._duration = 0.0                    # seconds
         self._fps = 25.0
+        #: The exact rate behind ``_fps`` (a Fraction: 30000/1001, not
+        #: 29.97) - what the graph and the timecode run on.
+        self._rate = Fraction(25)
+        #: The PROJECT's rate, handed over by the app before each
+        #: sequence load; None = no project rate (a bare file).
+        self._project_rate: Fraction | None = None
         self._name = ""
         self._aspect = 16.0 / 9.0
         self._is_sequence = False
@@ -227,6 +237,21 @@ class PlaybackService(QObject):
     @Property(float, notify=mediaChanged)
     def fps(self) -> float:
         return self._fps
+
+    @Property(str, notify=mediaChanged)
+    def frameRate(self) -> str:
+        """The exact rate: ``"30000/1001"`` - for the export."""
+        return rate_to_str(self._rate)
+
+    @Slot(str)
+    def set_frame_rate(self, rate: str) -> None:
+        """The project's rate, for the NEXT ``open_sequence``.
+
+        The sequence runs on the project's grid, not on whatever its
+        first clip happens to be: deleting that clip must not change the
+        speed every other clip plays at.
+        """
+        self._project_rate = parse_rate(rate, default=None)
 
     @Property(int, notify=mediaChanged)
     def duration(self) -> int:
@@ -477,6 +502,7 @@ class PlaybackService(QObject):
                 opacity=float(entry.get("opacity", 1.0)
                               if entry.get("opacity") is not None else 1.0),
                 keyframes=[dict(k) for k in (entry.get("keyframes") or [])],
+                cutout=dict(entry.get("cutout") or {}),
             ))
         segments.sort(key=lambda s: s.start)
 
@@ -718,10 +744,13 @@ class PlaybackService(QObject):
         self._starts = [s.start for s in segments]
         self._is_sequence = sequence
         self._duration = max((s.end for s in segments), default=0.0)
-        # The sequence runs at the first clip's rate. A real sequence timebase
-        # comes with the project settings; until then this keeps the timecode
-        # meaningful instead of inventing a number.
-        self._fps = segments[0].fps if segments else 25.0
+        # A sequence runs at the PROJECT's rate (the frame grid of every
+        # cut); a bare file at its own.
+        if sequence and self._project_rate is not None:
+            self._rate = self._project_rate
+        else:
+            self._rate = parse_rate(segments[0].fps if segments else 25.0)
+        self._fps = float(self._rate)
         self._name = name or (Path(segments[0].path).name if segments else "")
 
         info = self._reader.describe(segments[0].path) if segments else None
@@ -769,7 +798,8 @@ class PlaybackService(QObject):
              "scale": segment.scale, "rotation": segment.rotation,
              "crop": dict(segment.crop),
              "opacity": segment.opacity,
-             "keyframes": [dict(k) for k in segment.keyframes]}
+             "keyframes": [dict(k) for k in segment.keyframes],
+             "cutout": dict(segment.cutout)}
             for index, segment in enumerate(self._segments)
         ]
 
@@ -851,7 +881,7 @@ class PlaybackService(QObject):
             return
 
         width, height = self._preview_canvas()
-        timebase = Timebase(Fraction(self._fps).limit_denominator(1001))
+        timebase = Timebase(self._rate)
         if self._builder is None or self._preview_size != (width, height):
             if self._builder is not None:
                 self._builder.close()
@@ -876,7 +906,8 @@ class PlaybackService(QObject):
              "scale": segment.scale, "rotation": segment.rotation,
              "crop": dict(segment.crop),
              "opacity": segment.opacity,
-             "keyframes": [dict(k) for k in segment.keyframes]}
+             "keyframes": [dict(k) for k in segment.keyframes],
+             "cutout": dict(segment.cutout)}
             for index, segment in enumerate(self._segments)
         ]
         self._video_spans = clips
@@ -1025,8 +1056,12 @@ class PlaybackService(QObject):
         self._reader.stop_stream()
         self._audio.stop()
         self._streaming = ""
+        # Parked ON the frame being shown: a split or a title placed at
+        # the playhead lands where the eye says, not half a frame later.
+        self._position = self._frame_start(self._position)
         log.info("Playback paused at %.2fs", self._position)
         self.stateChanged.emit()
+        self.positionChanged.emit()
 
     @Slot()
     def toggle(self) -> None:
@@ -1039,6 +1074,11 @@ class PlaybackService(QObject):
     @Slot(float)
     def seek_seconds(self, seconds: float) -> None:
         target = max(0.0, min(float(seconds), max(0.0, self._duration - 1e-3)))
+        # The playhead always stands at the START of the frame it shows.
+        # A position between two frames displayed one frame (truncated)
+        # while anything cut or placed there snapped to the nearest - the
+        # next one: an off-by-one between what is seen and what is done.
+        target = self._frame_start(target)
         if abs(target - self._position) < 1e-6:
             return
         self._position = target
@@ -1072,16 +1112,12 @@ class PlaybackService(QObject):
 
     @Slot(int, result=str)
     def format_timecode(self, frame: int) -> str:
-        """``HH:MM:SS:FF`` at the sequence frame rate."""
-        fps = int(round(self._fps)) or 25
-        frame = max(0, int(frame))
-        total_seconds = frame // fps
-        return (
-            f"{total_seconds // 3600:02d}:"
-            f"{(total_seconds // 60) % 60:02d}:"
-            f"{total_seconds % 60:02d}:"
-            f"{frame % fps:02d}"
-        )
+        """``HH:MM:SS:FF`` at the sequence frame rate.
+
+        Drop-frame (``HH:MM:SS;FF``) at 29.97 and 59.94: counting 30
+        labels a second there ran 3.6 s per hour behind the clock.
+        """
+        return _format_timecode(frame, self._rate)
 
     # ── internals ─────────────────────────────────────────────────────
 
@@ -1141,7 +1177,14 @@ class PlaybackService(QObject):
         measured as 30 frames a second leaving the buffer and 20 reaching the
         screen.
         """
-        return max(0, int(max(0.0, seconds) * self._fps))
+        # The epsilon: a position exactly ON frame k (k / rate, as every
+        # parked playhead now is) can come out k - 1e-12 in float and
+        # truncate to the PREVIOUS frame.
+        return max(0, int(max(0.0, seconds) * self._fps + 1e-6))
+
+    def _frame_start(self, seconds: float) -> float:
+        """Where the frame showing at ``seconds`` begins."""
+        return to_seconds(self._sequence_index(seconds), self._rate)
 
     def _start_stream_at(self, seconds: float) -> None:
         """Point the read-ahead at this position and let it run."""
