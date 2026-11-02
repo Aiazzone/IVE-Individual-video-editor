@@ -775,6 +775,21 @@ class ProjectService(QObject):
                           lambda: self._project.remove_clip_keyframe(
                               clip_id, t))
 
+    @Slot(str, "QVariantList", float, float, result=bool)
+    def apply_tracked_path(self, clip_id: str, samples, t0: float,
+                           t1: float, params=("x", "y", "scale")) -> bool:
+        """A tracked path lands on an overlay's keyframes - ONE undo step.
+
+        ``samples`` are clip-local ``{"t", "x", "y", "scale"?}`` pins
+        (ive/ai/tracking builds them); only ``[t0, t1]`` is rewritten.
+        """
+        plain = [dict(s) for s in (samples.toVariant()
+                                   if hasattr(samples, "toVariant")
+                                   else samples) or []]
+        return self._edit("overlay.track",
+                          lambda: self._project.apply_tracked_path(
+                              clip_id, plain, t0, t1, tuple(params)))
+
     @Slot(str, float, str, result=bool)
     def set_keyframe_easing(self, clip_id: str, t: float,
                             easing: str) -> bool:

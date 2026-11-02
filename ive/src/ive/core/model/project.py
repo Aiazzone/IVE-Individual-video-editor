@@ -757,14 +757,16 @@ class Project:
                           values: dict) -> bool:
         """Pin transform/opacity values at clip-local ``t`` seconds.
 
-        A diamond already standing there is replaced. Pinning any
-        TRANSFORM parameter turns free placement on - an animated
-        position only means something on a floating clip.
+        A diamond already standing there is replaced. On an A/V clip,
+        pinning any TRANSFORM parameter turns free placement on - an
+        animated position only means something on a floating clip.
+        Overlays (stickers, titles) always float, so they take pins as
+        they are.
         """
         from ive.utils.keyframes import upsert
 
         clip = self.find_clip(clip_id)
-        if clip is None or not clip.media_id or clip.track != 0:
+        if clip is None or not self._keyframable(clip):
             return False
         allowed = {k: float(v) for k, v in (values or {}).items()
                    if k in ("x", "y", "scale", "rotation", "opacity")}
@@ -774,8 +776,43 @@ class Project:
         if easing:
             allowed["easing"] = easing
         clip.keyframes = upsert(clip.keyframes, float(t), allowed)
-        if any(k in allowed for k in ("x", "y", "scale", "rotation")):
+        if clip.track == 0 and any(k in allowed
+                                   for k in ("x", "y", "scale", "rotation")):
             clip.placed = True
+        return True
+
+    @staticmethod
+    def _keyframable(clip: "TimelineClip") -> bool:
+        """A/V clips and overlays carry transform keyframes."""
+        if clip.track == 0:
+            return bool(clip.media_id)
+        return bool(clip.sticker_id or clip.text)
+
+    def apply_tracked_path(self, clip_id: str, samples: list,
+                           t0: float, t1: float,
+                           params: tuple = ("x", "y", "scale")) -> bool:
+        """Lay a tracked path on an overlay's keyframes over ``[t0, t1]``.
+
+        ``samples`` are ``{"t": clip-local s, "x"?, "y"?, "scale"?}``,
+        already in the clip's own terms (ive/ai/tracking turns the
+        tracker's boxes into these). Only ``params`` inside the window
+        are rewritten (utils/keyframes.merge_path): a re-track of one
+        stretch keeps the rest of the clip, and a hand-set rotation or
+        fade survives. The whole path is ONE mutation, so one Ctrl+Z.
+        """
+        from ive.utils.keyframes import merge_path
+
+        clip = self.find_clip(clip_id)
+        if clip is None or clip.track == 0 or not self._keyframable(clip):
+            return False
+        t0 = max(0.0, float(t0))
+        t1 = min(clip.duration, float(t1))
+        if not t1 > t0 or not samples:
+            return False
+        merged = merge_path(clip.keyframes, samples, t0, t1, tuple(params))
+        if merged == clip.keyframes:
+            return False
+        clip.keyframes = merged
         return True
 
     def set_keyframe_easing(self, clip_id: str, t: float,

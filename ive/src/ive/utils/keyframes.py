@@ -25,7 +25,8 @@ from __future__ import annotations
 
 import math
 
-__all__ = ["evaluate", "upsert", "remove_at", "keyframe_at", "EASINGS"]
+__all__ = ["evaluate", "upsert", "remove_at", "keyframe_at", "merge_path",
+           "EASINGS"]
 
 #: The easing vocabulary, in display order. "spring" is the physical
 #: one; the others are the classic polynomial trio plus identity.
@@ -138,3 +139,44 @@ def remove_at(keyframes: list, t: float,
     if len(kept) == len(keyframes or []):
         return None
     return kept
+
+
+def merge_path(keyframes: list, samples: list, t0: float, t1: float,
+               params: tuple = ("x", "y", "scale")) -> list:
+    """A new list where ``samples`` own ``params`` over ``[t0, t1]``.
+
+    The writer of a dense path (motion tracking): pins a frame apart,
+    far closer than ``upsert``'s same-instant tolerance, which would
+    make each sample swallow its neighbour. Inside the window every
+    existing pin LOSES the path's params and keeps the rest - a hand-
+    set rotation or fade survives a re-track; a pin left with nothing
+    is dropped. Outside the window nothing is touched, so re-tracking
+    a stretch never disturbs the rest of the clip. A sample landing on
+    a surviving pin (same millisecond) merges into it.
+    """
+    lo, hi = float(t0) - 1e-3, float(t1) + 1e-3
+    owned = set(params)
+    out: list = []
+    for key in keyframes or []:
+        if lo <= float(key.get("t", 0.0)) <= hi:
+            key = {k: v for k, v in key.items() if k not in owned}
+            if not any(k not in ("t", "easing") for k in key):
+                continue
+        out.append(dict(key))
+    by_time = {round(float(k["t"]), 3): k for k in out}
+    for sample in samples or []:
+        t = round(float(sample["t"]), 3)
+        if not (lo <= t <= hi):
+            continue
+        values = {k: float(v) for k, v in sample.items() if k in owned}
+        if not values:
+            continue
+        standing = by_time.get(t)
+        if standing is not None:
+            standing.update(values)
+        else:
+            entry = {"t": t, **values}
+            out.append(entry)
+            by_time[t] = entry
+    out.sort(key=lambda k: float(k.get("t", 0.0)))
+    return out

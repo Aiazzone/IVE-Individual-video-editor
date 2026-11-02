@@ -78,6 +78,26 @@ MODELS: dict[str, dict[str, Any]] = {
                       "89934733ecc8b14c76f4ddd8",
         }],
     },
+    "vittrack": {
+        "task": "tracking",
+        "name": "VitTrack",
+        "description_key": "ai.model.vittrack",
+        "code_license": "Apache-2.0 (OpenCV TrackerVit)",
+        "weights_license": "Apache-2.0 (opencv_zoo)",
+        "commercial_use_allowed": True,
+        "files": [{
+            "name": "object_tracking_vittrack_2023sep.onnx",
+            # Pinned to the commit that last touched the file, so the
+            # checksum below stays true whatever happens on main.
+            "url": "https://github.com/opencv/opencv_zoo/raw/"
+                   "fef72f8fa7c52eaf116d3df358d24e6e959ada0e/models/"
+                   "object_tracking_vittrack/"
+                   "object_tracking_vittrack_2023sep.onnx",
+            "size": 714726,
+            "sha256": "2990f0b7cd44d92afa48cd97db6de7be113fc1d9"
+                      "594fddb74e2725c10478e91d",
+        }],
+    },
     "whisper-small": {
         "task": "subtitles",
         "name": "Whisper Small",

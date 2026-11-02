@@ -60,6 +60,16 @@ closure sprite (nuova firma `sprite(h, s, scale=None, rotation=None)`;
 None = leggi lo span, che resta il canale del drag live), opacita'
 dentro `_blend_over`. Anteprima ed export identici per costruzione.
 
+**Keyframe sulle overlay (2026-11-01).** Le overlay portano anche
+`keyframes` (stesso formato delle clip A/V, `utils/keyframes.py`):
+lo span li trasporta, `Overlays` li valuta per primi e ne ricava il
+transform BASE (x/y/scale/rotation/opacity); il motion preset modula
+sopra, relativo a quella base, come faceva col transform statico. Senza
+keyframe il percorso e' quello di prima (la closure legge lo span). La
+prima fonte di questi keyframe e' il motion tracking
+(`AI_FEATURES.md` §7), che li scrive con `merge_path`: i pin distano un
+frame, sotto la tolleranza di `upsert`, che li fonderebbe a coppie.
+
 ## 3. UI
 
 - **Il pannello Sticker mostra l'animazione del clip selezionato SOTTO

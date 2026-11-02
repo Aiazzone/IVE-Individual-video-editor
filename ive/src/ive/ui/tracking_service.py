@@ -1,0 +1,218 @@
+"""The state machine behind "Track": run, progress, cancel, land.
+
+The user picks an overlay, draws a box around a target on the preview
+and asks for tracking; this service finds the A/V clip under the box's
+instant, runs ive/ai/tracking on a worker thread (decode + tracker -
+never the GUI thread, CLAUDE.md §4.8), and hands the pins to
+ProjectService.apply_tracked_path on the GUI thread: one Command, one
+Ctrl+Z. The worker never touches the model.
+
+In-process on purpose: OpenCV's trackers have none of the OpenMP clash
+that sent the subtitle worker to its own process.
+
+Model download is not here: the AI Models tab already fetches any
+catalogued model (VitTrack is one, ive/ai/model_registry.py). Without
+it tracking still works, at the MIL baseline - ``engine`` says which.
+"""
+
+from __future__ import annotations
+
+import logging
+import threading
+
+from PySide6.QtCore import Property, QObject, Signal, Slot
+
+log = logging.getLogger(__name__)
+
+__all__ = ["TrackingService"]
+
+
+class TrackingService(QObject):
+    """Run one track at a time; land it as keyframes."""
+
+    stateChanged = Signal()
+    runChanged = Signal()
+    #: Pins landed on the overlay (count); 0 = nothing applied.
+    finished = Signal(int)
+    #: Worker -> GUI thread hand-off (queued: the service lives on GUI).
+    _done = Signal("QVariantMap")
+    _ticked = Signal(float)
+
+    def __init__(self, project, playback, parent: QObject | None = None
+                 ) -> None:
+        super().__init__(parent)
+        self._project = project
+        self._playback = playback
+        self._running = False
+        self._progress = 0.0
+        self._error = ""
+        self._last_pins = 0
+        self._last_engine = ""
+        self._lost_at = -1.0
+        self._cancel = threading.Event()
+        self._thread: threading.Thread | None = None
+        self._done.connect(self._on_done)
+        self._ticked.connect(self._on_tick)
+
+    # ── state ─────────────────────────────────────────────────────────
+
+    @Property(str, notify=stateChanged)
+    def state(self) -> str:
+        """"ready" | "model_missing" (baseline only) | "backend_missing"."""
+        from ive.ai.tracking import availability
+
+        return availability()
+
+    @Property(str, notify=stateChanged)
+    def engine(self) -> str:
+        """The engine a track would use now: "vit", "mil" or ""."""
+        from ive.ai.tracking import best_engine
+
+        return best_engine()
+
+    @Slot()
+    def refresh(self) -> None:
+        """Re-read the model state (after a download or a removal)."""
+        self.stateChanged.emit()
+
+    @Property(bool, notify=runChanged)
+    def running(self) -> bool:
+        return self._running
+
+    @Property(float, notify=runChanged)
+    def progress(self) -> float:
+        return self._progress
+
+    @Property(str, notify=runChanged)
+    def error(self) -> str:
+        """The last refusal's code ("" = none); tracking.error.<code>."""
+        return self._error
+
+    @Property(int, notify=runChanged)
+    def lastPins(self) -> int:
+        return self._last_pins
+
+    @Property(str, notify=runChanged)
+    def lastEngine(self) -> str:
+        return self._last_engine
+
+    @Property(float, notify=runChanged)
+    def lostAt(self) -> float:
+        """Timeline second the target was lost at; -1 = followed to the end."""
+        return self._lost_at
+
+    # ── run ───────────────────────────────────────────────────────────
+
+    def _clips(self) -> list[dict]:
+        return list(self._project.timelineClips or [])
+
+    def _fail(self, code: str) -> bool:
+        self._error = code
+        self.runChanged.emit()
+        return False
+
+    @Slot(str, "QVariantMap", float, result=bool)
+    def track(self, overlay_id: str, box, at: float,
+              follow_size: bool = True) -> bool:
+        """Start following ``box`` (canvas fractions, top-left + size)
+        drawn at timeline second ``at``; ``overlay_id`` follows it."""
+        if self._running:
+            return False
+        box = box.toVariant() if hasattr(box, "toVariant") else dict(box or {})
+        clips = self._clips()
+        overlay = next((c for c in clips if c.get("id") == overlay_id), None)
+        if overlay is None or int(overlay.get("track") or 0) == 0 \
+                or not (overlay.get("stickerId") or overlay.get("text")):
+            return self._fail("not_overlay")
+        at = float(at)
+        av = next((c for c in clips
+                   if int(c.get("track") or 0) == 0 and c.get("hasVideo")
+                   and float(c["start"]) <= at
+                   < float(c["start"]) + float(c["duration"])), None)
+        if av is None:
+            return self._fail("no_video")
+        try:
+            job = {"av": av, "overlay": overlay,
+                   "box": {k: float(box[k]) for k in ("x", "y", "w", "h")},
+                   "at": at,
+                   "canvas_aspect": float(self._playback.canvas_aspect()),
+                   "fit": str(self._playback.canvas_fit()),
+                   "follow_size": bool(follow_size)}
+        except (KeyError, TypeError, ValueError):
+            return self._fail("bad_box")
+
+        self._cancel.clear()
+        self._running = True
+        self._progress = 0.0
+        self._error = ""
+        self._last_pins = 0
+        self._lost_at = -1.0
+        self.runChanged.emit()
+        self._thread = threading.Thread(target=self._run, args=(job,),
+                                        name="ai-tracking", daemon=True)
+        self._thread.start()
+        return True
+
+    def _run(self, job: dict) -> None:
+        from ive.ai.tracking import (TrackingCancelled, TrackingError,
+                                     track_overlay)
+
+        outcome: dict = {}
+        try:
+            outcome = {"result": track_overlay(
+                job["av"], job["overlay"], job["box"], job["at"],
+                canvas_aspect=job["canvas_aspect"], fit=job["fit"],
+                follow_size=job["follow_size"],
+                progress=self._ticked.emit,
+                cancelled=self._cancel.is_set)}
+        except TrackingCancelled:
+            log.info("Tracking cancelled")
+            outcome = {"error": "cancelled"}
+        except TrackingError as exc:
+            log.info("Tracking refused: %s", exc.code)
+            outcome = {"error": exc.code}
+        except Exception:
+            log.error("Tracking failed", exc_info=True)
+            outcome = {"error": "failed"}
+        self._done.emit(outcome)
+
+    def _on_tick(self, fraction: float) -> None:
+        if fraction - self._progress >= 0.01 or fraction >= 1.0:
+            self._progress = fraction
+            self.runChanged.emit()
+
+    def _on_done(self, outcome: dict) -> None:
+        self._running = False
+        self._thread = None
+        result = outcome.get("result")
+        landed = 0
+        if result:
+            self._last_engine = str(result.get("engine") or "")
+            lost = result.get("lost_at")
+            self._lost_at = float(lost) if lost is not None else -1.0
+            params = ("x", "y", "scale") if result.get("follows_size") \
+                else ("x", "y")
+            if self._project.apply_tracked_path(
+                    result["clip_id"], result["samples"],
+                    float(result["t0"]), float(result["t1"]), params):
+                landed = len(result["samples"])
+            else:
+                self._error = "not_applied"
+        else:
+            self._error = str(outcome.get("error") or "failed")
+        self._last_pins = landed
+        self._progress = 1.0 if landed else 0.0
+        self.runChanged.emit()
+        self.finished.emit(landed)
+
+    @Slot()
+    def cancel(self) -> None:
+        if self._running:
+            self._cancel.set()
+
+    def shutdown(self) -> None:
+        """Stop a running track before the app tears down."""
+        self._cancel.set()
+        thread = self._thread
+        if thread is not None:
+            thread.join(timeout=3.0)

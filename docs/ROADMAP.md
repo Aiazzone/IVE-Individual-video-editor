@@ -446,7 +446,9 @@ Nell'ordine, per rapporto valore/rischio:
 - [x] **Ducking «intelligente»** (2026-08-23): Silero VAD in `audio/vad.py`,
       modalita' globale semplice/intelligente, ombra sul letto musicale dove
       il ducking lo abbassa (`ui/duck_shades.py`)
-- [ ] **Motion tracking** — prima i tracker OpenCV, poi il livello AI
+- [ ] **Motion tracking** — prima i tracker OpenCV, poi il livello AI.
+      Fase A fatta (2026-11-01): motore ViT/MIL, mappatura, keyframe sulle
+      overlay, Action; manca la UI (Fase B). Vedi `AI_FEATURES.md` §7
 - [ ] **Frame interpolation** — il piu' costoso, per ultimo
 
 Ogni funzione segue la checklist di `docs/AI_FEATURES.md` §11.

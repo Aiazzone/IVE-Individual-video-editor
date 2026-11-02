@@ -306,9 +306,44 @@ disco stile proxy (utile solo per macchine senza GPU DX12).
 applicazione a un altro elemento (testo, effetto, maschera, mosaico).
 
 Punti importanti:
-- Baseline **senza modelli AI**: tracker classici di OpenCV (CSRT, KCF).
-  Devono essere sempre disponibili, senza download.
-- Livello AI opzionale per point tracking robusto a occlusioni.
+- Baseline **senza modelli AI**: `TrackerMIL` di OpenCV, sempre disponibile
+  senza download (solo posizione: il suo riquadro non cambia dimensione).
+  CSRT/KCF sarebbero baseline migliori ma stanno in `opencv-contrib`, che
+  il progetto non spedisce (il venv ha `opencv-python` 4.11).
+- Livello di qualita': `TrackerVit` di OpenCV con i pesi VitTrack
+  (~0,7 MB, Apache-2.0, nel registry come `vittrack`). Segue posizione **e
+  dimensione**, da' uno score di confidenza; ~16 ms/frame su CPU.
+- Livello AI opzionale (futuro) per point tracking robusto a occlusioni.
+
+**Stato (2026-11-01) — Fase A fatta** (`ive/ai/tracking/`, test
+`tests/test_tracking.py`):
+- `tracker.py`: ViT o MIL dietro un'interfaccia sola; perdita = score <
+  0,30 per 4 frame di fila (un frame sfocato non chiude il tracking).
+- `mapping.py`: sorgente <-> canvas in geometria pura (crop, poi fit / fill
+  / blur, oppure placement libero con rotazione) — verificata contro i
+  pixel del motore vero entro 2 px. Si traccia la SORGENTE, non il
+  composito: il composito contiene l'overlay stesso che si sta muovendo.
+- `task.py`: finestra = sovrapposizione overlay/clip A/V dall'istante del
+  riquadro in avanti (un taglio e' un'altra inquadratura: ci si ferma);
+  decode sequenziale a 480p; frame troncati come il transport.
+- `path.py`: l'overlay conserva la distanza dal soggetto che aveva
+  all'inizio (scalata con lui se segue la dimensione); media mobile, poi
+  Ramer-Douglas-Peucker (~2 px a 1080p): 75 frame -> ~11 pin.
+- Risultato = keyframe ordinari dell'overlay via
+  `Project.apply_tracked_path` (riscrive x/y/scale SOLO nella finestra,
+  conserva rotazione/opacita' messe a mano; un Command, un Ctrl+Z).
+  Prerequisito fatto nella stessa fase: **le overlay (sticker, titoli)
+  leggono i keyframe** (filtro `Overlays`; il preset motion modula sopra).
+- `ui/tracking_service.py` (thread worker, progresso, annullamento) +
+  Action `overlay.track` / `overlay.track_cancel`. Codici d'errore
+  tradotti in `tracking.err.*`.
+
+**Fase B (da fare)**: bottone nel pannello dell'overlay, riquadro
+disegnato sulla preview, barra di progresso, avviso "solo posizione"
+senza VitTrack, diamanti dei keyframe overlay in timeline; trascinare un
+overlay tracciato deve spostare il percorso (offset), non il valore
+statico che i keyframe coprono. Poi: tracking all'indietro (serve un
+buffer di frame: il decoder all'indietro costa un seek per frame).
 - Il risultato e' una **serie di keyframe modificabili**, non una curva
   opaca: l'utente deve poter correggere un frame sbagliato.
 - Supporto a tracking all'indietro dal punto corrente e a re-tracking

@@ -334,6 +334,10 @@ class PlaybackService(QObject):
                     "y": float(entry.get("y", 0.5)),
                     "scale": float(entry.get("scale", 0.1)),
                     "rotation": float(entry.get("rotation", 0.0)),
+                    # Clip-local pins over the transform (hand-set or a
+                    # tracked path); the Overlays filter evaluates them.
+                    "keyframes": [dict(k) for k in
+                                  (entry.get("keyframes") or [])],
                     # Karaoke: clip-local word timestamps ride along so
                     # the sprite can recolour the words as they are
                     # spoken - preview and export share the span.
@@ -374,6 +378,8 @@ class PlaybackService(QObject):
                     "y": float(entry.get("y", 0.5)),
                     "scale": float(entry.get("scale", 0.3)),
                     "rotation": float(entry.get("rotation", 0.0)),
+                    "keyframes": [dict(k) for k in
+                                  (entry.get("keyframes") or [])],
                 })
                 continue
             if int(entry.get("track") or 0) in (1, 5):

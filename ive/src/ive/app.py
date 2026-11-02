@@ -136,6 +136,13 @@ class Application:
 
         self.subtitles = SubtitleService(self.settings, self.project)
         self.context.extras["subtitles"] = self.subtitles
+        from ive.ui.tracking_service import TrackingService
+
+        self.tracking = TrackingService(self.project, self.playback)
+        self.context.extras["tracking"] = self.tracking
+        # The AI Models tab (driven by SubtitleService) fetches and removes
+        # VitTrack too; the tracking state must follow it live.
+        self.subtitles.stateChanged.connect(self.tracking.refresh)
         register_singletons(
             theme=self.theme,
             translations=self.translations,
@@ -157,6 +164,7 @@ class Application:
             music=self.music,
             duckshade=self.duckshades,
             subtitles=self.subtitles,
+            tracking=self.tracking,
         )
         # Same rule as the singletons: register before the engine exists.
         qmlRegisterType(PreviewItem, "IVE", 1, 0, "PreviewItem")
@@ -223,6 +231,7 @@ class Application:
         self.watchdog.stop()
         self.proxies.shutdown()
         self.subtitles.shutdown()
+        self.tracking.shutdown()
         self.duckshades.shutdown()
         self.music.shutdown()
         self.packs.shutdown()
@@ -252,6 +261,7 @@ class Application:
         from ive.core.actions.builtin import transition_actions  # noqa: F401
         from ive.core.actions.builtin import pack_actions  # noqa: F401
         from ive.core.actions.builtin import subtitle_actions  # noqa: F401
+        from ive.core.actions.builtin import tracking_actions  # noqa: F401
 
         self.registry.add_pending()
         log.info("Registered %d actions", len(tuple(self.registry.all())))

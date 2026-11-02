@@ -935,6 +935,26 @@ class Overlays(Filter):
                 x = float(span.get("x", 0.5))
                 y = float(span.get("y", 0.5))
                 opacity = 1.0
+                keys = span.get("keyframes")
+                if keys:
+                    # Keyframes (hand-set or a tracked path) move the
+                    # clip's OWN transform; a motion preset still
+                    # modulates on top, relative to wherever that is.
+                    from ive.utils.keyframes import evaluate
+
+                    pinned = evaluate(keys, local, {
+                        "x": x, "y": y,
+                        "scale": float(span.get("scale", 0.3)),
+                        "rotation": float(span.get("rotation", 0.0)),
+                        "opacity": 1.0})
+                    x, y = pinned["x"], pinned["y"]
+                    opacity = max(0.0, min(1.0, pinned["opacity"]))
+                    if opacity <= 0.0:
+                        continue
+                    base_scale = max(0.005, pinned["scale"])
+                    base_rotation = pinned["rotation"]
+                else:
+                    base_scale = base_rotation = None
                 motion = span.get("motion")
                 if callable(motion):
                     # A motion preset modulates the clip's own transform
@@ -945,16 +965,20 @@ class Overlays(Filter):
                     values = motion(local, clip_seconds)
                     x += float(values.get("dx", 0.0))
                     y += float(values.get("dy", 0.0))
-                    opacity = max(0.0, min(1.0,
-                                           float(values.get("opacity", 1.0))))
+                    opacity *= max(0.0, min(1.0,
+                                            float(values.get("opacity", 1.0))))
                     if opacity <= 0.0:
                         continue
+                    if base_scale is None:
+                        base_scale = float(span.get("scale", 0.3))
+                        base_rotation = float(span.get("rotation", 0.0))
                     rgba = span["sprite"](
                         out.shape[0], local,
-                        float(span.get("scale", 0.3))
-                        * float(values.get("scale", 1.0)),
-                        float(span.get("rotation", 0.0))
-                        + float(values.get("rotation", 0.0)))
+                        base_scale * float(values.get("scale", 1.0)),
+                        base_rotation + float(values.get("rotation", 0.0)))
+                elif base_scale is not None:
+                    rgba = span["sprite"](out.shape[0], local,
+                                          base_scale, base_rotation)
                 else:
                     rgba = span["sprite"](out.shape[0], local)
                 if rgba is None:
