@@ -488,5 +488,10 @@
   "online.downloading": "Downloading…",
   "online.download_all": "Download online content",
   "online.ask_on_start": "Ask at startup",
-  "online.status_missing_one": "1 item to download · {mb} MB"
+  "online.status_missing_one": "1 item to download · {mb} MB",
+  "tracking.direction": "Direction",
+  "tracking.dir.forward": "Forward",
+  "tracking.dir.backward": "Backward",
+  "tracking.dir.both": "Both ways",
+  "tracking.lost_before": "Going backwards the target was lost at {t}; the path starts there."
 }

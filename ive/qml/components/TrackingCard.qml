@@ -37,6 +37,23 @@ CardGroup {
         lineHeight: 1.35
     }
 
+    // Which way the track runs from the drawn box. "Both" by default:
+    // a box drawn mid-shot follows the target over the whole shot.
+    Segmented {
+        objectName: "tracking_direction"
+        visible: !Tracking.running && !root.drawing
+        Layout.fillWidth: true
+        value: Shell.v.trackingDirection || "both"
+        model: [
+            { value: "backward", text: Tr.s["tracking.dir.backward"] || "" },
+            { value: "both",     text: Tr.s["tracking.dir.both"] || "" },
+            { value: "forward",  text: Tr.s["tracking.dir.forward"] || "" }
+        ]
+        onPicked: function (v) {
+            Actions.invoke("overlay.set_track_direction", { direction: v });
+        }
+    }
+
     // Draw the target: arms the preview, and pauses - boxes are drawn
     // on a still frame, the one the track starts from.
     Rectangle {
@@ -122,6 +139,9 @@ CardGroup {
                        || Tr.s["tracking.err.failed"] || "";
             var done = (Tr.s["tracking.done"] || "")
                 .replace("{n}", Tracking.lastPins);
+            if (Tracking.lostBefore >= 0)
+                done += " " + (Tr.s["tracking.lost_before"] || "")
+                    .replace("{t}", Tracking.lostBefore.toFixed(1) + " s");
             if (Tracking.lostAt >= 0)
                 done += " " + (Tr.s["tracking.lost"] || "")
                     .replace("{t}", Tracking.lostAt.toFixed(1) + " s");

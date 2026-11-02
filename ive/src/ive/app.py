@@ -138,7 +138,8 @@ class Application:
         self.context.extras["subtitles"] = self.subtitles
         from ive.ui.tracking_service import TrackingService
 
-        self.tracking = TrackingService(self.project, self.playback)
+        self.tracking = TrackingService(self.project, self.playback,
+                                        self.settings)
         self.context.extras["tracking"] = self.tracking
         from ive.ui.online_content import OnlineContentService
 

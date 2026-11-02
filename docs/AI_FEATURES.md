@@ -358,9 +358,26 @@ Punti importanti:
 - Diamanti dei keyframe anche sulle corsie Sticker/Testo; il bottone
   keyframe della timeline vale anche per le overlay.
 
-**Poi**: tracking all'indietro (serve un buffer di frame: il decoder
-all'indietro costa un seek per frame); re-tracking parziale dalla UI
-(dal motore c'e' gia': la finestra riscritta parte dalla testina).
+**Tracking all'indietro — fatto (2026-11-01).** `track_overlay(...,
+direction="forward"|"backward"|"both", since=, until=)`; impostazione
+`ai.tracking_direction` (default **both**: un riquadro a meta' inquadratura
+segue il soggetto su tutta l'inquadratura), selettore a tre voci nella
+scheda, Action `overlay.set_track_direction`, parametro `direction` su
+`overlay.track`.
+- Ogni direzione ha il SUO tracker inizializzato sul riquadro e la sua
+  perdita (`lost_at` avanti, `lost_before` indietro; la scheda le dice
+  entrambe).
+- La relazione overlay/soggetto e' quella all'istante del riquadro
+  (`path.overlay_samples(anchor_index=...)`), non al primo frame.
+- Lettura all'indietro a blocchi (`task._backward`, `BACK_CHUNK=64`): un
+  seek per blocco, decodifica in avanti in memoria, frame consegnati al
+  contrario. Memoria limitata (~60 MB a 480p). Misurato su 1080p30 con GOP
+  di 8,3 s (caso peggiore): ViT avanti 26 fps, indietro 18 fps; MIL 11 vs
+  9 fps. Il primo frame della finestra arrotonda per eccesso: il passo
+  indietro non esce mai dalla testa della clip.
+
+**Poi**: re-tracking parziale dalla UI (il motore ha gia' `since`/`until`);
+point tracking AI robusto alle occlusioni.
 - Il risultato e' una **serie di keyframe modificabili**, non una curva
   opaca: l'utente deve poter correggere un frame sbagliato.
 - Supporto a tracking all'indietro dal punto corrente e a re-tracking

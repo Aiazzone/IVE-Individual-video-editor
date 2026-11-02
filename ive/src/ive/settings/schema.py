@@ -144,6 +144,10 @@ SETTINGS: dict[str, Setting] = {
                "(~460 MB) is markedly better on real speech; 'tiny' "
                "(~75 MB) is for quick tries and weak machines. Weights "
                "download on explicit request, never silently."),
+        _s("ai.tracking_direction", "both", str,
+           choices=("forward", "backward", "both"),
+           doc="Motion tracking from the drawn box: to the end of the "
+               "shot, to its start, or both."),
         _s("ai.subtitles_language", "", str,
            doc="Spoken language for the automatic subtitles as an ISO code "
                "('it', 'en', ...); empty means detect it from the audio."),

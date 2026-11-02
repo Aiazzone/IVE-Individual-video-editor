@@ -449,7 +449,9 @@ Nell'ordine, per rapporto valore/rischio:
 - [ ] **Motion tracking** — prima i tracker OpenCV, poi il livello AI.
       Fasi A+B fatte (2026-11-01): motore ViT/MIL, mappatura, keyframe sulle
       overlay, Action, scheda + riquadro sulla preview, drag del percorso.
-      Restano tracking all'indietro e point tracking AI. `AI_FEATURES.md` §7
+      Tracking all'indietro fatto (direzione avanti/indietro/entrambe).
+      Restano re-tracking parziale dalla UI e point tracking AI.
+      `AI_FEATURES.md` §7
 - [ ] **Frame interpolation** — il piu' costoso, per ultimo
 
 Ogni funzione segue la checklist di `docs/AI_FEATURES.md` §11.

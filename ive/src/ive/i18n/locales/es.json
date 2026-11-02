@@ -488,5 +488,10 @@
   "online.downloading": "Descargando…",
   "online.download_all": "Descargar el contenido en línea",
   "online.ask_on_start": "Preguntar al iniciar",
-  "online.status_missing_one": "1 elemento por descargar · {mb} MB"
+  "online.status_missing_one": "1 elemento por descargar · {mb} MB",
+  "tracking.direction": "Dirección",
+  "tracking.dir.forward": "Adelante",
+  "tracking.dir.backward": "Atrás",
+  "tracking.dir.both": "Ambas",
+  "tracking.lost_before": "Hacia atrás se perdió el objetivo en {t}; el recorrido empieza ahí."
 }

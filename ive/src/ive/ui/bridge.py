@@ -38,6 +38,7 @@ _SHELL_KEYS = {
     "shell.panel_pinned": "panelPinned",
     "packs.offer_shown": "packsOfferShown",
     "online.never_ask": "onlineNeverAsk",
+    "ai.tracking_direction": "trackingDirection",
     "shell.ambient_backdrop": "ambientBackdrop",
     "appearance.idle_background": "idleBackground",
     "appearance.glass": "glassMode",

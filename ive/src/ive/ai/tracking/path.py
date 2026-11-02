@@ -79,13 +79,16 @@ def thin(samples: list[dict], tolerances: dict) -> list[dict]:
 
 def overlay_samples(observations: list[dict], anchor: dict,
                     canvas_aspect: float, overlay_start: float,
-                    follow_size: bool = True) -> list[dict]:
+                    follow_size: bool = True,
+                    anchor_index: int = 0) -> list[dict]:
     """The overlay's clip-local pins along the target's path.
 
     ``observations`` are ``{"t": timeline s, "cx", "cy": canvas
     fractions, "h": target height in canvas heights}``, in time order,
-    trusted frames only. ``anchor`` is the overlay's transform at the
-    first observation (``x``, ``y``, ``scale``) - the relation to keep.
+    trusted frames only. ``anchor`` is the overlay's transform at
+    observation ``anchor_index`` - the frame the box was drawn on, which
+    is not the first one when tracking ran backwards - and the relation
+    to keep (``x``, ``y``, ``scale``).
     """
     if not observations:
         return []
@@ -96,12 +99,13 @@ def overlay_samples(observations: list[dict], anchor: dict,
                _SIZE_WINDOW)
     # The gap overlay-target, in canvas heights on both axes so that a
     # size ratio scales it isotropically.
-    gap_x = (float(anchor["x"]) - cx[0]) * width
-    gap_y = float(anchor["y"]) - cy[0]
+    a = max(0, min(len(observations) - 1, int(anchor_index)))
+    gap_x = (float(anchor["x"]) - cx[a]) * width
+    gap_y = float(anchor["y"]) - cy[a]
     scale0 = float(anchor.get("scale", 0.3))
     samples = []
     for i, obs in enumerate(observations):
-        ratio = h[i] / h[0] if follow_size else 1.0
+        ratio = h[i] / h[a] if follow_size else 1.0
         sample = {
             "t": round(float(obs["t"]) - float(overlay_start), 4),
             "x": (cx[i] * width + gap_x * ratio) / width,

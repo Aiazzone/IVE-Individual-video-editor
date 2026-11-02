@@ -39,10 +39,11 @@ class TrackingService(QObject):
     _done = Signal("QVariantMap")
     _ticked = Signal(float)
 
-    def __init__(self, project, playback, parent: QObject | None = None
-                 ) -> None:
+    def __init__(self, project, playback, settings=None,
+                 parent: QObject | None = None) -> None:
         super().__init__(parent)
         self._project = project
+        self._settings = settings
         self._playback = playback
         self._running = False
         self._progress = 0.0
@@ -50,6 +51,7 @@ class TrackingService(QObject):
         self._last_pins = 0
         self._last_engine = ""
         self._lost_at = -1.0
+        self._lost_before = -1.0
         self._drawing_for = ""
         self._cancel = threading.Event()
         self._thread: threading.Thread | None = None
@@ -103,6 +105,18 @@ class TrackingService(QObject):
         """Timeline second the target was lost at; -1 = followed to the end."""
         return self._lost_at
 
+    @Property(float, notify=runChanged)
+    def lostBefore(self) -> float:
+        """Going BACKWARDS, the timeline second the target was lost at;
+        -1 = followed to the start (or not tracked backwards)."""
+        return self._lost_before
+
+    def _direction(self) -> str:
+        if self._settings is None:
+            return "both"
+        value = str(self._settings.get("ai.tracking_direction") or "both")
+        return value if value in ("forward", "backward", "both") else "both"
+
     # ── the "draw the target" mode ────────────────────────────────────
 
     @Property(str, notify=drawChanged)
@@ -141,9 +155,10 @@ class TrackingService(QObject):
 
     @Slot(str, "QVariantMap", float, result=bool)
     def track(self, overlay_id: str, box, at: float,
-              follow_size: bool = True) -> bool:
+              follow_size: bool = True, direction: str = "") -> bool:
         """Start following ``box`` (canvas fractions, top-left + size)
-        drawn at timeline second ``at``; ``overlay_id`` follows it."""
+        drawn at timeline second ``at``; ``overlay_id`` follows it.
+        ``direction`` "" = the ai.tracking_direction setting."""
         if self._running:
             return False
         self.end_draw()
@@ -166,7 +181,8 @@ class TrackingService(QObject):
                    "at": at,
                    "canvas_aspect": float(self._playback.canvas_aspect()),
                    "fit": str(self._playback.canvas_fit()),
-                   "follow_size": bool(follow_size)}
+                   "follow_size": bool(follow_size),
+                   "direction": str(direction or self._direction())}
         except (KeyError, TypeError, ValueError):
             return self._fail("bad_box")
 
@@ -176,6 +192,7 @@ class TrackingService(QObject):
         self._error = ""
         self._last_pins = 0
         self._lost_at = -1.0
+        self._lost_before = -1.0
         self.runChanged.emit()
         self._thread = threading.Thread(target=self._run, args=(job,),
                                         name="ai-tracking", daemon=True)
@@ -192,6 +209,7 @@ class TrackingService(QObject):
                 job["av"], job["overlay"], job["box"], job["at"],
                 canvas_aspect=job["canvas_aspect"], fit=job["fit"],
                 follow_size=job["follow_size"],
+                direction=job["direction"],
                 progress=self._ticked.emit,
                 cancelled=self._cancel.is_set)}
         except TrackingCancelled:
@@ -219,6 +237,8 @@ class TrackingService(QObject):
             self._last_engine = str(result.get("engine") or "")
             lost = result.get("lost_at")
             self._lost_at = float(lost) if lost is not None else -1.0
+            lost = result.get("lost_before")
+            self._lost_before = float(lost) if lost is not None else -1.0
             params = ("x", "y", "scale") if result.get("follows_size") \
                 else ("x", "y")
             if self._project.apply_tracked_path(

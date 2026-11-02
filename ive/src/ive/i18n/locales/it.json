@@ -488,5 +488,10 @@
   "online.downloading": "Download in corso…",
   "online.download_all": "Scarica i contenuti online",
   "online.ask_on_start": "Chiedi all'avvio",
-  "online.status_missing_one": "1 elemento da scaricare · {mb} MB"
+  "online.status_missing_one": "1 elemento da scaricare · {mb} MB",
+  "tracking.direction": "Direzione",
+  "tracking.dir.forward": "Avanti",
+  "tracking.dir.backward": "Indietro",
+  "tracking.dir.both": "Entrambe",
+  "tracking.lost_before": "Andando all'indietro il soggetto è stato perso a {t}: il percorso parte da lì."
 }
